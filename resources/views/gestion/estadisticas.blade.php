@@ -98,7 +98,27 @@
   </div>
 </div>
 
-<details class="perfil-seccion" id="bloque-encuesta" style="max-width: none; margin-top: 2.6rem;">
+{{--
+  La satisfacción va en su propio desplegable y antes que la demográfica: son dos
+  encuestas distintas y responden a preguntas distintas. Esta dice cómo nos fue
+  el semestre pasado —que es lo que se viene a mirar—; la otra describe a quién
+  atiende la casa, y se consulta mucho menos a menudo.
+--}}
+<details class="perfil-seccion" id="bloque-satisfaccion" style="max-width: none; margin-top: 2.6rem;">
+  <summary class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-encuesta" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">Satisfacción</h3>
+    <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  @include('gestion.satisfaccion')
+</details>
+
+<details class="perfil-seccion" id="bloque-encuesta" style="max-width: none; margin-top: 1.4rem;">
   <summary class="perfil-seccion-cabecera">
     <span class="perfil-seccion-icono icono-encuesta" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

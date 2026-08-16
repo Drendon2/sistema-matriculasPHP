@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Models\Area;
 use App\Models\EncuestaDemografica;
+use App\Models\EncuestaSatisfaccion;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Grafica;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
@@ -21,7 +23,15 @@ use Illuminate\View\View;
  */
 class EstadisticasController extends Controller
 {
-    public function __invoke(): View
+    /**
+     * Nota por debajo de la cual una respuesta se considera mala experiencia.
+     *
+     * En una escala de 1 a 5, el 3 es el "ni bien ni mal" y no pide llamar a
+     * nadie: lo que hay que atender de verdad es el 1 y el 2.
+     */
+    private const NOTA_BAJA = 2;
+
+    public function __invoke(Request $request): View
     {
         $periodoActual = Periodo::enCurso();
 
@@ -105,7 +115,171 @@ class EstadisticasController extends Controller
                 $totalEncuestas
             ),
             ...$this->autorizacion($totalEncuestas),
+            // El nombre de quien contesto solo lo ve el administrador, y solo
+            // en las notas bajas. Ver `satisfaccion()`.
+            'satisfaccion' => $this->satisfaccion(
+                $request->attributes->get('perfil')?->rol === 'administrador'
+            ),
         ]);
+    }
+
+    /**
+     * Como valoraron los estudiantes el periodo que cursaron.
+     *
+     * La encuesta se contesta al renovar y evalua el periodo que TERMINO, asi
+     * que lo que se ensena es el ultimo periodo del que haya respuestas, no el
+     * que esta en curso.
+     *
+     * Va agregada y sin nombres a proposito. Poner "Ana Ruiz — 2 al profesor"
+     * en un tablero convierte una encuesta en un marcador, y la siguiente vez la
+     * gente contesta pensando en quien va a leerla. La excepcion es el
+     * SEGUIMIENTO: quien administra si ve quien tuvo una mala experiencia, con su
+     * telefono, porque el motivo de recogerla es poder llamar a esa persona.
+     *
+     * Una limitacion que conviene tener presente: la encuesta cuelga de la
+     * persona y del periodo, NO de la promotoria. Un estudiante que curso dos
+     * responde una sola vez, asi que «calificacion del profesor» no se puede
+     * atribuir a un profesor concreto — es como valoro su paso por la casa ese
+     * semestre. Atribuirla exigiria cambiar el modelo.
+     *
+     * @return array<string, mixed>|null  null si todavia no hay ninguna respuesta
+     */
+    private function satisfaccion(bool $veNombres): ?array
+    {
+        $periodo = Periodo::query()
+            ->whereHas('encuestasSatisfaccion')
+            ->orderByDesc('fecha_inicio')
+            ->first();
+
+        if ($periodo === null) {
+            return null;
+        }
+
+        $respuestas = EncuestaSatisfaccion::where('periodo_id', $periodo->id)
+            ->with('perfil.datosEstudiante.acudiente')
+            ->get();
+
+        $total = $respuestas->count();
+
+        // Cobertura: cuantos de los que cursaron ese periodo llegaron a
+        // contestar. Sin esto, una media de 5,0 sacada de dos respuestas se lee
+        // igual que una sacada de doscientas.
+        $cursaron = Matricula::where('periodo_id', $periodo->id)
+            ->where('estado', Matricula::ACTIVA)
+            ->distinct()
+            ->count('estudiante_id');
+
+        return [
+            'periodo' => $periodo,
+            'respuestas' => $total,
+            'cursaron' => $cursaron,
+            'cobertura' => $cursaron ? (int) round($total / $cursaron * 100) : null,
+            'media_general' => round($respuestas->avg('satisfaccion_general'), 1),
+            'media_profesor' => round($respuestas->avg('calificacion_profesor'), 1),
+            'general' => Grafica::porOpcion(
+                $respuestas->countBy('satisfaccion_general')->all(),
+                EncuestaSatisfaccion::ESCALA
+            ),
+            'profesor' => Grafica::porOpcion(
+                $respuestas->countBy('calificacion_profesor')->all(),
+                EncuestaSatisfaccion::ESCALA
+            ),
+            'horario' => $this->siONo($respuestas, 'horario_funciono'),
+            'recomienda' => $this->siONo($respuestas, 'recomendaria'),
+            // Sin nombre y sin orden que delate quien es quien: solo lo que
+            // quisieron contar.
+            'comentarios' => $respuestas
+                ->pluck('comentario')
+                ->filter(fn (?string $c) => trim((string) $c) !== '')
+                ->values()
+                ->all(),
+            'veNombres' => $veNombres,
+            'seguimiento' => $veNombres ? $this->seguimiento($respuestas) : [],
+            'porPeriodo' => $this->mediasPorPeriodo(),
+        ];
+    }
+
+    /**
+     * Reparto de una pregunta de si/no.
+     *
+     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @return array{si: int, no: int, pct_si: int, pct_no: int}
+     */
+    private function siONo($respuestas, string $campo): array
+    {
+        $total = $respuestas->count();
+        $si = $respuestas->where($campo, true)->count();
+        $pctSi = $total ? (int) round($si / $total * 100) : 0;
+
+        return ['si' => $si, 'no' => $total - $si, 'pct_si' => $pctSi, 'pct_no' => 100 - $pctSi];
+    }
+
+    /**
+     * Quien tuvo una mala experiencia, para poder llamarlo. Solo administracion.
+     *
+     * Se incluye el telefono porque sin el la lista no sirve para lo unico que
+     * justifica levantar el anonimato: hablar con esa persona.
+     *
+     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @return list<array<string, mixed>>
+     */
+    private function seguimiento($respuestas): array
+    {
+        return $respuestas
+            ->filter(fn (EncuestaSatisfaccion $e) => $e->satisfaccion_general <= self::NOTA_BAJA
+                || $e->calificacion_profesor <= self::NOTA_BAJA)
+            ->sortBy('satisfaccion_general')
+            ->map(function (EncuestaSatisfaccion $e) {
+                $perfil = $e->perfil;
+
+                // A quien hay que llamar NO es siempre el estudiante: si es
+                // menor de edad, la conversacion es con su acudiente. Dar aqui
+                // el telefono del nino seria dar por bueno un contacto que ni la
+                // ley ni el sentido comun admiten, y ademas el numero suele ser
+                // el mismo de la casa mal apuntado.
+                $acudiente = $perfil->es_menor
+                    ? $perfil->datosEstudiante?->acudiente
+                    : null;
+
+                return [
+                    'perfil' => $perfil,
+                    'acudiente' => $acudiente,
+                    'es_menor' => $perfil->es_menor,
+                    'general' => $e->satisfaccion_general,
+                    'profesor' => $e->calificacion_profesor,
+                    'recomendaria' => $e->recomendaria,
+                    'comentario' => trim((string) $e->comentario),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Media de satisfaccion por periodo evaluado, del mas reciente al mas
+     * antiguo.
+     *
+     * La barra va contra el 5 de la escala y no contra el periodo mejor
+     * valorado: en una escala acotada, medir cada barra contra la mas alta
+     * convierte la diferencia entre un 4,9 y un 4,8 en un precipicio.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function mediasPorPeriodo(): array
+    {
+        return EncuestaSatisfaccion::query()
+            ->join('periodos', 'periodos.id', '=', 'encuestas_satisfaccion.periodo_id')
+            ->groupBy('periodos.id', 'periodos.nombre', 'periodos.fecha_inicio')
+            ->selectRaw('periodos.nombre as etiqueta, AVG(satisfaccion_general) as media, COUNT(*) as total')
+            ->orderByDesc('periodos.fecha_inicio')
+            ->get()
+            ->map(fn ($fila) => [
+                'etiqueta' => $fila->etiqueta,
+                'media' => round((float) $fila->media, 1),
+                'total' => (int) $fila->total,
+                'porcentaje' => (int) round((float) $fila->media / 5 * 100),
+            ])
+            ->all();
     }
 
     /**

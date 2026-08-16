@@ -561,6 +561,139 @@ class GestionTest extends TestCase
             ->assertSee('Musica');
     }
 
+    // -----------------------------------------------------------------------
+    // Satisfaccion: agregada para todos, con nombre solo para administracion
+    // -----------------------------------------------------------------------
+
+    /**
+     * Deja una encuesta de satisfaccion sobre un periodo ya terminado, que es
+     * como llegan de verdad: se contestan al renovar.
+     */
+    private function encuestar(Perfil $perfil, int $general, int $profesor, string $comentario = ''): Periodo
+    {
+        $anterior = Periodo::firstOrCreate(
+            ['nombre' => '2025-2'],
+            [
+                'fecha_inicio' => '2025-07-15',
+                'fecha_fin' => '2025-12-15',
+                'activo' => false,
+                'matriculas_abiertas' => false,
+            ]
+        );
+
+        \App\Models\EncuestaSatisfaccion::create([
+            'perfil_id' => $perfil->id,
+            'periodo_id' => $anterior->id,
+            'satisfaccion_general' => $general,
+            'calificacion_profesor' => $profesor,
+            'horario_funciono' => true,
+            'recomendaria' => $general >= 3,
+            'comentario' => $comentario,
+        ]);
+
+        return $anterior;
+    }
+
+    public function test_la_satisfaccion_sale_agregada(): void
+    {
+        $this->encuestar($this->estudiante, 5, 4, 'Todo muy bien.');
+        $this->encuestar($this->crearEstudiante('samu'), 3, 3);
+
+        $respuesta = $this->actingAs($this->admin->user)->get(route('gestion-estadisticas'));
+
+        $respuesta->assertOk();
+        $respuesta->assertSee('Satisfacción', false);
+        // Media de 5 y 3.
+        $respuesta->assertSee('4.0');
+        $respuesta->assertSee('Todo muy bien.');
+    }
+
+    /**
+     * El comentario se publica sin nombre al lado: es lo que permite que la
+     * gente escriba lo que piensa.
+     */
+    public function test_el_comentario_no_lleva_nombre(): void
+    {
+        $this->encuestar($this->estudiante, 5, 5, 'Me encantó el curso.');
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->getContent();
+
+        $comentario = strpos($html, 'Me encantó el curso.');
+        $bloque = substr($html, $comentario - 400, 500);
+
+        $this->assertStringNotContainsString('Ana', $bloque);
+    }
+
+    /**
+     * El seguimiento es la excepcion deliberada al anonimato: administracion ve
+     * quien lo paso mal, con su telefono, porque el motivo de recoger la
+     * encuesta es poder llamarlo.
+     */
+    public function test_el_administrador_ve_quien_puntuo_bajo(): void
+    {
+        $this->encuestar($this->estudiante, 2, 1, 'No me gustó el horario.');
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Para seguimiento')
+            ->assertSee('Ana')
+            // Sin el telefono la lista no sirve para lo unico que la justifica.
+            ->assertSee('3000000000');
+    }
+
+    /**
+     * A un menor no se le llama: la conversacion es con su acudiente. Dar el
+     * telefono del nino seria dar por bueno un contacto que ni la ley ni el
+     * sentido comun admiten.
+     */
+    public function test_de_un_menor_se_da_el_telefono_del_acudiente(): void
+    {
+        $menor = $this->crearEstudiante('nino', Carbon::today()->subYears(11)->toDateString());
+
+        $acudiente = \App\Models\Acudiente::create([
+            'nombre' => 'Lucía Ortiz',
+            'telefono' => '3111111111',
+        ]);
+
+        $datos = $menor->datosEstudiante;
+        $datos->acudiente_id = $acudiente->id;
+        $datos->save();
+
+        $this->encuestar($menor, 1, 1, 'No me gustó.');
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Lucía Ortiz', false)
+            ->assertSee('3111111111')
+            ->assertSee('acudiente')
+            // El telefono del propio menor no aparece.
+            ->assertDontSee('3000000000');
+    }
+
+    /** Una nota de 3 es "ni bien ni mal": no pide llamar a nadie. */
+    public function test_una_nota_media_no_entra_en_el_seguimiento(): void
+    {
+        $this->encuestar($this->estudiante, 3, 3);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('No hay a quién llamar', false)
+            ->assertDontSee('3000000000');
+    }
+
+    public function test_sin_respuestas_la_pantalla_lo_dice_y_no_se_cae(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Todavía nadie ha contestado la encuesta de satisfacción', false);
+    }
+
     /** Sin periodo en curso no hay nada que medir, y la pantalla no se cae. */
     public function test_las_estadisticas_abren_sin_periodo_en_curso(): void
     {

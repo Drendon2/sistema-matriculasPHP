@@ -57,6 +57,16 @@ class Periodo extends Model
         return $this->hasMany(Clase::class);
     }
 
+    /**
+     * Las encuestas que EVALUAN este periodo, no las que se llenaron durante el.
+     *
+     * Se contestan al renovar, es decir ya empezado el periodo siguiente.
+     */
+    public function encuestasSatisfaccion(): HasMany
+    {
+        return $this->hasMany(EncuestaSatisfaccion::class);
+    }
+
     /** El periodo activo, o null si el personal no ha marcado ninguno. */
     public static function enCurso(): ?self
     {

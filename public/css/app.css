@@ -1090,3 +1090,27 @@
     .asistencia-opciones { margin-left: 0; }
     .asistencia-opcion { padding: 0.5rem 0.7rem; }
   }
+
+  /* ---------------------------------------------------------------------
+     Comentarios de la encuesta de satisfacción.
+
+     Lo ÚNICO que se añade a esta hoja por encima de lo extraído del original:
+     el bloque de satisfacción de Estadísticas es una pantalla que allí no
+     existía. Todo lo demás de ese bloque reusa clases que ya estaban (barras,
+     barra partida, cifras de cabecera y tablas).
+
+     Van como citas y no como filas de tabla porque son texto libre de longitud
+     desigual: en una tabla, un comentario de dos líneas junto a otro de veinte
+     palabras deja media pantalla en blanco. La barra lateral en el color de
+     acento es lo que los separa entre sí sin necesidad de numerarlos — y
+     numerarlos sería darle a cada uno una identidad que aquí no debe tener.
+     --------------------------------------------------------------------- */
+  .comentarios { list-style: none; padding: 0; margin: 0.6rem 0 0; }
+  .comentarios li {
+    border-left: 3px solid var(--accent-soft);
+    padding: 0.5rem 0 0.5rem 0.9rem;
+    margin: 0 0 0.7rem;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
