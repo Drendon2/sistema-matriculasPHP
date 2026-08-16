@@ -102,7 +102,18 @@ class PanelController extends Controller
                 // quien la dicta (ver `Permisos::dictaLaPromotoria`).
                 'puede_marcar' => Permisos::dictaLaPromotoria($perfil, $promotoria),
                 'cupo' => $promotoria->cupoEn($periodo),
-                'ocupados' => $promotoria->ocupadosEn($periodo),
+                // Se cuenta sobre lo que ya esta en memoria en vez de llamar a
+                // `ocupadosEn()`, que consulta. Parece un detalle y no lo es:
+                // era una consulta POR PROMOTORIA, asi que un catalogo de
+                // veintiuna hacia veintiun `count(*)` para pintar veintiuna
+                // cifras que ya se podian sumar aqui.
+                //
+                // El resultado es identico: `ocupadosEn` cuenta las de ese
+                // periodo con estado distinto de 'retirada', y lo que se trajo
+                // son exactamente esos tres estados.
+                'ocupados' => $periodo === null
+                    ? 0
+                    : $suyas->where('periodo_id', $periodo->id)->count(),
             ];
         }
 

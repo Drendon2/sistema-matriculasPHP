@@ -34,3 +34,7 @@ Thumbs.db
 # tienen sitio en un repositorio: el archivo se queda en local. El DatabaseSeeder
 # que sí se versiona lo llama solo si está presente.
 /database/seeders/DemoSeeder.php
+
+# Los respaldos llevan la base entera: nombres, teléfonos, documentos de
+# identidad y las respuestas de las encuestas. Nunca al repositorio.
+/respaldos

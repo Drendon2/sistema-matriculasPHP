@@ -1,6 +1,14 @@
 {{--
   El cuerpo de una promotoría dentro del Panel. Va aparte de `index` porque se
   repite una vez por promotoría y porque es lo que se repinta sin recargar.
+
+  Ojo con los `@include` aquí dentro: esto es un bucle caliente. El Panel de un
+  director con trescientos estudiantes pinta ~500 filas, y cada include de Blade
+  —que resuelve la vista, comprueba la caché contra disco y monta un ámbito
+  nuevo— cuesta a esa escala unos 0,4 ms. Tres por fila eran más de un segundo
+  de render. Por eso la foto y el acudiente van escritos en línea aquí aunque
+  existan como parciales para las otras pantallas, donde se pintan una vez o dos
+  y la claridad manda sobre el reloj.
 --}}
 @php($esAdministrador = $yo->rol === 'administrador')
 
@@ -56,7 +64,7 @@
   <tbody>
     @foreach ($item['pendientes'] as $e)
     <tr>
-      <td>@include('panel.foto', ['perfil' => $e['perfil']])</td>
+      <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
       <td>@include('panel.nombre', ['e' => $e])</td>
       <td>
         @if ($e['renovacion'])
@@ -67,7 +75,7 @@
       </td>
       <td>{{ $e['perfil']->edad }}</td>
       <td>{{ $e['perfil']->telefono }}</td>
-      <td>@include('panel.acudiente', ['acudiente' => $e['acudiente']])</td>
+      <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
       <td>
         <span class="accion-fila">
@@ -132,11 +140,11 @@
     <tbody>
       @foreach ($g['estudiantes'] as $e)
       <tr>
-        <td>@include('panel.foto', ['perfil' => $e['perfil']])</td>
+        <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
         <td>@include('panel.nombre', ['e' => $e])</td>
         <td>{{ $e['perfil']->edad }}</td>
         <td>{{ $e['perfil']->telefono }}</td>
-        <td>@include('panel.acudiente', ['acudiente' => $e['acudiente']])</td>
+        <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
         @if ($item['puede_gestionar'])
         <td>
           <form action="{{ route('panel-asignar-grupo', $e['matricula']) }}" method="post">
@@ -208,11 +216,11 @@
                aria-label="Marcar a {{ $e['perfil']->nombre_completo }}">
       </td>
       @endif
-      <td>@include('panel.foto', ['perfil' => $e['perfil']])</td>
+      <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
       <td>@include('panel.nombre', ['e' => $e])</td>
       <td>{{ $e['perfil']->edad }}</td>
       <td>{{ $e['perfil']->telefono }}</td>
-      <td>@include('panel.acudiente', ['acudiente' => $e['acudiente']])</td>
+      <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
       <td>
         @if ($item['grupos'])
