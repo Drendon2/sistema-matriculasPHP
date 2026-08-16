@@ -1,0 +1,102 @@
+@extends('layouts.app')
+
+@section('title', 'Renovar matrícula')
+
+@section('content')
+<h2>Renovar mi matrícula — {{ $periodo->nombre }}</h2>
+
+<p class="aviso">
+  Ya cursaste <strong>{{ $periodoAnterior->nombre }}</strong>, así que no tienes que crear cuenta
+  ni volver a llenar tus datos. Cuéntanos cómo te fue y confirma en qué promotorías sigues.
+  Te quedan <span class="cupo-contador">{{ $cuposLibres }} de {{ $cuposLimite }}</span> cupos.
+</p>
+
+<form method="post" action="{{ route('renovar-matricula.guardar') }}">
+  @csrf
+
+  <div class="card">
+    <h3>¿En qué promotorías sigues?</h3>
+    <p class="campo-info">
+      Desmarca la que ya no quieras cursar. Si no quieres seguir en ninguna, desmárcalas todas
+      y escoge otra abajo. El profesor confirma después, igual que una matrícula nueva.
+    </p>
+    @foreach ($renovables as $m)
+    <label class="renovar-opcion">
+      <input type="checkbox" name="promotoria[]" value="{{ $m->promotoria_id }}"
+             @checked(! old('promotoria') || in_array((string) $m->promotoria_id, (array) old('promotoria'), true))>
+      <span>
+        <span class="tag-dot {{ $m->promotoria->area->tag_color }}"></span>{{ $m->promotoria->nombre }}
+        <span class="campo-info" style="margin:0;display:inline;">— {{ $m->promotoria->area->nombre }}</span>
+      </span>
+    </label>
+    @endforeach
+  </div>
+
+  @if ($disponibles)
+  <div class="card">
+    <h3>¿Quieres entrar a otra?</h3>
+    <p class="campo-info">
+      Opcional. En una promotoría que no has cursado entras como estudiante nuevo, aunque no
+      tengas que crear cuenta otra vez. Entre renovadas y nuevas puedes tener hasta
+      {{ $cuposLimite }} en total.
+    </p>
+
+    <label for="id_promotoria_nueva">Otra promotoría</label>
+    <select name="promotoria_nueva" id="id_promotoria_nueva">
+      <option value="">-- ninguna --</option>
+      @foreach ($disponibles as $d)
+        <option value="{{ $d['promotoria']->id }}" @disabled($d['llena'])
+                @selected(old('promotoria_nueva') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }})@if ($d['llena']) — sin cupo@endif</option>
+      @endforeach
+    </select>
+
+    <label for="id_promotoria_nueva_2">Y otra más</label>
+    <select name="promotoria_nueva_2" id="id_promotoria_nueva_2">
+      <option value="">-- ninguna --</option>
+      @foreach ($disponibles as $d)
+        <option value="{{ $d['promotoria']->id }}" @disabled($d['llena'])
+                @selected(old('promotoria_nueva_2') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }})@if ($d['llena']) — sin cupo@endif</option>
+      @endforeach
+    </select>
+  </div>
+  @endif
+
+  @if ($yaRespondio)
+    <p class="campo-info">Ya respondiste la encuesta de {{ $periodoAnterior->nombre }}. Gracias.</p>
+  @else
+  <div class="card">
+    <h3>¿Cómo te fue en {{ $periodoAnterior->nombre }}?</h3>
+
+    @include('estudiante.escala', [
+      'campo' => 'satisfaccion_general',
+      'enunciado' => '¿Qué tan satisfecho quedaste con el proceso?',
+    ])
+
+    @include('estudiante.escala', [
+      'campo' => 'calificacion_profesor',
+      'enunciado' => '¿Cómo calificas el acompañamiento del profesor?',
+    ])
+
+    @include('estudiante.escala', [
+      'campo' => 'horario_funciono',
+      'enunciado' => '¿El horario te funcionó?',
+      'opciones' => [1 => 'Sí', 0 => 'No'],
+    ])
+
+    @include('estudiante.escala', [
+      'campo' => 'recomendaria',
+      'enunciado' => '¿Recomendarías tu promotoría a alguien más?',
+      'opciones' => [1 => 'Sí', 0 => 'No'],
+    ])
+
+    <div class="encuesta-pregunta">
+      <label for="comentario">¿Algo que quieras contarnos? (opcional)</label>
+      <textarea name="comentario" id="comentario" rows="3">{{ old('comentario') }}</textarea>
+      @error('comentario')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+  </div>
+  @endif
+
+  <p><button type="submit" class="btn">Renovar mi matrícula</button></p>
+</form>
+@endsection
