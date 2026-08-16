@@ -12,10 +12,9 @@ No es una traducción automática de código: son las mismas reglas de negocio y
 mismas pantallas, reimplementadas sobre otra pila. El proyecto Django sigue siendo
 la especificación funcional de referencia.
 
-> **Estado: en construcción.** El esquema de base de datos, los modelos, la
-> autenticación y las primeras pantallas del estudiante —catálogo, inscripción,
-> mis matrículas y el retiro— están terminados y probados. El panel del profesor
-> y la gestión todavía no.
+> **Estado: reconstrucción completa.** Las tres áreas del sistema —autoservicio
+> del estudiante, panel de quien dicta y gestión de dirección— están terminadas y
+> probadas. Falta el despliegue en el servidor.
 
 ## Stack
 
@@ -47,12 +46,33 @@ Algunas reglas que no se ven a simple vista:
   confirmar es inmediato; salirse de una matrícula activa es una solicitud que
   resuelve dirección, y hasta entonces el estudiante sigue inscrito y su sitio
   sigue ocupado.
+- **La clase la verifican los estudiantes, no quien la dictó.** Quien registra la
+  clase es parte interesada, así que queda «sin verificar» hasta que varios de
+  los que estuvieron den fe, dentro de un plazo de 48 horas. En un grupo de uno o
+  dos basta una confirmación: un requisito inalcanzable no verifica nada.
 - **Privacidad diferenciada por rol**: quién ve nombre, edad, teléfono, acudiente,
   encuesta o documento de identidad está definido de forma estricta (pensado para
-  la Ley 1581 de Colombia).
+  la Ley 1581 de Colombia). Ningún archivo subido se sirve por URL directa.
 - **Configurable sin tocar código**: nombre, logo, color de acento, cuántas
   promotorías puede cursar alguien y qué papeles se exigen se editan desde la
   propia interfaz.
+
+## Las tres áreas
+
+**Estudiante** — catálogo de promotorías, inscripción, renovación con encuesta de
+satisfacción, sus matrículas y el retiro, confirmación de clases, sus compañeros
+y su perfil (foto, documento, papeles y encuesta demográfica).
+
+**Panel** (quien dicta, dirección y administración) — confirmar y rechazar
+solicitudes, fijar el cupo del periodo, crear grupos y repartir en ellos a los
+matriculados (uno a uno o por lote), registrar clases, pasar lista y consultar la
+ficha y la trayectoria de cada persona.
+
+**Gestión** (dirección y administración) — el catálogo en cuatro niveles
+(departamento → promotoría → grupo → estudiantes), la ventana de matrículas, los
+cupos de todo el catálogo de una vez, las cancelaciones por resolver, los
+usuarios con filtros por catálogo y periodo, los ajustes de la institución y las
+estadísticas agregadas.
 
 ## Puesta en marcha local
 
@@ -77,13 +97,18 @@ php artisan serve
 El repositorio no incluye datos de demostración: la base arranca vacía. Crea el
 primer usuario y el catálogo desde la propia aplicación.
 
+La zona horaria está en `America/Bogota` y de ella dependen dos reglas —si un
+grupo ya tiene clase registrada hoy, y el plazo de 48 horas para confirmarla—,
+así que conviene ajustarla en `.env` antes que nada si la institución está en
+otro huso.
+
 ## Pruebas
 
 ```bash
 php artisan test
 ```
 
-Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+167 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.
@@ -103,6 +128,10 @@ del proyecto expone el `.env` y el código fuente entero a internet.
 
 `vendor/` no está versionado: se instala en el servidor con
 `composer install --no-dev --optimize-autoloader`.
+
+Las fotos y las copias de documentos se guardan en `storage/app/private`, **fuera
+de `public/`**, y solo se entregan por una ruta que comprueba antes quién las
+pide. Hay que dejarle permiso de escritura a `storage/` y a `bootstrap/cache/`.
 
 El proyecto **no necesita** el scheduler de Laravel: los plazos se calculan al
 leer, no con tareas programadas.
