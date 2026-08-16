@@ -28,6 +28,7 @@ Thumbs.db
 # Notas internas de la migración: llevan rutas de la máquina de desarrollo y
 # credenciales de la base local. Se quedan fuera del repositorio.
 /MIGRACION.md
+/SIGUIENTE-SESION.md
 
 # Datos de demostración. Siembran cuentas con contraseñas conocidas, así que no
 # tienen sitio en un repositorio: el archivo se queda en local. El DatabaseSeeder
