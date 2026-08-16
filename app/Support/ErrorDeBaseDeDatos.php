@@ -60,4 +60,23 @@ class ErrorDeBaseDeDatos
     {
         return self::indiceViolado($e) === 'unica_matricula_por_periodo';
     }
+
+    /** ¿La promotoria ya tenia un grupo de ese nivel? */
+    public static function esNivelRepetido(QueryException $e): bool
+    {
+        return self::indiceViolado($e) === 'un_nivel_por_promotoria';
+    }
+
+    /**
+     * ¿El borrado se rechazo porque otra tabla apunta a la fila?
+     *
+     * Es el equivalente del `ProtectedError` de Django, que alli es una
+     * excepcion propia y aqui llega como el error 1451 del motor. Se distingue
+     * del 1452 —insertar apuntando a algo que no existe— porque solo el primero
+     * significa "esto todavia esta en uso".
+     */
+    public static function esFilaEnUso(QueryException $e): bool
+    {
+        return (int) ($e->errorInfo[1] ?? 0) === 1451;
+    }
 }

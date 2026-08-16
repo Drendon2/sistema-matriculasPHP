@@ -138,9 +138,45 @@ class EncuestaDemografica extends Model
         ];
     }
 
+    /**
+     * Que lista de opciones le corresponde a cada campo.
+     *
+     * Es lo que hace posible traducir un codigo guardado a su texto legible sin
+     * repetir el nombre de la constante en cada plantilla y en cada formulario.
+     */
+    public const OPCIONES = [
+        'genero' => self::GENEROS,
+        'estrato' => self::ESTRATOS,
+        'nivel_educativo' => self::NIVELES_EDUCATIVOS,
+        'ocupacion' => self::OCUPACIONES,
+        'zona' => self::ZONAS,
+        'afiliacion_salud' => self::AFILIACIONES_SALUD,
+        'grupo_etnico' => self::GRUPOS_ETNICOS,
+        'discapacidad' => self::DISCAPACIDADES,
+        'victima_conflicto_armado' => self::VICTIMAS_CONFLICTO,
+    ];
+
     public function perfil(): BelongsTo
     {
         return $this->belongsTo(Perfil::class);
+    }
+
+    /**
+     * El texto legible de un campo de lista cerrada.
+     *
+     * Equivale al `get_FOO_display` de Django: sin esto la ficha ensenaria
+     * "secundaria_com" en vez de "Secundaria completa". Los campos opcionales
+     * sin responder devuelven una raya, que es lo que corresponde a un hueco.
+     */
+    public function etiqueta(string $campo, string $vacio = '—'): string
+    {
+        $valor = $this->{$campo};
+
+        if ($valor === null || $valor === '') {
+            return $vacio;
+        }
+
+        return self::OPCIONES[$campo][$valor] ?? (string) $valor;
     }
 
     /**
