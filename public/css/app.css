@@ -1,0 +1,1092 @@
+  :root {
+    --bg: #f2f5f3;
+    --surface: #ffffff;
+    --surface-alt: #eaf1ec;
+    --border: #dce4df;
+    --border-strong: #c3cfc7;
+    --ink: #182420;
+    --ink-soft: #55645c;
+    --ink-faint: #56655d;
+    --accent: #0a7a59;
+    --accent-dark: #065a41;
+    --accent-soft: #dbf2e7;
+    --activa: #2458d6;
+    --activa-bg: #e3ebfc;
+    --danger: #b22e22;
+    --danger-bg: #fbe4e1;
+    --radius-lg: 18px;
+    --radius: 12px;
+    --radius-sm: 8px;
+    /* Marcas de dato, no controles: una celda de calendario de 11px con el
+       radio de un botón sería casi un círculo, y una rejilla de círculos deja
+       de leerse como calendario. Misma excepción documentada que las barras de
+       estadísticas — ver "Excepción intencional — barras de dato" en DESIGN.md. */
+    --radius-dato: 2px;
+    --shadow: 0 1px 2px rgba(24,36,32,0.05), 0 6px 16px rgba(24,36,32,0.08);
+    --shadow-lift: 0 4px 10px rgba(24,36,32,0.10), 0 12px 28px rgba(24,36,32,0.12);
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+    /* Etiquetas de Área: un color estable por id (ver templatetag tag_color) — como
+       un marcador de color distinto por disciplina en la cartelera del estudio. */
+    --tag-0: #8f5e10; --tag-0-bg: #fbecd3;
+    --tag-1: #7c4fce; --tag-1-bg: #ede4fb;
+    --tag-2: #c4447b; --tag-2-bg: #fae1ec;
+    --tag-3: #12676a; --tag-3-bg: #dcf2f2;
+    --tag-4: #5b57c9; --tag-4-bg: #e6e5fa;
+    --tag-5: #c1571f; --tag-5-bg: #fbe4d2;
+    --tag-6: #a83cae; --tag-6-bg: #f5e1f6;
+    --tag-7: #766a19; --tag-7-bg: #f0ecd3;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    margin: 0;
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-dark); }
+
+  h1, h2, h3, h4 { font-family: var(--font-body); color: var(--ink); text-wrap: balance; }
+  h2 { font-size: 1.75rem; font-weight: 800; margin: 0 0 1.2rem; letter-spacing: -0.02em; }
+  h3 { font-size: 1.2rem; font-weight: 700; margin: 2.4rem 0 0.7rem; }
+  h3:first-of-type { margin-top: 0.5rem; }
+  h4 { font-size: 0.78rem; margin: 1.5rem 0 0.65rem; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  header {
+    background: var(--surface);
+    color: var(--ink);
+    padding: 1rem 1.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    color: var(--ink);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .marca-header { display: flex; align-items: center; gap: 0.65rem; }
+  .marca-header img { display: block; flex-shrink: 0; }
+  header nav { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem; }
+  header nav a {
+    color: var(--ink-soft);
+    margin-left: 0.15rem;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  header nav a:hover { background: var(--surface-alt); color: var(--ink); }
+  header nav form { margin-left: 0.5rem; }
+
+  main { max-width: 960px; margin: 2rem auto 4rem; padding: 0 1.25rem; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    padding: 0.65rem 1.2rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+  }
+  .btn:hover { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff; }
+  .btn:active { transform: scale(0.97); }
+  .btn-secundario { background: transparent; color: var(--accent); border-color: var(--border-strong); }
+  .btn-secundario:hover { background: var(--surface-alt); color: var(--accent-dark); border-color: var(--border-strong); }
+  .btn-retirar {
+    background: transparent; color: var(--ink-soft); border: 1.5px dashed var(--border-strong);
+    text-decoration: line-through;
+  }
+  .btn-retirar:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+  .btn-sm { min-height: 0; padding: 0.36rem 0.75rem; font-size: 0.78rem; }
+  .btn-blanco { background: transparent; color: var(--ink-soft); border: 1px solid var(--border-strong); }
+  .btn-blanco:hover { background: var(--surface-alt); color: var(--ink); border-color: var(--border-strong); }
+  .btn-texto {
+    background: none; border: none; color: var(--ink-soft); cursor: pointer;
+    padding: 0; font-size: 0.85rem; text-decoration: underline; font-family: var(--font-body);
+    font-weight: 600;
+  }
+  .btn-texto:hover { color: var(--danger); }
+
+  .volver { display: inline-block; font-size: 0.85rem; color: var(--ink-soft); text-decoration: none; margin-bottom: 1rem; }
+  .volver:hover { color: var(--accent); }
+
+  .migas { font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.9rem; }
+  .migas a { color: var(--ink-soft); text-decoration: none; }
+  .migas a:hover { color: var(--accent); text-decoration: underline; }
+  .migas .migas-sep { margin: 0 0.45rem; color: var(--ink-faint); }
+  .migas .migas-actual { color: var(--ink); font-weight: 700; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.6rem 1.85rem;
+  }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.85rem;
+    max-width: 520px;
+  }
+  .form-card fieldset {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin: 1.1rem 0 0;
+    padding: 0.3rem 1rem 0.9rem;
+  }
+  .form-card legend { font-size: 0.72rem; color: var(--ink-soft); padding: 0 0.4rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .field { margin-bottom: 1.05rem; }
+  .field label, .form-card > form > label, .form-card label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    color: var(--ink);
+  }
+  .campo-info { color: var(--ink-soft); font-size: 0.85rem; margin: -0.6rem 0 1.2rem; }
+
+  input, select, textarea {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    color: var(--ink);
+    width: 100%;
+    padding: 0.7rem 0.75rem;
+    margin-top: 0.15rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  input[type="file"] { padding: 0.4rem 0.5rem; background: var(--surface-alt); }
+  input[type="checkbox"] { width: auto; margin-right: 0.4rem; }
+
+  .form-card button[type="submit"] { margin-top: 1.3rem; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: 0.9rem;
+    box-shadow: var(--shadow);
+  }
+  th, td { text-align: left; padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th {
+    background: var(--surface-alt); color: var(--ink-soft); font-size: 0.72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em; font-family: var(--font-mono);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-alt); }
+  td.num, th.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+
+  /* Estado de matrícula: un marcador de cartelera, no una píldora de color plano.
+     Activa = pin sólido (relleno + puntito), pendiente = contorno punteado (sin
+     pinear todavía), retirada = tachado, finalizada = relleno neutro SIN puntito
+     (estuvo pineada, ya se descolgó). Forma primero, color después. */
+  .estado {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    padding: 0.28rem 0.65rem;
+    border-radius: var(--radius-sm);
+  }
+  .estado-activa::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--activa); flex-shrink: 0; }
+  .estado-activa {
+    background: var(--activa-bg); color: var(--activa);
+    border: 1.5px solid var(--activa);
+    box-shadow: 0 1px 4px rgba(36,88,214,0.20);
+  }
+  .estado-pendiente {
+    background: transparent; color: var(--ink-soft);
+    border: 1.5px dashed var(--border-strong);
+  }
+  /* Faltan papeles. Reusa la FORMA de "pendiente" —contorno punteado, sin
+     relleno— porque dice lo mismo: algo está a medias. No lleva el rojo de
+     "retirada": a nadie se le ha quitado nada, falta una gestión. La cifra va
+     en el texto y el detalle en el title, así que no depende del color. */
+  .estado-papeles {
+    background: transparent; color: var(--ink-soft);
+    border: 1.5px dashed var(--border-strong);
+    cursor: help;
+  }
+  .estado-retirada {
+    background: var(--danger-bg); color: var(--danger);
+    border: 1.5px solid var(--danger);
+    text-decoration: line-through;
+  }
+  /* Cancelación solicitada: el estudiante pidió salirse y nadie lo ha resuelto.
+     Compone las dos formas que ya existen en vez de inventar una tercera —
+     punteado como "pendiente", porque está sin decidir, y en rojo como
+     "retirada", porque de lo que se trata es de una salida. Sin tachar: todavía
+     no se ha ido, y ese es justo el punto. */
+  .estado-cancelacion_solicitada {
+    background: transparent; color: var(--danger);
+    border: 1.5px dashed var(--danger);
+  }
+
+  /* Finalizada: estuvo pineada y ya se descolgó. Se distingue de las otras tres
+     por forma antes que por color — borde SÓLIDO (pendiente lo tiene punteado),
+     sin puntito de cabeza de pin (activa sí lo lleva) y sin tachar (retirada sí).
+     El borde va en tinta tenue y no en borde-fuerte: ese gris queda en 1.6:1
+     contra el blanco de la tabla, y con el relleno también casi invisible (1.15:1)
+     el marcador se leería como texto suelto en vez de como marcador. */
+  .estado-finalizada {
+    background: var(--surface-alt); color: var(--ink-soft);
+    border: 1.5px solid var(--ink-faint);
+  }
+
+  .cupos-agotados { color: var(--danger); font-weight: 700; }
+
+  /* Pegajoso, no fijo: ocupa su sitio en el flujo como siempre, pero si la
+     acción se resolvió a mitad de una lista larga el aviso sigue a la vista en
+     lugar de contestar a tres pantallas de distancia. Sin recarga de página,
+     un mensaje que solo vive arriba del todo no lo lee nadie. */
+  .messages {
+    list-style: none; padding: 0; margin: 0 0 1.3rem;
+    position: sticky; top: 0.6rem; z-index: 5;
+  }
+  .messages li { padding: 0.7rem 1rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem; font-size: 0.85rem; border: 1px solid transparent; box-shadow: var(--shadow); }
+  .messages .success { background: var(--accent-soft); color: var(--accent-dark); border-color: rgba(10,122,89,0.2); }
+  .messages .error { background: var(--danger-bg); color: var(--danger); border-color: rgba(178,46,34,0.2); }
+
+  .vacio { color: var(--ink-faint); font-style: italic; padding: 1rem 0; }
+
+  .foto-mini { width: 36px; height: 36px; border-radius: var(--radius-sm); object-fit: cover; vertical-align: middle; border: 1px solid var(--border-strong); }
+
+  /* Etiqueta de Área: puntito de color, como un marcador distinto por disciplina. */
+  .tag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; flex-shrink: 0; }
+  .tag-0 { background: var(--tag-0); } .tag-1 { background: var(--tag-1); }
+  .tag-2 { background: var(--tag-2); } .tag-3 { background: var(--tag-3); }
+  .tag-4 { background: var(--tag-4); } .tag-5 { background: var(--tag-5); }
+  .tag-6 { background: var(--tag-6); } .tag-7 { background: var(--tag-7); }
+
+  /* Cifras de cabecera: nacieron en las estadísticas de Gestión (solo
+     administrador) y las reusa el resumen del historial de un estudiante, que
+     sí ve todo el personal — y el propio estudiante sobre lo suyo. */
+  .dash-resumen { display: flex; flex-wrap: wrap; gap: 1.75rem; margin: 0 0 0.5rem; }
+  .dash-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; color: var(--ink); }
+  .dash-stat-label { font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .stat-bar-fila { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.55rem; }
+  .stat-bar-etiqueta { flex: 0 0 150px; font-size: 0.85rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-bar-pista { flex: 1 1 auto; height: 10px; background: var(--surface-alt); border-radius: 5px; overflow: hidden; }
+  .stat-bar-relleno { height: 100%; border-radius: 5px; background: var(--accent); }
+  .stat-bar-num { flex: 0 0 auto; font-family: var(--font-mono); font-weight: 700; font-size: 0.82rem; color: var(--ink); min-width: 26px; text-align: right; }
+
+  /* "Sin responder" en una tanda de barras: el mismo gris y el mismo papel que
+     el sector gris de la torta — no es una opción de la pregunta, es la
+     ausencia de respuesta, y tiene que leerse como tal sin competir con las
+     opciones reales. Va bajo una línea porque no pertenece a la escala: la
+     lista de arriba es la pregunta, esto es cuánta gente se quedó fuera. */
+  .stat-bar-fila-ausente {
+    margin-top: 0.8rem; padding-top: 0.7rem; border-top: 1px solid var(--border);
+  }
+  .stat-bar-fila-ausente .stat-bar-etiqueta,
+  .stat-bar-fila-ausente .stat-bar-num { color: var(--ink-faint); }
+  .stat-bar-fila-ausente .stat-bar-relleno { background: var(--border-strong); }
+
+  /* Permanencia: micro-columnas al final de una barra del árbol.
+     Antes eran tres cifras en texto, y ocupaban media fila: empujaban la barra
+     de magnitud —que es la que manda— y no se alineaban entre renglones, así
+     que la pregunta real ("¿en qué promotoría se está yendo la gente?") había
+     que responderla leyendo número por número. Tres columnas de ancho fijo se
+     comparan de un vistazo en 40px.
+     Se apoyan en una línea base propia: con ella, una columna en cero se sigue
+     leyendo como una ranura vacía y no como un dato que falta. */
+  .perm {
+    flex: 0 0 auto; display: flex; align-items: flex-end; gap: 3px;
+    height: 24px; margin-left: 0.9rem; padding: 0 2px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  /* Piso de 2px: un dato que vale 0% tiene que dejar marca. Sin él se dibujaría
+     nada, que es exactamente lo que se ve cuando el dato no existe — y "no se
+     fue nadie" y "no hay con qué comparar" son cosas opuestas. */
+  .perm-col { width: 8px; flex: 0 0 8px; min-height: 2px; }
+  /* Neutra, no en gris de borde: a 8px de ancho el borde-fuerte se queda en
+     1.3:1 contra el fondo y la columna desaparece. Este es el mismo tono del
+     nombre de la promotoría, así que la fila entera habla en una sola voz. */
+  .perm-sigue { background: var(--ink-soft); }
+  /* Forma antes que color, igual que el marcador de estado: la columna de fuga
+     queda pegada al ámbar o al naranja de un Área, y bajo daltonismo protán ese
+     borde se pierde si la única diferencia es el matiz. La trama lo sostiene. */
+  .perm-deja {
+    background-color: var(--danger);
+    background-image: repeating-linear-gradient(
+      135deg, rgba(255,255,255,0.55) 0 2px, transparent 2px 4px);
+  }
+  /* Hueca: "no volvió" mide otra población (la del periodo anterior), y esa
+     distinción se lee mejor por relleno que por un tercer color. */
+  .perm-novolvio { border: 1px solid var(--danger); }
+  /* Sin referencia: la ranura vacía, dibujada a altura completa y en punteado.
+     Nunca una columna en cero ni una marca al ras del suelo — las dos se leerían
+     como "no se fue nadie", que es lo contrario de "no hay con qué comparar". */
+  .perm-sinref { height: 100%; border: 1px dashed var(--border-strong); }
+
+  .perm-leyenda {
+    display: flex; gap: 1.1rem; margin: 0 0 1.1rem;
+    font-size: 0.75rem; color: var(--ink-soft);
+  }
+  .perm-leyenda span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .perm-leyenda .perm-col { height: 13px; }
+
+  /* Plegado, el renglón del departamento es una fila más de la lista y no
+     necesita el aire de un bloque con desglose dentro. */
+  .dash-departamento { margin-bottom: 0.45rem; }
+  .dash-departamento[open] { margin-bottom: 1.5rem; }
+  .dash-departamento:not([open]) > .dep-cabecera { margin-bottom: 0; }
+  /* El departamento se pliega: con 26 promotorías la página se hacía larguísima
+     y había que bajar mucho para comparar dos áreas. Cerrado sigue mostrando su
+     propia barra y sus micro-columnas, así que plegar no esconde el dato, solo
+     el desglose. Se abre solo el que está perdiendo la mitad o más de su gente
+     (ver la plantilla): esconder justo la fila que hay que mirar sería el peor
+     resultado posible de acortar la página. */
+  .dep-cabecera {
+    list-style: none; cursor: pointer;
+    padding: 0.25rem 0.4rem; margin: 0 -0.4rem 0.55rem;
+    border-radius: var(--radius-sm);
+  }
+  .dep-cabecera::-webkit-details-marker { display: none; }
+  .dep-cabecera:hover { background: var(--surface-alt); }
+  .dep-cabecera:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dep-chevron { flex: 0 0 auto; color: var(--ink-faint); transition: transform 0.16s ease; }
+  .dash-departamento[open] > .dep-cabecera > .dep-chevron { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) { .dep-chevron { transition: none; } }
+  .dash-departamento > .stat-bar-fila .stat-bar-etiqueta { font-weight: 700; }
+  .dash-promotorias { margin: 0.5rem 0 0 1.4rem; padding-left: 0.9rem; border-left: 2px solid var(--border); }
+  .dash-promotorias .stat-bar-fila { margin-bottom: 0.4rem; }
+  .dash-promotorias .stat-bar-etiqueta { flex-basis: 130px; font-size: 0.8rem; color: var(--ink-soft); font-weight: 400; }
+  .dash-promotorias .stat-bar-relleno { background: var(--border-strong); }
+  .dash-promotorias .stat-bar-num { font-size: 0.75rem; color: var(--ink-soft); }
+
+  .dash-split { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--surface-alt); margin: 0.5rem 0; }
+  .dash-split-si { background: var(--accent); }
+  .dash-split-no { background: var(--border-strong); }
+  .dash-split-leyenda { display: flex; gap: 1.25rem; font-size: 0.78rem; color: var(--ink-soft); }
+  .dash-split-leyenda .punto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
+
+  /* Aclaración al lado de un h4 ("opcional", "dato sensible"): tiene que
+     escapar del versalitas del h4 para que se lea como nota y no como parte
+     del título. Antes iba repetida como estilo en línea en cada h4. */
+  .h4-nota { font-weight: 400; text-transform: none; letter-spacing: normal; }
+
+  /* Torta: el disco a la izquierda y su leyenda al lado, porque la leyenda no
+     es un pie de foto sino la mitad de la gráfica — lleva el número y el
+     porcentaje de cada sector. */
+  .torta-bloque { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+  .torta { width: 116px; height: 116px; flex-shrink: 0; }
+  .torta-leyenda { list-style: none; padding: 0; margin: 0; flex: 1 1 190px; min-width: 0; }
+  .torta-leyenda li {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.28rem 0; font-size: 0.85rem;
+  }
+  /* Una opción sin respuestas no dibuja sector; en la leyenda se atenúa para
+     que se vea que existe y que está en cero, sin pesar como las demás. */
+  .torta-leyenda-cero { color: var(--ink-faint); }
+  .torta-punto {
+    /* Círculo, como los otros dos puntos de leyenda del sistema (.tag-dot y el
+       .punto de dash-split-leyenda): es la forma que este proyecto ya usa para
+       "esto identifica una serie". */
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    /* Anillo del color del fondo: separa el punto de la fila igual que la
+       separación entre sectores separa el disco. */
+    box-shadow: 0 0 0 1px var(--surface);
+  }
+  .torta-etiqueta { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Cifras en la fuente mono y alineadas por columna: se leen en vertical como
+     una tabla, que es para lo que están. */
+  .torta-cifra, .torta-parte {
+    font-family: var(--font-mono); font-weight: 700; flex-shrink: 0; text-align: right;
+  }
+  .torta-cifra { min-width: 1.6rem; color: var(--ink); }
+  .torta-parte { min-width: 2.6rem; color: var(--ink-faint); font-weight: 400; }
+
+  .dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+
+  .carne {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1.15rem;
+  }
+  .carne .carne-foto { width: 56px; height: 56px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--border-strong); flex-shrink: 0; }
+  .carne .carne-foto-vacia {
+    width: 56px; height: 56px; border-radius: var(--radius-sm); border: 1px dashed var(--border-strong);
+    flex-shrink: 0; background: var(--surface-alt);
+  }
+  .carne .carne-datos { min-width: 0; }
+  .carne .carne-nombre { font-weight: 700; font-size: 0.95rem; }
+  .carne .carne-detalle { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 0.15rem; }
+
+  .companero { display: inline-block; text-align: center; width: 92px; margin: 0 0.6rem 1.2rem 0; }
+  .companero .foto-mini { width: 58px; height: 58px; border-radius: var(--radius-sm); display: block; margin: 0 auto 0.4rem; }
+  .companero span { font-size: 0.85rem; color: var(--ink-soft); }
+
+  /* Bloque introductorio de "Mi perfil": foto, pie y cifras centrados como un
+     conjunto compacto — deliberadamente pequeño, esto es un dato de cabecera,
+     no el contenido principal de la página. */
+  .perfil-intro {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    max-width: 300px;
+    margin: 0 auto 2rem;
+    background: var(--surface-alt);
+    border-radius: var(--radius-lg);
+    padding: 2rem 1.5rem 1.75rem;
+    box-shadow: 0 1px 2px rgba(24,36,32,0.04), 0 3px 10px rgba(24,36,32,0.05);
+  }
+
+  /* Avatar circular de "Mi perfil" — foto redonda con una insignia de cámara
+     superpuesta, nombre y rol debajo en texto plano. Reemplaza la tarjeta de
+     retrato alta: una foto de perfil es un círculo, no un póster. */
+  .perfil-avatar-wrap { position: relative; display: inline-block; cursor: pointer; margin-bottom: 0.9rem; }
+  .perfil-avatar {
+    display: flex; align-items: center; justify-content: center;
+    width: 104px; height: 104px; border-radius: 50%;
+    overflow: hidden;
+    background: var(--accent-soft);
+    border: 3px solid var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .perfil-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .perfil-avatar-inicial { font-weight: 800; font-size: 2.1rem; color: var(--accent-dark); }
+  .perfil-avatar-badge {
+    position: absolute; right: -2px; bottom: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    border: 2.5px solid var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .perfil-avatar-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
+  .perfil-nombre { font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+  .perfil-rol-sub { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.1rem; }
+  .perfil-contacto-form { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0; }
+  .perfil-contacto-form input { width: auto; max-width: 150px; padding: 0.45rem 0.6rem; margin: 0; }
+  .perfil-seccion { max-width: 520px; margin: 0 auto; }
+
+  .perfil-tel-fila { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0; }
+  .perfil-editar-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: none; cursor: pointer; padding: 0;
+    transition: background 0.15s ease;
+  }
+  .perfil-editar-btn:hover { background: var(--accent-dark); }
+  .perfil-tel-form { display: none; align-items: center; gap: 0.5rem; margin: 0.4rem 0 0; }
+  .perfil-tel-hint { border-bottom: 1px dashed var(--border-strong); }
+
+  .perfil-stats { display: flex; justify-content: center; gap: 1.1rem; margin: 0; }
+  .perfil-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+  .perfil-stat-label { font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
+
+  /* Cabecera de sección de "Mi perfil": chip de icono + título, en vez de un
+     <h3> desnudo — hace que cada bloque (documento, encuesta) se lea como una
+     fila de configuración real. */
+  .perfil-seccion-cabecera { display: flex; align-items: center; gap: 0.75rem; margin: 2.2rem 0 0.9rem; }
+  .perfil-seccion-cabecera h3 { margin: 0; }
+  .perfil-seccion-icono {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 38px; height: 38px; border-radius: var(--radius-sm);
+  }
+  .perfil-seccion-icono.icono-documento { background: var(--tag-3-bg); color: var(--tag-3); }
+  .perfil-seccion-icono.icono-encuesta { background: var(--tag-1-bg); color: var(--tag-1); }
+
+  /* Encuesta desplegable: <details> nativo, sin JS. */
+  summary.perfil-seccion-cabecera { cursor: pointer; list-style: none; }
+  summary.perfil-seccion-cabecera::-webkit-details-marker { display: none; }
+  .perfil-seccion-chevron { margin-left: auto; color: var(--ink-soft); transition: transform 0.15s ease; flex-shrink: 0; }
+  details[open] > summary .perfil-seccion-chevron { transform: rotate(180deg); }
+  .perfil-seccion-estado {
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft); margin-left: 0.3rem;
+  }
+
+  /* Promotorías desplegables del Panel. */
+  .panel-item { border-bottom: 1px solid var(--border); margin-bottom: 0.3rem; }
+  .panel-item:last-of-type { border-bottom: none; }
+  .panel-item-resumen {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    cursor: pointer; list-style: none;
+    font-size: 1.15rem; font-weight: 700; color: var(--ink);
+    padding: 0.9rem 0;
+  }
+  .panel-item-resumen::-webkit-details-marker { display: none; }
+  .panel-item[open] > .panel-item-resumen { padding-bottom: 0.5rem; }
+  .panel-item .estado { margin-left: 0.15rem; }
+
+  /* ---- Panel de asistencia de las fichas -------------------------------
+     Cifras de cabecera + calendario del periodo. Las cifras van en fichas y no
+     en una gráfica de barras porque son valores sueltos sin eje común: una
+     barra de "racha 3" al lado de una de "clases 24" compararía cosas que no
+     se comparan. */
+  .asis { margin-top: 2.2rem; }
+  /* Cuatro por fila como tope: más caben, pero una fila de siete fichas se lee
+     como una tira de números sueltos en vez de como grupos. El max-width es lo
+     que fija el tope sin apagar el auto-fit de las pantallas estrechas. */
+  .asis-fichas {
+    display: grid; gap: 0.5rem; margin: 0.9rem 0 1.1rem; max-width: 44rem;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  }
+  .asis-ficha {
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.6rem 0.75rem;
+    display: flex; flex-direction: column; gap: 0.15rem;
+  }
+  .asis-ficha-etiqueta { font-size: 0.75rem; color: var(--ink-soft); }
+  /* Tabulares: en una fila de cifras que se leen de un vistazo, el ancho
+     variable de los dígitos proporcionales las descuadra entre sí. */
+  .asis-ficha-valor { font-size: 1.35rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .asis-ficha-nota { font-size: 0.7rem; color: var(--ink-faint); }
+
+  /* El calendario desborda a lo ancho en pantallas pequeñas: se desplaza él,
+     nunca la página. */
+  .asis-cal-envoltorio { overflow-x: auto; padding-bottom: 0.3rem; }
+  .asis-cal {
+    display: grid; grid-auto-flow: column;
+    grid-template-rows: repeat(7, 11px); gap: 3px;
+    width: max-content;
+  }
+  .asis-cel {
+    width: 11px; height: 11px; border-radius: var(--radius-dato);
+    background: var(--surface-alt); border: 1px solid var(--border);
+  }
+  /* Estados del estudiante. Los tres tonos están validados como paleta —banda
+     de luminosidad, croma, separación bajo daltonismo y suelo de visión
+     normal—, no elegidos a ojo. */
+  .asis-cel.cal-asistio { background: #1baf7a; border-color: #1baf7a; }
+  .asis-cel.cal-falto   { background: #b22e22; border-color: #b22e22; }
+  /* Excusa: relleno naranja con un hueco al centro. La forma es lo que la
+     separa de una falta para quien no distingue los dos tonos. */
+  .asis-cel.cal-excusa {
+    background: #eb6834; border-color: #eb6834;
+    box-shadow: inset 0 0 0 2px var(--surface);
+  }
+  /* Hubo clase y nadie la pasó: contorno punteado sin relleno, la misma
+     metáfora que el estado "pendiente" del resto del sistema. */
+  .asis-cel.cal-sin_marcar {
+    background: var(--surface); border-style: dotted; border-color: var(--border-strong);
+  }
+  /* Cuántas clases dictó (magnitud): una sola tinta en tres pasos. */
+  .asis-cel.cal-n1 { background: #bcd4f2; border-color: #bcd4f2; }
+  .asis-cel.cal-n2 { background: #6ba3e3; border-color: #6ba3e3; }
+  .asis-cel.cal-n3 { background: #2a78d6; border-color: #2a78d6; }
+
+  .asis-leyenda {
+    list-style: none; padding: 0; margin: 0.7rem 0 0;
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1rem;
+    font-size: 0.78rem; color: var(--ink-soft);
+  }
+  .asis-leyenda li { display: flex; align-items: center; gap: 0.35rem; }
+  .asis-leyenda strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* Interruptor de configuración: la casilla y su texto son un solo blanco de
+     clic, que es lo que se espera de un ajuste de sí/no. */
+  .config-interruptor {
+    display: flex; align-items: center; gap: 0.5rem; cursor: pointer;
+  }
+  .config-interruptor input { width: auto; margin: 0; }
+  .config-interruptor .config-etiqueta { margin: 0; cursor: pointer; }
+
+  /* Alta de un documento: una sola fila que se estira. Los dos campos de texto
+     se reparten el sobrante y el orden se queda en su ancho de dos dígitos. */
+  .doc-alta {
+    display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem; align-items: flex-end;
+    margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border);
+  }
+  /* Una ranura por papel pedido, en Mi perfil. */
+  .papel-fila {
+    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+    padding: 0.7rem 0; border-top: 1px solid var(--border);
+  }
+  .papel-datos { display: flex; flex-direction: column; gap: 0.15rem; flex: 1 1 14rem; }
+  /* Sin esto la etiqueta se estira a todo el ancho de la columna: un hijo de
+     flex en columna se alarga por defecto, y un chip de estado ancho deja de
+     leerse como chip. */
+  .papel-datos > .estado { align-self: flex-start; }
+  .papel-nombre { font-weight: 700; color: var(--ink); }
+  .papel-fila input[type="file"] { width: auto; flex: 0 1 auto; }
+
+  .doc-alta-campo { display: flex; flex-direction: column; gap: 0.25rem; }
+  .doc-alta-ancho { flex: 1 1 12rem; }
+  .doc-alta input[type="text"] { width: 100%; }
+
+  .accion-fila { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+  /* Barra de asignación en bloque. Va pegada encima de su tabla y con el mismo
+     fondo de la superficie alterna, para que se lea como la cabecera de esa
+     lista y no como un control suelto. Es pegajosa por lo mismo que los avisos:
+     con veinte estudiantes se marca abajo y el botón está arriba. */
+  .lote-barra {
+    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border-bottom: none; padding: 0.6rem 0.85rem; margin: 1rem 0 0;
+    position: sticky; top: 3.6rem; z-index: 4;
+  }
+  .lote-cuenta {
+    font-size: 0.8rem; color: var(--ink-soft); margin-right: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .lote-barra + table { margin-top: 0; }
+  /* Deshabilitado es el estado de reposo aquí —sin nadie marcado no hay nada
+     que hacer—, así que no puede parecer un error: se atenúa, no se tacha. */
+  .lote-barra button[disabled] { opacity: 0.45; cursor: default; }
+
+  /* Mientras una acción va en camino. El contenido sigue ahí y sigue leyéndose
+     —solo deja de aceptar clics—, que es lo contrario de un spinner tapándolo
+     todo. El retardo de la transición es deliberado: en local la respuesta
+     llega en 40 ms y sin él se vería un parpadeo gris en cada clic. */
+  main[aria-busy="true"] { pointer-events: none; }
+  main[aria-busy="true"] .accion-fila, main[aria-busy="true"] form {
+    opacity: 0.55; transition: opacity 0.12s ease 0.25s;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    main[aria-busy="true"] .accion-fila, main[aria-busy="true"] form { transition: none; }
+  }
+  .grupo-cabecera { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+  .grupo-cabecera .acciones { font-size: 0.8rem; display: flex; gap: 0.6rem; }
+
+  /* Cupo de la promotoría en el periodo: una cifra (mono, es un dato) más el
+     control para cambiarla. Lo ve todo el panel; solo lo edita quien gestiona. */
+  .cupo-fila {
+    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; margin: 0 0 1rem;
+  }
+  .cupo-etiqueta {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--ink-soft);
+  }
+  .cupo-cifra {
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0.15rem 0.5rem;
+  }
+  /* Sin tope: contorno punteado y sin relleno fuerte, igual que "pendiente". */
+  .cupo-cifra-libre { color: var(--ink-faint); border-style: dashed; background: transparent; }
+  .cupo-cifra-lleno { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+  .cupo-form { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; }
+  .cupo-form-label { font-size: 0.78rem; color: var(--ink-soft); font-weight: 700; margin: 0; }
+  .cupo-form input { width: 6rem; margin: 0; padding: 0.4rem 0.5rem; }
+  .cupo-input { width: 7rem; margin: 0; padding: 0.4rem 0.5rem; }
+  .cupo-input:disabled { background: var(--surface-alt); color: var(--ink-faint); cursor: not-allowed; }
+  .cupo-periodos { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 1rem; }
+  .cupo-periodo {
+    font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+    color: var(--ink-soft); text-decoration: none;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0.25rem 0.6rem; background: var(--surface);
+  }
+  .cupo-periodo:hover { color: var(--accent); border-color: var(--accent); }
+  .cupo-periodo-actual { color: var(--surface); background: var(--accent); border-color: var(--accent); }
+  .cupo-periodo-actual:hover { color: var(--surface); background: var(--accent-dark); }
+
+  /* Pasar lista: la hoja de asistencia del día. Una ficha por clase (la tarjeta
+     va pineada como todo aquí) con un renglón por estudiante — nombre a la
+     izquierda, las tres opciones a la derecha, como el cuaderno de asistencia
+     que reemplaza. */
+  .clase-sello { color: var(--ink-soft); font-size: 0.9rem; margin: 0 0 1.2rem; }
+  .clase-hora {
+    font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); padding: 0.1rem 0.45rem;
+  }
+
+  .asistencia-lista { padding: 0.4rem 1.2rem 1.4rem; }
+  .asistencia-fila {
+    display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+    padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+  }
+  .asistencia-nombre {
+    flex: 1 1 14rem; display: flex; align-items: center; gap: 0.55rem;
+    font-weight: 600; color: var(--ink);
+  }
+  .asistencia-opciones { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+  /* Las tres opciones repiten el vocabulario de FORMA de .estado en vez de
+     inventar uno nuevo: asistió va sólida (vino, como "activa"), faltó va
+     tachada (como "retirada") y la excusa va punteada (avisó, pero tampoco
+     estuvo — el mismo contorno sin resolver de "cancelación solicitada"). Así
+     se distinguen sin depender del matiz. El punto de "activa" no se repite
+     aquí: el propio radio marcado ya hace de relleno sólido. */
+  .asistencia-opcion {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;
+    font-size: 0.8rem; font-weight: 700; color: var(--ink-soft);
+    border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0.32rem 0.6rem; cursor: pointer; background: var(--surface);
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+  .asistencia-opcion:hover { border-color: var(--ink-faint); color: var(--ink); }
+  .asistencia-opcion input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .asistencia-opcion-asistio:has(input:checked) {
+    color: var(--activa); background: var(--activa-bg); border-color: var(--activa);
+    box-shadow: 0 1px 4px rgba(36,88,214,0.20);
+  }
+  .asistencia-opcion-falto:has(input:checked) {
+    color: var(--danger); background: var(--danger-bg); border-color: var(--danger);
+    text-decoration: line-through;
+  }
+  .asistencia-opcion-excusa:has(input:checked) {
+    color: var(--danger); background: transparent; border-color: var(--danger);
+    border-style: dashed;
+  }
+  .asistencia-pie { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 1.2rem; }
+
+  /* "Mis clases": el estudiante da fe de que la clase se dio. Mismo renglón de
+     hoja —dato a la izquierda, acción a la derecha— que la lista de asistencia,
+     porque son las dos caras de la misma clase. El estado de verificación NO
+     inventa marcador propio: usa el vocabulario de .estado, sólido con punto
+     cuando ya está verificada (como una matrícula "activa": alguien la
+     reclamó) y punteado mientras faltan confirmaciones (como "pendiente"). */
+  .clase-lista { padding: 0.4rem 1.2rem 0.8rem; }
+  .clase-fila {
+    display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+    padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+  }
+  .clase-fila:last-child { border-bottom: none; }
+  .clase-datos { flex: 1 1 15rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .clase-titulo { font-weight: 700; color: var(--ink); }
+  .clase-cuando { font-size: 0.85rem; color: var(--ink-soft); }
+  /* La acción va en su propio bloque a la derecha y no como formulario suelto:
+     cuando el plazo se cierra ahí no queda botón, solo el rótulo de por qué, y
+     un `margin-left:auto` sobre el <form> lo habría dejado descolgado. */
+  .clase-accion { margin-left: auto; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .clase-mia {
+    font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.045em; color: var(--ink-soft);
+  }
+
+  /* Renovación: cada promotoría que se arrastra del periodo anterior es una
+     ficha marcable, no una casilla suelta perdida en el margen. */
+  .renovar-opcion {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.75rem 0.85rem; margin-top: 0.6rem;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 1rem;
+  }
+  .renovar-opcion:hover { border-color: var(--accent); }
+  .renovar-opcion input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+  .renovar-opcion:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+
+  /* Encuesta de satisfacción: enunciado arriba, opciones en fila. */
+  .encuesta-pregunta { margin-top: 1.4rem; }
+  .encuesta-enunciado { font-size: 1rem; font-weight: 700; color: var(--ink); margin: 0 0 0.5rem; }
+  .encuesta-escala ul { list-style: none; display: flex; gap: 1rem; flex-wrap: wrap; padding: 0; margin: 0; }
+  .encuesta-escala li { margin: 0; }
+  .encuesta-escala label {
+    display: flex; align-items: center; gap: 0.35rem; margin: 0;
+    font-size: 1rem; font-weight: 400; cursor: pointer;
+  }
+  .encuesta-escala input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+  /* Estado de la ventana de matrículas, en Gestión. */
+  .ventana-estado { margin: 1rem 0 1.2rem; }
+  .ventana-estado p { color: var(--ink-soft); font-size: 0.9rem; margin: 0.6rem 0 0; }
+
+  /* Aviso de renovación disponible, en la lista de promotorías. */
+  .renovar-llamada {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    background: var(--accent-soft); border: 1px solid var(--accent);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 1rem 1.2rem; margin-bottom: 1.2rem;
+  }
+  .renovar-llamada p { margin: 0; color: var(--accent-dark); font-size: 0.95rem; line-height: 1.5; }
+  .renovar-llamada .btn { flex: 0 0 auto; }
+
+  /* Trayectoria en la promotoría: no es el estado de la matrícula (eso es
+     .estado), es de dónde viene el estudiante. Se lee por forma igual que los
+     estados: renovación va sólida, nuevo va con contorno punteado. */
+  .trayectoria {
+    display: inline-block; font-family: var(--font-mono); font-size: 0.62rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.045em;
+    padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); white-space: nowrap;
+  }
+  .trayectoria-renovacion { color: var(--ink); background: var(--surface-alt); border: 1px solid var(--border-strong); }
+  .trayectoria-nuevo { color: var(--ink-soft); background: transparent; border: 1px dashed var(--border-strong); }
+
+  /* Periodo cerrado: no es un estado de la matrícula, es una nota sobre el
+     periodo, así que no usa el vocabulario de .estado. */
+  .periodo-terminado { color: var(--ink-faint); font-size: 0.85rem; font-style: italic; }
+
+  /* Barra de filtros del listado de usuarios: una tira de controles sobre la
+     tabla, no un formulario con su propia tarjeta. Se lee como los rótulos de
+     una carpeta de archivador —etiqueta pequeña arriba, control debajo— y se
+     reparte en varias líneas cuando la pantalla no da. */
+  .filtros {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.9rem;
+  }
+  .filtro { display: flex; flex-direction: column; min-width: 0; }
+  .filtro label {
+    font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);
+    margin-bottom: 0.25rem;
+  }
+  /* Los select del formulario base ocupan el 100%; aquí conviven varios en una
+     fila, así que se les deja ancho propio y un tope para que un nombre de
+     promotoría largo no empuje al resto fuera de la tarjeta. */
+  .filtro select { width: auto; max-width: 172px; margin: 0; padding: 0.45rem 0.55rem; font-size: 0.88rem; }
+  /* El botón sigue al último control en vez de irse al extremo derecho con un
+     margin-left:auto. En una sola fila la diferencia no se nota; en cuanto la
+     barra se parte en dos líneas, "auto" dejaba el botón descolgado al otro
+     lado de un hueco vacío, sin nada que lo ligara al formulario. */
+  .filtro-acciones { flex-direction: row; gap: 0.4rem; }
+  .filtros-nota { font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 0.9rem; }
+
+  /* Historial de matrículas por periodo (lo suyo el estudiante, la trayectoria
+     de otro el personal). Cada periodo es una hoja fechada de la cartelera: el
+     nombre del periodo hace de encabezado y a su lado va o la marca de que
+     sigue en curso, o las fechas de una que ya se archivó. */
+  .historial-resumen { margin-bottom: 1.8rem; }
+  .historial-bloque { margin-bottom: 1.8rem; }
+  .historial-cabecera {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.6rem;
+    margin: 0 0 0.7rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  /* Reinicia el margen de h3, que está pensado para separar secciones sueltas;
+     aquí el ritmo lo pone .historial-bloque. */
+  .historial-periodo { margin: 0; font-size: 1.05rem; }
+  /* El periodo vigente se marca con el acento, igual que el enlace activo de la
+     cabecera: es el "usted está aquí" del historial. */
+  .historial-marca {
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.045em;
+    color: var(--accent-dark); background: var(--accent-soft);
+    /* Derivado del acento y NO un rgba() fijo: el color de marca lo cambia el
+       administrador en caliente (ver el <style> del final), así que un verde
+       quemado aquí sobreviviría al cambio de marca. */
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); white-space: nowrap;
+  }
+  .historial-fechas { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); }
+  /* El Área acompaña al nombre de la promotoría sin competir con él: el punto de
+     color ya la identifica, este texto solo la nombra para quien no se sepa el
+     código de colores. */
+  .historial-area { color: var(--ink-faint); font-size: 0.8rem; margin-left: 0.35rem; }
+
+  /* Pantalla de configuración de la institución. Cada ajuste es un bloque con
+     su propio ritmo etiqueta → control → ayuda, separado por una línea del
+     siguiente.
+     OJO: la ayuda usa .config-ayuda y NO .campo-info, porque esa lleva
+     margin-top negativo (va pegada bajo un título) y aquí, debajo de un campo,
+     se montaba encima del input. */
+
+  /* La pantalla mezcla dos cosas distintas —la marca, que solo cambia cómo se
+     ve el sistema, y una regla que cambia lo que los estudiantes pueden hacer—,
+     así que van en <fieldset> separados: el grupo es real, no decorativo, y así
+     los lectores de pantalla anuncian a qué sección pertenece cada campo. */
+  .config-seccion { border: 0; padding: 0; margin: 0; }
+  .config-seccion + .config-seccion {
+    margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--border);
+  }
+  .config-seccion-titulo {
+    padding: 0; margin: 0 0 1.1rem;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--ink-soft);
+  }
+  .config-campo { padding-block: 1.35rem; }
+  .config-campo:first-of-type { padding-top: 0; }
+  .config-campo:last-of-type { padding-bottom: 0.4rem; }
+  .config-campo + .config-campo { border-top: 1px solid var(--border); }
+  .config-etiqueta {
+    display: block; font-size: 0.85rem; font-weight: 700;
+    color: var(--ink); margin: 0 0 0.4rem;
+  }
+  .config-ayuda {
+    margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--ink-soft);
+    line-height: 1.45; max-width: 62ch;
+  }
+  /* Campo del logo. El input de archivo nativo se oculta de forma accesible y
+     la etiqueta hace de control: el widget del navegador no se puede estilar y
+     su "Sin archivos seleccionados" se cuela con la voz del sistema operativo
+     en una pantalla escrita entera por nosotros. El foco se pinta sobre la
+     etiqueta, que es lo que el usuario ve. */
+  .config-logo { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.9rem; }
+  .config-logo .config-ayuda { margin: 0; }
+  .config-logo-vista {
+    width: 64px; height: 64px; object-fit: contain; flex: 0 0 auto;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.35rem;
+  }
+  .config-logo-file {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  /* Baldosa punteada de "añadir": el borde discontinuo dice ranura vacía, y se
+     vuelve sólido al pasar el cursor o al recibir el foco — la ranura se llena.
+     El punteado ya significa "todavía no" en este sistema (ver .estado). */
+  .config-logo-boton {
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    width: 100%; min-height: 44px; margin: 0;
+    background: transparent; color: var(--accent);
+    border: 1px dashed var(--accent); border-radius: var(--radius-sm);
+    padding: 0.6rem 0.9rem; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    transition: background 0.15s ease, border-style 0.15s ease, color 0.15s ease;
+  }
+  .config-logo-boton:hover { background: var(--accent-soft); border-style: solid; color: var(--accent-dark); }
+  .config-logo-file:focus-visible + .config-logo-boton {
+    border-style: solid; box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  /* Con el input oculto, el nombre del archivo es la única señal de que la
+     selección funcionó; lo escribe el script de gestion_configuracion.html. */
+  .config-logo-nombre {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-soft);
+    word-break: break-all; margin: 0.5rem 0 0;
+  }
+  .config-logo-quitar {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.6rem 0 0;
+    font-size: 0.82rem; font-weight: 400; color: var(--ink-soft); cursor: pointer;
+  }
+  .config-logo-quitar input { width: auto; margin: 0; }
+  .config-logo-quitar:hover { color: var(--danger); }
+  .config-color { display: flex; align-items: center; gap: 0.6rem; }
+  .config-color input[type="color"] {
+    width: 64px; height: 40px; padding: 0.2rem; margin: 0; flex: 0 0 auto;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    background: var(--surface); cursor: pointer;
+  }
+  .config-hex {
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 700;
+    color: var(--ink); background: var(--surface-alt);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 0.2rem 0.5rem;
+  }
+  .config-muestra { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+  .config-muestra-chip {
+    font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.045em; color: #fff;
+    padding: 0.4rem 0.7rem; border-radius: var(--radius-sm);
+  }
+  .config-muestra-chip-claro { border: 1px solid var(--border-strong); }
+  .card > form > button[type="submit"] { margin-top: 1.6rem; }
+
+  /* Etiqueta solo para lectores de pantalla. */
+  .sr-solo {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  /* Pestañas de Gestión: tarjetas pineadas en la cartelera, no pestañas de carpeta. */
+  .tarjetas { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .tarjeta-enlace {
+    position: relative;
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.2rem 1.3rem 1rem;
+    text-decoration: none;
+    color: var(--ink);
+    font-weight: 700;
+    min-width: 150px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  }
+  .tarjeta-enlace::before {
+    content: ""; position: absolute; top: -5px; left: 1.3rem;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 1px 3px rgba(24,36,32,0.25);
+  }
+  .tarjeta-enlace:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); transform: translateY(-3px); color: var(--ink); }
+  .tarjeta-enlace .num { display: block; font-family: var(--font-mono); font-size: 1.6rem; color: var(--accent); margin-bottom: 0.15rem; }
+
+  .aviso {
+    background: var(--surface-alt); color: var(--ink-soft);
+    padding: 0.75rem 1rem; border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-strong); font-size: 0.85rem; margin-bottom: 1.2rem;
+  }
+  /* Cifra de cupos ocupados: es un dato, así que va en monoespaciada. */
+  .cupo-contador { font-family: var(--font-mono); font-weight: 700; color: var(--ink); }
+  .sin-cupo { color: var(--ink-faint); font-size: 0.85rem; }
+
+  /* Móvil primero en la práctica: la mayoría de las visitas de este producto
+     entran desde el celular (ver PRODUCT.md), así que estas reglas suben el
+     tamaño de toque por encima del mínimo de 44px recomendado y evitan que
+     nada dependa de :hover. */
+  @media (max-width: 640px) {
+    main { margin: 1.25rem auto 2.5rem; padding: 0 1rem; }
+    header { padding: 0.8rem 1.1rem; }
+    header nav a { padding: 0.85rem 0.75rem; min-height: 44px; display: inline-flex; align-items: center; }
+    header nav form { margin-left: 0.3rem; }
+    .btn { padding: 0.75rem 1.15rem; }
+    .btn-sm { padding: 0.6rem 0.9rem; }
+    .btn-texto { padding: 0.5rem 0; }
+    .card, .form-card { padding: 1.25rem 1.15rem; }
+    table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tarjetas { gap: 0.6rem; }
+    .tarjeta-enlace { min-width: 130px; flex: 1 1 130px; }
+    .dash-grid-2 { grid-template-columns: 1fr; gap: 1.5rem; }
+    .stat-bar-etiqueta { flex-basis: 96px; }
+    .dash-promotorias { margin-left: 0.8rem; padding-left: 0.6rem; }
+    .dash-promotorias .stat-bar-etiqueta { flex-basis: 84px; }
+    /* La micro-gráfica se estrecha antes que la pista: en un celular la pista
+       ya va justa, y ceder ahí dejaría todas las barras del mismo largo — que
+       es como no tener barra. Las columnas siguen siendo tocables porque no se
+       tocan: el desplegable es el renglón entero. */
+    .stat-bar-fila { gap: 0.55rem; }
+    .perm { margin-left: 0.5rem; gap: 2px; padding: 0 1px; }
+    .perm-col { width: 6px; flex-basis: 6px; }
+    /* Filtros a ancho completo: media fila por control es demasiado estrecho
+       para leer el nombre de una promotoría. */
+    .filtro { flex: 1 1 100%; }
+    .filtro select { max-width: none; width: 100%; }
+    .filtro-acciones { margin-left: 0; }
+    /* Pasar lista se hace de pie y con el celular en la mano: el nombre ocupa
+       su propio renglón y las tres opciones caen debajo alineadas a la
+       izquierda —con `margin-left:auto` quedarían pegadas al borde derecho— y
+       con más área de toque. */
+    .asistencia-nombre { flex: 1 1 100%; }
+    .asistencia-opciones { margin-left: 0; }
+    .asistencia-opcion { padding: 0.5rem 0.7rem; }
+  }
