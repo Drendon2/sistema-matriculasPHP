@@ -23,6 +23,7 @@ class EncuestaSatisfaccion extends Model
 
     protected $fillable = [
         'perfil_id',
+        'promotoria_id',
         'periodo_id',
         'satisfaccion_general',
         'calificacion_profesor',
@@ -59,5 +60,49 @@ class EncuestaSatisfaccion extends Model
     public function periodo(): BelongsTo
     {
         return $this->belongsTo(Periodo::class);
+    }
+
+    /**
+     * La promotoria que se valora.
+     *
+     * Es null solo en las respuestas anteriores a que la encuesta distinguiera
+     * promotorias y que no se pudieron atribuir sin inventar (ver la migracion
+     * `add_promotoria_to_encuestas_satisfaccion`). Ese null significa «no se
+     * sabe de cual habla», y las pantallas lo cuentan aparte en vez de
+     * repartirlo a ojo.
+     */
+    public function promotoria(): BelongsTo
+    {
+        return $this->belongsTo(Promotoria::class);
+    }
+
+    /**
+     * Que promotorias le faltan por valorar a alguien de un periodo dado.
+     *
+     * Sale de sus matriculas ACTIVAS de ese periodo menos lo que ya contesto.
+     * Lo usan los dos sitios donde se pide la encuesta —la renovacion y el
+     * retiro—, para que no puedan discrepar sobre que hay que preguntar.
+     *
+     * @return \Illuminate\Support\Collection<int, Matricula>
+     */
+    public static function pendientesDe(Perfil $perfil, ?Periodo $periodo)
+    {
+        if ($periodo === null) {
+            return collect();
+        }
+
+        $contestadas = static::where('perfil_id', $perfil->id)
+            ->where('periodo_id', $periodo->id)
+            ->pluck('promotoria_id')
+            ->filter()
+            ->all();
+
+        return Matricula::query()
+            ->where('estudiante_id', $perfil->id)
+            ->where('periodo_id', $periodo->id)
+            ->where('estado', Matricula::ACTIVA)
+            ->whereNotIn('promotoria_id', $contestadas)
+            ->with('promotoria.area')
+            ->get();
     }
 }

@@ -156,7 +156,7 @@ class EstadisticasController extends Controller
         }
 
         $respuestas = EncuestaSatisfaccion::where('periodo_id', $periodo->id)
-            ->with('perfil.datosEstudiante.acudiente')
+            ->with(['perfil.datosEstudiante.acudiente', 'promotoria.area'])
             ->get();
 
         $total = $respuestas->count();
@@ -196,7 +196,44 @@ class EstadisticasController extends Controller
             'veNombres' => $veNombres,
             'seguimiento' => $veNombres ? $this->seguimiento($respuestas) : [],
             'porPeriodo' => $this->mediasPorPeriodo(),
+            'porPromotoria' => $this->mediasPorPromotoria($respuestas),
+            // Respuestas anteriores a que la encuesta distinguiera promotorias y
+            // que no se pudieron atribuir. No se reparten a ojo: se dicen.
+            'sinPromotoria' => $respuestas->whereNull('promotoria_id')->count(),
         ];
+    }
+
+    /**
+     * Media por promotoria dentro del periodo evaluado.
+     *
+     * Es lo que la encuesta no podia decir antes de colgar de la promotoria: que
+     * disciplina va bien y cual no. Se ordena de peor a mejor a proposito —lo
+     * que se viene a mirar aqui es donde hay un problema, no donde no lo hay— y
+     * cada fila lleva cuantas respuestas la sostienen, porque una media de 2,0
+     * sacada de una sola respuesta no es un problema todavia.
+     *
+     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @return list<array<string, mixed>>
+     */
+    private function mediasPorPromotoria($respuestas): array
+    {
+        return $respuestas
+            ->whereNotNull('promotoria_id')
+            ->groupBy('promotoria_id')
+            ->map(fn ($grupo) => [
+                'promotoria' => $grupo->first()->promotoria,
+                'total' => $grupo->count(),
+                'general' => round($grupo->avg('satisfaccion_general'), 1),
+                'profesor' => round($grupo->avg('calificacion_profesor'), 1),
+                // Contra el 5 de la escala, no contra la promotoria mejor
+                // valorada: si no, la diferencia entre un 4,9 y un 4,8 se
+                // dibuja como un precipicio.
+                'porcentaje' => (int) round($grupo->avg('satisfaccion_general') / 5 * 100),
+                'recomiendan' => $grupo->where('recomendaria', true)->count(),
+            ])
+            ->sortBy('general')
+            ->values()
+            ->all();
     }
 
     /**

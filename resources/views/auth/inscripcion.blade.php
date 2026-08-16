@@ -99,7 +99,9 @@
              value="{{ old('acudiente_nombre') }}" maxlength="90">
       @error('acudiente_nombre')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
-      <label for="acudiente_telefono">Teléfono del acudiente</label>
+      <label for="acudiente_telefono">
+        Teléfono del acudiente <span class="campo-requerido" id="acudiente-telefono-requerido" hidden>*</span>
+      </label>
       <input type="text" name="acudiente_telefono" id="acudiente_telefono"
              value="{{ old('acudiente_telefono') }}" maxlength="15" inputmode="tel">
       @error('acudiente_telefono')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror

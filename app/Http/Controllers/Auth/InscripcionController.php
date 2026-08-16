@@ -176,7 +176,7 @@ class InscripcionController extends Controller
     {
         $nacimiento = $request->input('fecha_nacimiento');
 
-        if (! $nacimiento || $request->filled('acudiente_nombre')) {
+        if (! $nacimiento) {
             return;
         }
 
@@ -186,10 +186,27 @@ class InscripcionController extends Controller
             return;
         }
 
-        if (Perfil::edadDe($fecha) < 18) {
+        if (Perfil::edadDe($fecha) >= 18) {
+            return;
+        }
+
+        if (! $request->filled('acudiente_nombre')) {
             $validador->errors()->add(
                 'acudiente_nombre',
                 'Eres menor de edad: necesitas registrar el nombre de tu acudiente.'
+            );
+        }
+
+        // El telefono es tan obligatorio como el nombre, y por una razon
+        // concreta: el acudiente de un menor no esta ahi para figurar en una
+        // ficha, sino para que la institucion pueda llamarlo — al resolver una
+        // cancelacion, al hacer seguimiento de una mala experiencia, o si pasa
+        // algo en clase. Un acudiente sin telefono no sirve para ninguna de las
+        // tres.
+        if (! $request->filled('acudiente_telefono')) {
+            $validador->errors()->add(
+                'acudiente_telefono',
+                'Falta el teléfono de tu acudiente: es el número al que llamaría la institución.'
             );
         }
     }

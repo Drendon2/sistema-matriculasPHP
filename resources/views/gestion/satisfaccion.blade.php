@@ -84,6 +84,57 @@
   </div>
 </div>
 
+@if ($satisfaccion['porPromotoria'])
+<h4 style="margin-top: 1.7rem;">Por promotoría</h4>
+<p class="campo-info" style="margin-top:-0.4rem;">
+  De peor a mejor valorada: lo que se viene a mirar aquí es dónde hay un problema.
+  El número de respuestas va al lado porque una media de 2,0 sacada de una sola
+  respuesta todavía no es un problema.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Promotoría</th>
+      <th class="num">Respuestas</th>
+      <th>Satisfacción</th>
+      <th class="num">Profesor</th>
+      <th class="num">Recomiendan</th>
+    </tr>
+  </thead>
+  <tbody>
+    @foreach ($satisfaccion['porPromotoria'] as $p)
+    <tr>
+      <td>
+        <span class="tag-dot {{ $p['promotoria']->area->tag_color }}"></span>{{ $p['promotoria']->nombre }}
+        <span class="historial-area">{{ $p['promotoria']->area->nombre }}</span>
+      </td>
+      <td class="num">{{ $p['total'] }}</td>
+      <td>
+        <div class="stat-bar-fila" style="margin:0;">
+          <div class="stat-bar-pista">
+            <div class="stat-bar-relleno" style="width: {{ $p['porcentaje'] }}%;"></div>
+          </div>
+          <span class="stat-bar-num">{{ number_format($p['general'], 1) }}</span>
+        </div>
+      </td>
+      <td class="num">{{ number_format($p['profesor'], 1) }}</td>
+      <td class="num">{{ $p['recomiendan'] }}/{{ $p['total'] }}</td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
+@endif
+
+@if ($satisfaccion['sinPromotoria'])
+<p class="campo-info">
+  {{ $satisfaccion['sinPromotoria'] }}
+  {{ $satisfaccion['sinPromotoria'] == 1 ? 'respuesta queda' : 'respuestas quedan' }}
+  fuera de este desglose: se contestaron cuando la encuesta todavía no distinguía
+  promotorías y no se pueden atribuir a ninguna sin inventar. Sí cuentan en las
+  medias generales de arriba.
+</p>
+@endif
+
 @if (count($satisfaccion['porPeriodo']) > 1)
 <h4 style="margin-top: 1.7rem;">Satisfacción por periodo</h4>
 {{--

@@ -310,18 +310,31 @@ class EstudianteTest extends TestCase
             ->assertSee('Danza');
     }
 
+    /**
+     * Los campos de la encuesta van sufijados con el id de la matricula: en la
+     * misma pagina puede haber una tanda por cada promotoria cursada.
+     *
+     * @return array<string, mixed>
+     */
+    private function respuestas(Matricula $matricula, int $general = 5, int $profesor = 4): array
+    {
+        return [
+            "satisfaccion_general_{$matricula->id}" => $general,
+            "calificacion_profesor_{$matricula->id}" => $profesor,
+            "horario_funciono_{$matricula->id}" => 1,
+            "recomendaria_{$matricula->id}" => 1,
+            "comentario_{$matricula->id}" => '',
+        ];
+    }
+
     public function test_renovar_crea_la_matricula_pendiente_y_guarda_la_encuesta(): void
     {
-        $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
+        $cursada = $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
 
         $this->actingAs($this->ana->user)
             ->post(route('renovar-matricula.guardar'), [
                 'promotoria' => [$this->violin->id],
-                'satisfaccion_general' => 5,
-                'calificacion_profesor' => 4,
-                'horario_funciono' => 1,
-                'recomendaria' => 1,
-                'comentario' => '',
+                ...$this->respuestas($cursada),
             ])
             ->assertRedirect(route('mis-matriculas'))
             ->assertSessionHas('success');
@@ -333,10 +346,53 @@ class EstudianteTest extends TestCase
         $this->assertNotNull($nueva);
         $this->assertSame(Matricula::PENDIENTE, $nueva->estado);
 
-        // La encuesta evalua el periodo que TERMINO, no aquel al que se renueva.
+        // La encuesta evalua el periodo que TERMINO, no aquel al que se renueva,
+        // y ahora dice de que PROMOTORIA habla.
         $encuesta = EncuestaSatisfaccion::first();
         $this->assertNotNull($encuesta);
         $this->assertSame($this->anterior->id, $encuesta->periodo_id);
+        $this->assertSame($this->violin->id, $encuesta->promotoria_id);
+    }
+
+    /**
+     * Quien curso dos promotorias contesta dos veces. Es el motivo entero del
+     * cambio: una sola respuesta no podia decir de que profesor hablaba.
+     */
+    public function test_se_contesta_una_encuesta_por_promotoria_cursada(): void
+    {
+        $violin = $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
+        $danza = $this->inscribir($this->ana, $this->danza, periodo: $this->anterior);
+
+        $this->actingAs($this->ana->user)
+            ->post(route('renovar-matricula.guardar'), [
+                'promotoria' => [$this->violin->id],
+                ...$this->respuestas($violin, general: 5, profesor: 5),
+                ...$this->respuestas($danza, general: 2, profesor: 1),
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, EncuestaSatisfaccion::count());
+
+        $deDanza = EncuestaSatisfaccion::where('promotoria_id', $this->danza->id)->first();
+        $this->assertNotNull($deDanza);
+        $this->assertSame(1, $deDanza->calificacion_profesor);
+    }
+
+    /** Si falta media encuesta no se guarda ninguna ni se renueva nada. */
+    public function test_una_encuesta_incompleta_no_renueva(): void
+    {
+        $violin = $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
+        $this->inscribir($this->ana, $this->danza, periodo: $this->anterior);
+
+        $this->actingAs($this->ana->user)
+            ->post(route('renovar-matricula.guardar'), [
+                'promotoria' => [$this->violin->id],
+                ...$this->respuestas($violin),
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, EncuestaSatisfaccion::count());
+        $this->assertSame(0, Matricula::where('periodo_id', $this->periodo->id)->count());
     }
 
     public function test_renovar_sin_elegir_nada_no_matricula(): void
@@ -344,12 +400,7 @@ class EstudianteTest extends TestCase
         $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
 
         $this->actingAs($this->ana->user)
-            ->post(route('renovar-matricula.guardar'), [
-                'satisfaccion_general' => 5,
-                'calificacion_profesor' => 4,
-                'horario_funciono' => 1,
-                'recomendaria' => 1,
-            ])
+            ->post(route('renovar-matricula.guardar'), [])
             ->assertSessionHas('error');
 
         $this->assertSame(
@@ -363,13 +414,14 @@ class EstudianteTest extends TestCase
     {
         $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
 
+        $cursada = Matricula::where('estudiante_id', $this->ana->id)
+            ->where('periodo_id', $this->anterior->id)
+            ->first();
+
         $this->actingAs($this->ana->user)
             ->post(route('renovar-matricula.guardar'), [
                 'promotoria_nueva' => $this->danza->id,
-                'satisfaccion_general' => 3,
-                'calificacion_profesor' => 3,
-                'horario_funciono' => 0,
-                'recomendaria' => 0,
+                ...$this->respuestas($cursada, general: 3, profesor: 3),
             ])
             ->assertSessionHas('success');
 
@@ -389,6 +441,112 @@ class EstudianteTest extends TestCase
         $this->actingAs($this->ana->user)
             ->get(route('renovar-matricula'))
             ->assertRedirect(route('promotorias-disponibles'));
+    }
+
+    // -----------------------------------------------------------------------
+    // Encuesta de salida
+    // -----------------------------------------------------------------------
+
+    /**
+     * Salirse es el ultimo momento en que esa persona sigue estando: quien se va
+     * no vuelve a entrar a contestar nada.
+     */
+    public function test_al_salir_de_una_activa_se_pide_la_encuesta(): void
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mis-matriculas.confirmar-retiro', $matricula))
+            ->assertOk()
+            ->assertSee('¿Nos cuentas cómo te fue?', false)
+            ->assertSee('Salir sin contestar');
+    }
+
+    public function test_la_encuesta_de_salida_se_guarda_con_su_promotoria(): void
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin);
+
+        $this->actingAs($this->ana->user)
+            ->post(route('mis-matriculas.retirar', $matricula), [
+                'satisfaccion_general' => 2,
+                'calificacion_profesor' => 3,
+                'horario_funciono' => 0,
+                'recomendaria' => 0,
+                'comentario' => 'Me cambiaron el horario.',
+            ])
+            ->assertSessionHas('success');
+
+        $encuesta = EncuestaSatisfaccion::first();
+
+        $this->assertNotNull($encuesta);
+        $this->assertSame($this->violin->id, $encuesta->promotoria_id);
+        $this->assertSame($this->periodo->id, $encuesta->periodo_id);
+        // Y la salida se tramita igual: la encuesta no la sustituye.
+        $this->assertSame(Matricula::CANCELACION_SOLICITADA, $matricula->fresh()->estado);
+    }
+
+    /**
+     * No es obligatoria: poner cinco preguntas entre alguien y la puerta recoge
+     * respuestas puestas al azar, no opiniones.
+     */
+    public function test_se_puede_salir_sin_contestar(): void
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin);
+
+        $this->actingAs($this->ana->user)
+            ->post(route('mis-matriculas.retirar', $matricula), ['sin_contestar' => 1])
+            ->assertSessionHas('success');
+
+        $this->assertSame(0, EncuestaSatisfaccion::count());
+        $this->assertSame(Matricula::CANCELACION_SOLICITADA, $matricula->fresh()->estado);
+    }
+
+    /**
+     * A quien nunca tuvo clase no se le pregunta como le fue: no recogeria una
+     * opinion, recogeria ruido.
+     */
+    public function test_a_una_pendiente_no_se_le_pide_encuesta(): void
+    {
+        $matricula = new Matricula([
+            'estudiante_id' => $this->ana->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'estado' => Matricula::PENDIENTE,
+        ]);
+        $matricula->save();
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mis-matriculas.confirmar-retiro', $matricula))
+            ->assertRedirect(route('mis-matriculas'));
+
+        $this->actingAs($this->ana->user)
+            ->post(route('mis-matriculas.retirar', $matricula))
+            ->assertSessionHas('success');
+
+        $this->assertSame(Matricula::RETIRADA, $matricula->fresh()->estado);
+        $this->assertSame(0, EncuestaSatisfaccion::count());
+    }
+
+    /** Si ya la valoro al renovar, no se le vuelve a preguntar lo mismo. */
+    public function test_no_se_pregunta_dos_veces_por_la_misma_promotoria(): void
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin);
+
+        EncuestaSatisfaccion::create([
+            'perfil_id' => $this->ana->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'satisfaccion_general' => 4,
+            'calificacion_profesor' => 4,
+            'horario_funciono' => true,
+            'recomendaria' => true,
+        ]);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mis-matriculas.confirmar-retiro', $matricula))
+            ->assertOk()
+            ->assertSee('Ya nos contaste cómo te fue', false)
+            ->assertDontSee('¿Nos cuentas cómo te fue?', false);
     }
 
     // -----------------------------------------------------------------------

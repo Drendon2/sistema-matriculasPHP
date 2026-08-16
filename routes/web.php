@@ -72,6 +72,11 @@ Route::middleware(['auth', 'rol:estudiante'])->group(function () {
     Route::post('/matricular/{promotoria}', MatricularController::class)->name('matricular');
 
     Route::get('/mis-matriculas', [MisMatriculasController::class, 'index'])->name('mis-matriculas');
+    // El retiro pasa por una pantalla intermedia que pide la encuesta de salida.
+    // Es el unico momento en que esa persona sigue estando: quien se va no
+    // vuelve a entrar a contestar nada.
+    Route::get('/mis-matriculas/{matricula}/retirar', [MisMatriculasController::class, 'confirmarRetiro'])
+        ->name('mis-matriculas.confirmar-retiro');
     Route::post('/mis-matriculas/{matricula}/retirar', [MisMatriculasController::class, 'retirar'])
         ->name('mis-matriculas.retirar');
 

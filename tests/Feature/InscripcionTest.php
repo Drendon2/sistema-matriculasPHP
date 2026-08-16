@@ -122,6 +122,32 @@ class InscripcionTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
+    /**
+     * El telefono es tan obligatorio como el nombre: el acudiente de un menor no
+     * esta ahi para figurar en una ficha, sino para que la institucion pueda
+     * llamarlo —al resolver una cancelacion, al hacer seguimiento de una mala
+     * experiencia, o si pasa algo en clase—. Un acudiente sin telefono no sirve
+     * para ninguna de las tres.
+     */
+    public function test_un_menor_con_acudiente_sin_telefono_se_rechaza(): void
+    {
+        $this->post(route('inscripcion.guardar'), $this->datos([
+            'fecha_nacimiento' => Carbon::today()->subYears(12)->toDateString(),
+            'acudiente_nombre' => 'Marta Ruiz',
+        ]))->assertSessionHasErrors('acudiente_telefono');
+
+        $this->assertSame(0, User::count());
+        $this->assertSame(0, Acudiente::count());
+    }
+
+    /** A un mayor de edad el telefono del acudiente le sigue siendo opcional. */
+    public function test_un_adulto_no_necesita_telefono_de_acudiente(): void
+    {
+        $this->post(route('inscripcion.guardar'), $this->datos([
+            'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
+        ]))->assertSessionHas('success');
+    }
+
     public function test_un_menor_con_acudiente_entra_y_se_crea_el_acudiente(): void
     {
         $this->post(route('inscripcion.guardar'), $this->datos([

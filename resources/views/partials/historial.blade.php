@@ -82,10 +82,21 @@
           @elseif ($m->cancelacion_pendiente)
             <span class="periodo-terminado">En trámite</span>
           @elseif (in_array($m->estado, [\App\Models\Matricula::ACTIVA, \App\Models\Matricula::PENDIENTE], true))
-            <form action="{{ route('mis-matriculas.retirar', $m) }}" method="post">
-              @csrf
-              <button type="submit" class="btn btn-retirar btn-sm">Cancelar matrícula</button>
-            </form>
+            {{--
+              Una matricula ACTIVA pasa por la pantalla de salida, que pide la
+              encuesta; una PENDIENTE no, porque nunca tuvo clase y no hay nada
+              que valorar — ahi el boton sigue siendo inmediato, como era.
+            --}}
+            @if ($m->estado === \App\Models\Matricula::ACTIVA)
+              <a class="btn btn-retirar btn-sm" href="{{ route('mis-matriculas.confirmar-retiro', $m) }}">
+                Cancelar matrícula
+              </a>
+            @else
+              <form action="{{ route('mis-matriculas.retirar', $m) }}" method="post">
+                @csrf
+                <button type="submit" class="btn btn-retirar btn-sm">Retirar solicitud</button>
+              </form>
+            @endif
           @endif
         </td>
         @endif

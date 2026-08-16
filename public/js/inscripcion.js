@@ -92,8 +92,11 @@
   var fieldset = document.getElementById("fieldset-acudiente");
   var nota = document.getElementById("acudiente-nota");
   var nombre = document.getElementById("acudiente_nombre");
+  var telefono = document.getElementById("acudiente_telefono");
   var marcaRequerido = document.getElementById("acudiente-nombre-requerido");
-  if (!fecha || !fieldset || !nota || !nombre || !marcaRequerido) { return; }
+  var marcaTelefono = document.getElementById("acudiente-telefono-requerido");
+  if (!fecha || !fieldset || !nota || !nombre || !telefono) { return; }
+  if (!marcaRequerido || !marcaTelefono) { return; }
 
   function esMenorDeEdad(valorIso) {
     var partes = valorIso.split("-");
@@ -116,6 +119,11 @@
       nombre.required = true;
       nombre.setAttribute("aria-required", "true");
       marcaRequerido.hidden = false;
+      // El telefono va con el nombre: un acudiente al que no se puede llamar no
+      // cumple la funcion por la que se pide.
+      telefono.required = true;
+      telefono.setAttribute("aria-required", "true");
+      marcaTelefono.hidden = false;
     } else {
       fieldset.dataset.activo = "false";
       nota.textContent = menor === null
@@ -124,6 +132,9 @@
       nombre.required = false;
       nombre.setAttribute("aria-required", "false");
       marcaRequerido.hidden = true;
+      telefono.required = false;
+      telefono.setAttribute("aria-required", "false");
+      marcaTelefono.hidden = true;
     }
   }
 

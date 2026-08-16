@@ -89,13 +89,14 @@ class RenovarController extends Controller
             $errores[] = 'Una de las promotorías nuevas que elegiste ya la estás cursando.';
         }
 
-        $encuesta = null;
+        $encuestas = [];
 
-        if (! $contexto['yaRespondio']) {
+        if ($contexto['porValorar']->isNotEmpty()) {
             try {
-                $encuesta = $this->validarEncuesta($request);
+                $encuestas = $this->validarEncuestas($request, $contexto['porValorar']);
             } catch (ValidationException $e) {
-                $errores[] = 'Revisa las respuestas de la encuesta.';
+                $errores[] = 'Revisa las respuestas de la encuesta: hay que contestarla '
+                    . 'para cada promotoría que cursaste.';
             }
         }
 
@@ -104,15 +105,15 @@ class RenovarController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($perfil, $contexto, $encuesta, $seleccionadas, $nuevas) {
-                if ($encuesta !== null) {
+            DB::transaction(function () use ($perfil, $contexto, $encuestas, $seleccionadas, $nuevas) {
+                foreach ($encuestas as $respuestas) {
                     EncuestaSatisfaccion::create([
                         'perfil_id' => $perfil->id,
                         // Se evalua el periodo que TERMINO, no aquel al que se
                         // renueva: sobre el que empieza todavia no hay nada que
                         // opinar.
                         'periodo_id' => $contexto['periodoAnterior']->id,
-                        ...$encuesta,
+                        ...$respuestas,
                     ]);
                 }
 
@@ -247,9 +248,10 @@ class RenovarController extends Controller
             'renovables' => $renovables,
             'disponibles' => $disponibles,
             'yaSuyas' => $yaSuyas,
-            'yaRespondio' => EncuestaSatisfaccion::where('perfil_id', $perfil->id)
-                ->where('periodo_id', $periodoAnterior->id)
-                ->exists(),
+            // Una encuesta por PROMOTORIA cursada, no una por periodo: la
+            // pregunta del acompanamiento del profesor no significa nada si se
+            // contesta una sola vez para dos disciplinas distintas.
+            'porValorar' => EncuestaSatisfaccion::pendientesDe($perfil, $periodoAnterior),
             // Nunca negativo: si el administrador bajo el limite, quien ya
             // estaba por encima se queda sin cupos libres, no con un numero en
             // rojo.
@@ -263,14 +265,42 @@ class RenovarController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function validarEncuesta(Request $request): array
+    /**
+     * Las cinco preguntas, una tanda por promotoria que haya que valorar.
+     *
+     * Los campos van sufijados con el id de la matricula porque en la misma
+     * pagina puede haber dos tandas y los nombres chocarian. Se valida todo
+     * junto: si falta media encuesta, no se guarda ninguna.
+     *
+     * @param  \Illuminate\Support\Collection<int, Matricula>  $porValorar
+     * @return array<int, array<string, mixed>>  matricula_id => respuestas
+     */
+    private function validarEncuestas(Request $request, $porValorar): array
     {
-        return $request->validate([
-            'satisfaccion_general' => ['required', 'integer', 'between:1,5'],
-            'calificacion_profesor' => ['required', 'integer', 'between:1,5'],
-            'horario_funciono' => ['required', 'boolean'],
-            'recomendaria' => ['required', 'boolean'],
-            'comentario' => ['nullable', 'string'],
-        ]);
+        $reglas = [];
+
+        foreach ($porValorar as $matricula) {
+            $reglas["satisfaccion_general_{$matricula->id}"] = ['required', 'integer', 'between:1,5'];
+            $reglas["calificacion_profesor_{$matricula->id}"] = ['required', 'integer', 'between:1,5'];
+            $reglas["horario_funciono_{$matricula->id}"] = ['required', 'boolean'];
+            $reglas["recomendaria_{$matricula->id}"] = ['required', 'boolean'];
+            $reglas["comentario_{$matricula->id}"] = ['nullable', 'string'];
+        }
+
+        $datos = $request->validate($reglas);
+        $respuestas = [];
+
+        foreach ($porValorar as $matricula) {
+            $respuestas[$matricula->id] = [
+                'promotoria_id' => $matricula->promotoria_id,
+                'satisfaccion_general' => $datos["satisfaccion_general_{$matricula->id}"],
+                'calificacion_profesor' => $datos["calificacion_profesor_{$matricula->id}"],
+                'horario_funciono' => $datos["horario_funciono_{$matricula->id}"],
+                'recomendaria' => $datos["recomendaria_{$matricula->id}"],
+                'comentario' => $datos["comentario_{$matricula->id}"] ?? '',
+            ];
+        }
+
+        return $respuestas;
     }
 }

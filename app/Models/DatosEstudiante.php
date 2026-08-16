@@ -54,9 +54,29 @@ class DatosEstudiante extends Model
     {
         $perfil = $this->perfil ?? Perfil::find($this->perfil_id);
 
-        if ($perfil !== null && $perfil->es_menor && $this->acudiente_id === null) {
+        if ($perfil === null || ! $perfil->es_menor) {
+            return;
+        }
+
+        if ($this->acudiente_id === null) {
             throw ValidationException::withMessages([
                 'acudiente' => 'Los estudiantes menores de edad deben registrar un acudiente.',
+            ]);
+        }
+
+        // Y con telefono. Un acudiente sin numero no cumple la funcion por la
+        // que se pide: la institucion lo registra para poder LLAMARLO —al
+        // resolver una cancelacion, al hacer seguimiento de una mala
+        // experiencia, o si pasa algo en clase—, no para que figure en una
+        // ficha. La regla vive aqui y no en las reglas de un formulario porque
+        // hay dos caminos que crean estudiantes menores, la inscripcion publica
+        // y Gestion → Usuarios, y por separado acabarian discrepando.
+        $acudiente = $this->acudiente ?? Acudiente::find($this->acudiente_id);
+
+        if ($acudiente === null || trim((string) $acudiente->telefono) === '') {
+            throw ValidationException::withMessages([
+                'acudiente_telefono' => 'El acudiente de un menor de edad debe tener teléfono: '
+                    . 'es el número al que llamaría la institución.',
             ]);
         }
     }

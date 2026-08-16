@@ -69,40 +69,51 @@
   </div>
   @endif
 
-  @if ($yaRespondio)
+  @if ($porValorar->isEmpty())
     <p class="campo-info">Ya respondiste la encuesta de {{ $periodoAnterior->nombre }}. Gracias.</p>
   @else
+  {{--
+    Una tanda de preguntas por PROMOTORÍA cursada, no una sola para todas: la
+    pregunta del acompañamiento no significa nada si se contesta una vez para
+    dos disciplinas distintas. Los campos van sufijados con el id de la matrícula
+    porque en la misma página puede haber dos tandas.
+  --}}
+  @foreach ($porValorar as $m)
   <div class="card">
-    <h3>¿Cómo te fue en {{ $periodoAnterior->nombre }}?</h3>
+    <h3>
+      ¿Cómo te fue en {{ $m->promotoria->nombre }}?
+      <span class="h4-nota">{{ $periodoAnterior->nombre }}</span>
+    </h3>
 
     @include('estudiante.escala', [
-      'campo' => 'satisfaccion_general',
+      'campo' => "satisfaccion_general_{$m->id}",
       'enunciado' => '¿Qué tan satisfecho quedaste con el proceso?',
     ])
 
     @include('estudiante.escala', [
-      'campo' => 'calificacion_profesor',
+      'campo' => "calificacion_profesor_{$m->id}",
       'enunciado' => '¿Cómo calificas el acompañamiento del profesor?',
     ])
 
     @include('estudiante.escala', [
-      'campo' => 'horario_funciono',
+      'campo' => "horario_funciono_{$m->id}",
       'enunciado' => '¿El horario te funcionó?',
       'opciones' => [1 => 'Sí', 0 => 'No'],
     ])
 
     @include('estudiante.escala', [
-      'campo' => 'recomendaria',
-      'enunciado' => '¿Recomendarías tu promotoría a alguien más?',
+      'campo' => "recomendaria_{$m->id}",
+      'enunciado' => "¿Recomendarías {$m->promotoria->nombre} a alguien más?",
       'opciones' => [1 => 'Sí', 0 => 'No'],
     ])
 
     <div class="encuesta-pregunta">
-      <label for="comentario">¿Algo que quieras contarnos? (opcional)</label>
-      <textarea name="comentario" id="comentario" rows="3">{{ old('comentario') }}</textarea>
-      @error('comentario')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <label for="comentario_{{ $m->id }}">¿Algo que quieras contarnos? (opcional)</label>
+      <textarea name="comentario_{{ $m->id }}" id="comentario_{{ $m->id }}" rows="3">{{ old("comentario_{$m->id}") }}</textarea>
+      @error("comentario_{$m->id}")<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
     </div>
   </div>
+  @endforeach
   @endif
 
   <p><button type="submit" class="btn">Renovar mi matrícula</button></p>

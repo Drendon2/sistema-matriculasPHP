@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EncuestaSatisfaccion;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
@@ -81,6 +82,8 @@ class MisMatriculasController extends Controller
         // matricula sigue ocupando cupo y ranura, porque el estudiante sigue
         // inscrito.
         if ($matricula->estado === Matricula::ACTIVA) {
+            $this->guardarEncuesta($request, $perfil, $matricula);
+
             $matricula->estado = Matricula::CANCELACION_SOLICITADA;
             $matricula->save();
 
@@ -98,6 +101,74 @@ class MisMatriculasController extends Controller
         // Ya retirada, o con la cancelacion en tramite: no hay nada que hacer y
         // tampoco nada que avisar — el boton ni siquiera se pinta en esos casos.
         return $this->volver('', exito: true);
+    }
+
+    /**
+     * La pantalla que pide la encuesta antes de tramitar una salida.
+     *
+     * Solo aparece cuando la matricula esta ACTIVA. Una pendiente no ha tenido
+     * ni una clase: preguntarle a alguien que nunca entro «¿como te fue?» no
+     * recoge una opinion, recoge ruido, y ademas pone un formulario entre esa
+     * persona y un boton que hasta ahora era inmediato.
+     */
+    public function confirmarRetiro(Request $request, Matricula $matricula): View|RedirectResponse
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        abort_unless($matricula->estudiante_id === $perfil->id, 404);
+
+        $periodo = Periodo::enCurso();
+
+        if ($matricula->estado !== Matricula::ACTIVA || $matricula->periodo_id !== $periodo?->id) {
+            return redirect()->route('mis-matriculas');
+        }
+
+        return view('estudiante.retirar', [
+            'matricula' => $matricula,
+            // Si ya la valoro —por ejemplo al renovar— no se le vuelve a
+            // preguntar lo mismo.
+            'yaValoro' => EncuestaSatisfaccion::where('perfil_id', $perfil->id)
+                ->where('periodo_id', $matricula->periodo_id)
+                ->where('promotoria_id', $matricula->promotoria_id)
+                ->exists(),
+        ]);
+    }
+
+    /**
+     * Guarda la encuesta de salida, si es que vino.
+     *
+     * NO es obligatoria, y esa es una decision deliberada: quien se va puede
+     * estar molesto o tener una urgencia, y poner cinco preguntas entre esa
+     * persona y la puerta es a la vez una grosería y una forma segura de
+     * recoger respuestas puestas al azar para poder salir. La pantalla la pide
+     * con claridad y deja marcharse sin contestar.
+     *
+     * `firstOrCreate` y no `create`: puede haberla contestado ya al renovar, y
+     * el indice unico rechazaria la segunda.
+     */
+    private function guardarEncuesta(Request $request, Perfil $perfil, Matricula $matricula): void
+    {
+        if (! $request->filled('satisfaccion_general')) {
+            return;
+        }
+
+        $datos = $request->validate([
+            'satisfaccion_general' => ['required', 'integer', 'between:1,5'],
+            'calificacion_profesor' => ['required', 'integer', 'between:1,5'],
+            'horario_funciono' => ['required', 'boolean'],
+            'recomendaria' => ['required', 'boolean'],
+            'comentario' => ['nullable', 'string'],
+        ]);
+
+        EncuestaSatisfaccion::firstOrCreate(
+            [
+                'perfil_id' => $perfil->id,
+                'periodo_id' => $matricula->periodo_id,
+                'promotoria_id' => $matricula->promotoria_id,
+            ],
+            $datos
+        );
     }
 
     private function volver(string $mensaje, bool $exito = false): RedirectResponse
