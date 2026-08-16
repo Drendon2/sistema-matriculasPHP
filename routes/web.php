@@ -4,9 +4,19 @@ use App\Http\Controllers\Auth\InscripcionController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PostLoginController;
 use App\Http\Controllers\Auth\RegistroController;
+use App\Http\Controllers\ArchivoController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\ClaseController;
+use App\Http\Controllers\FichaController;
+use App\Http\Controllers\Gestion;
 use App\Http\Controllers\MatricularController;
+use App\Http\Controllers\MiPerfilController;
+use App\Http\Controllers\MisClasesController;
+use App\Http\Controllers\MisCompanerosController;
 use App\Http\Controllers\MisMatriculasController;
+use App\Http\Controllers\PanelController;
+use App\Http\Controllers\PanelGrupoController;
+use App\Http\Controllers\RenovarController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,9 +28,9 @@ use Illuminate\Support\Facades\Route;
 | versiones se puedan comparar de un vistazo, cambiando solo el guion bajo por
 | guion medio, que es la convencion de Laravel.
 |
-| Las rutas marcadas como PENDIENTES al final existen ya como nombre porque las
-| pantallas terminadas enlazan a ellas y `route()` falla con un nombre que no
-| existe. Se sustituyen por la pantalla real cuando le toque a cada una.
+| El orden sigue al del recorrido de la gente: primero lo publico, luego el
+| estudiante, luego el personal y por ultimo Gestion. Los archivos subidos van
+| aparte al final, porque no son una pantalla sino una entrega controlada.
 |
 */
 
@@ -64,16 +74,182 @@ Route::middleware(['auth', 'rol:estudiante'])->group(function () {
     Route::get('/mis-matriculas', [MisMatriculasController::class, 'index'])->name('mis-matriculas');
     Route::post('/mis-matriculas/{matricula}/retirar', [MisMatriculasController::class, 'retirar'])
         ->name('mis-matriculas.retirar');
+
+    Route::get('/renovar', [RenovarController::class, 'mostrar'])->name('renovar-matricula');
+    Route::post('/renovar', [RenovarController::class, 'guardar'])->name('renovar-matricula.guardar');
+
+    Route::get('/mis-clases', [MisClasesController::class, 'index'])->name('mis-clases');
+    Route::post('/mis-clases/{clase}/confirmar', [MisClasesController::class, 'confirmar'])
+        ->name('confirmar-clase');
+    Route::post('/mis-clases/{clase}/quitar-confirmacion', [MisClasesController::class, 'retirar'])
+        ->name('retirar-confirmacion-clase');
+
+    Route::get('/mis-companeros', MisCompanerosController::class)->name('mis-companeros');
+});
+
+// «Mi perfil» es de TODOS los roles, incluidas las cuentas sin rol asignado
+// todavia: es donde suben su foto y contestan la encuesta mientras esperan que
+// direccion les asigne uno.
+Route::middleware('auth')->group(function () {
+    Route::get('/mi-perfil', [MiPerfilController::class, 'mostrar'])->name('mi-perfil');
+    Route::post('/mi-perfil', [MiPerfilController::class, 'guardar'])->name('mi-perfil.guardar');
 });
 
 // ---------------------------------------------------------------------------
-// PENDIENTES de construir
+// Panel: el personal (todos los roles menos estudiante)
 // ---------------------------------------------------------------------------
 
-Route::view('/renovar', 'pendiente')->name('renovar-matricula');
-Route::view('/mis-clases', 'pendiente')->name('mis-clases');
-Route::view('/mis-companeros', 'pendiente')->name('mis-companeros');
-Route::view('/mi-perfil', 'pendiente')->name('mi-perfil');
-Route::view('/panel', 'pendiente')->name('panel');
-Route::view('/gestion', 'pendiente')->name('gestion-inicio');
-Route::view('/logo', 'pendiente')->name('logo-institucion');
+Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(function () {
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
+
+    Route::post('/panel/matriculas/{matricula}/confirmar', [PanelController::class, 'confirmar'])
+        ->name('panel-confirmar-matricula');
+    Route::post('/panel/matriculas/{matricula}/rechazar', [PanelController::class, 'rechazar'])
+        ->name('panel-rechazar-matricula');
+    Route::post('/panel/matriculas/{matricula}/asignar-grupo', [PanelController::class, 'asignarGrupo'])
+        ->name('panel-asignar-grupo');
+
+    Route::post('/panel/promotoria/{promotoria}/cupo', [PanelController::class, 'cupo'])
+        ->name('panel-cupo-promotoria');
+    Route::post('/panel/promotoria/{promotoria}/asignar-grupo-lote', [PanelController::class, 'asignarGrupoLote'])
+        ->name('panel-asignar-grupo-lote');
+
+    // Grupos
+    Route::get('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'crear'])
+        ->name('panel-grupo-nuevo');
+    Route::post('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'guardar']);
+    Route::get('/panel/grupos/{grupo}/editar', [PanelGrupoController::class, 'editar'])
+        ->name('panel-grupo-editar');
+    Route::post('/panel/grupos/{grupo}/editar', [PanelGrupoController::class, 'actualizar']);
+    Route::post('/panel/grupos/{grupo}/eliminar', [PanelGrupoController::class, 'eliminar'])
+        ->name('panel-grupo-eliminar');
+
+    // Clases y asistencia
+    Route::post('/panel/grupos/{grupo}/clase-nueva', [ClaseController::class, 'nueva'])
+        ->name('panel-clase-nueva');
+    Route::get('/panel/grupos/{grupo}/clases', [ClaseController::class, 'delGrupo'])
+        ->name('grupo-clases');
+    Route::get('/panel/clases/{clase}/asistencia', [ClaseController::class, 'asistencia'])
+        ->name('clase-asistencia');
+    Route::post('/panel/clases/{clase}/asistencia', [ClaseController::class, 'guardarAsistencia']);
+
+    // Fichas
+    Route::get('/panel/usuario/{usuario}', [FichaController::class, 'usuario'])
+        ->name('detalle-usuario');
+    Route::get('/panel/estudiante/{usuario}/historial', [FichaController::class, 'historial'])
+        ->name('historial-estudiante');
+});
+
+// La ficha con encuesta y documento es solo del administrador: va en su propio
+// grupo porque es el unico sitio del panel con esa puerta.
+Route::get('/panel/estudiante/{usuario}', [FichaController::class, 'estudiante'])
+    ->middleware(['auth', 'rol:administrador'])
+    ->name('detalle-estudiante');
+
+// ---------------------------------------------------------------------------
+// Archivos servidos de forma controlada (nunca como carpeta publica)
+// ---------------------------------------------------------------------------
+
+Route::get('/logo', [ArchivoController::class, 'logo'])->name('logo-institucion');
+
+Route::get('/foto/{perfil}', [ArchivoController::class, 'foto'])
+    ->middleware('auth')
+    ->name('ver-foto');
+
+Route::get('/documento/{datos}', [ArchivoController::class, 'documento'])
+    ->middleware(['auth', 'rol:administrador'])
+    ->name('descargar-documento');
+
+// ---------------------------------------------------------------------------
+// Gestion: el catalogo academico y la institucion (direccion)
+// ---------------------------------------------------------------------------
+
+Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->group(function () {
+    Route::get('/', Gestion\InicioController::class)->name('gestion-inicio');
+
+    // Ventana de matriculas y cupos
+    Route::get('/matriculas', [Gestion\MatriculasController::class, 'mostrar'])->name('gestion-matriculas');
+    Route::post('/matriculas', [Gestion\MatriculasController::class, 'guardar']);
+
+    Route::get('/cupos', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos');
+    Route::get('/cupos/{periodo}', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos-periodo');
+    Route::post('/cupos/{periodo}', [Gestion\CuposController::class, 'guardar']);
+
+    // Cancelaciones
+    Route::get('/cancelaciones', [Gestion\CancelacionesController::class, 'index'])
+        ->name('gestion-cancelaciones');
+    Route::post('/cancelaciones/{matricula}/{decision}', [Gestion\CancelacionesController::class, 'resolver'])
+        ->name('gestion-resolver-cancelacion');
+
+    // Departamentos
+    Route::get('/areas', [Gestion\AreaController::class, 'index'])->name('area-lista');
+    Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');
+    Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar']);
+    Route::get('/areas/{objeto}/editar', [Gestion\AreaController::class, 'editar'])->name('area-editar');
+    Route::post('/areas/{objeto}/editar', [Gestion\AreaController::class, 'actualizar']);
+    Route::get('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'confirmarBorrado'])
+        ->name('area-eliminar');
+    Route::post('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'eliminar']);
+    Route::get('/areas/{area}/promotorias', [Gestion\PromotoriaController::class, 'porArea'])
+        ->name('promotorias-por-area');
+
+    // Periodos
+    Route::get('/periodos', [Gestion\PeriodoController::class, 'index'])->name('periodo-lista');
+    Route::get('/periodos/nuevo', [Gestion\PeriodoController::class, 'crear'])->name('periodo-nuevo');
+    Route::post('/periodos/nuevo', [Gestion\PeriodoController::class, 'guardar']);
+    Route::get('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'editar'])->name('periodo-editar');
+    Route::post('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'actualizar']);
+    Route::get('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'confirmarBorrado'])
+        ->name('periodo-eliminar');
+    Route::post('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'eliminar']);
+
+    // Promotorias
+    Route::get('/promotorias', [Gestion\PromotoriaController::class, 'index'])->name('promotoria-lista');
+    Route::get('/promotorias/nueva', [Gestion\PromotoriaController::class, 'crear'])->name('promotoria-nueva');
+    Route::post('/promotorias/nueva', [Gestion\PromotoriaController::class, 'guardar']);
+    Route::get('/promotorias/{objeto}/editar', [Gestion\PromotoriaController::class, 'editar'])
+        ->name('promotoria-editar');
+    Route::post('/promotorias/{objeto}/editar', [Gestion\PromotoriaController::class, 'actualizar']);
+    Route::get('/promotorias/{objeto}/eliminar', [Gestion\PromotoriaController::class, 'confirmarBorrado'])
+        ->name('promotoria-eliminar');
+    Route::post('/promotorias/{objeto}/eliminar', [Gestion\PromotoriaController::class, 'eliminar']);
+    Route::get('/promotorias/{promotoria}/grupos', [Gestion\GrupoController::class, 'porPromotoria'])
+        ->name('grupos-por-promotoria');
+
+    // Grupos
+    Route::get('/grupos', [Gestion\GrupoController::class, 'index'])->name('grupo-lista');
+    Route::get('/grupos/nuevo', [Gestion\GrupoController::class, 'crear'])->name('grupo-nuevo');
+    Route::post('/grupos/nuevo', [Gestion\GrupoController::class, 'guardar']);
+    Route::get('/grupos/{objeto}/editar', [Gestion\GrupoController::class, 'editar'])->name('grupo-editar');
+    Route::post('/grupos/{objeto}/editar', [Gestion\GrupoController::class, 'actualizar']);
+    Route::get('/grupos/{objeto}/eliminar', [Gestion\GrupoController::class, 'confirmarBorrado'])
+        ->name('grupo-eliminar');
+    Route::post('/grupos/{objeto}/eliminar', [Gestion\GrupoController::class, 'eliminar']);
+    Route::get('/grupos/{grupo}/estudiantes', [Gestion\GrupoController::class, 'estudiantes'])
+        ->name('grupo-estudiantes');
+
+    // Usuarios
+    Route::get('/usuarios', [Gestion\UsuarioController::class, 'index'])->name('usuario-lista');
+    Route::get('/usuarios/nuevo', [Gestion\UsuarioController::class, 'crear'])->name('usuario-nuevo');
+    Route::post('/usuarios/nuevo', [Gestion\UsuarioController::class, 'guardar']);
+    Route::get('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'editar'])
+        ->name('usuario-editar');
+    Route::post('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'actualizar']);
+    Route::post('/usuarios/{usuario}/alternar-activo', [Gestion\UsuarioController::class, 'alternarActivo'])
+        ->name('usuario-alternar-activo');
+});
+
+// La institucion y las estadisticas son SOLO del administrador: la primera es la
+// identidad de la entidad y una regla que gobierna las matriculas de todo el
+// mundo; las segundas agregan la encuesta demografica.
+Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(function () {
+    Route::get('/institucion', [Gestion\ConfiguracionController::class, 'mostrar'])
+        ->name('gestion-configuracion');
+    Route::post('/institucion', [Gestion\ConfiguracionController::class, 'guardar']);
+    Route::post('/institucion/documentos/nuevo', [Gestion\ConfiguracionController::class, 'documentoNuevo'])
+        ->name('documento-requerido-nuevo');
+    Route::post('/institucion/documentos/{documento}/alternar', [Gestion\ConfiguracionController::class, 'documentoAlternar'])
+        ->name('documento-requerido-alternar');
+
+    Route::get('/estadisticas', Gestion\EstadisticasController::class)->name('gestion-estadisticas');
+});
