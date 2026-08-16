@@ -30,5 +30,6 @@ Thumbs.db
 /MIGRACION.md
 
 # Datos de demostración. Siembran cuentas con contraseñas conocidas, así que no
-# tienen sitio en un repositorio: el archivo se queda en local.
-/database/seeders/DatabaseSeeder.php
+# tienen sitio en un repositorio: el archivo se queda en local. El DatabaseSeeder
+# que sí se versiona lo llama solo si está presente.
+/database/seeders/DemoSeeder.php
