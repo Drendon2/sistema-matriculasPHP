@@ -68,7 +68,7 @@ class RegistroController extends Controller
 
         return redirect()->route('login')->with(
             'success',
-            'Tu cuenta quedo creada. Un director o administrador debe asignarte un rol antes '
+            'Tu cuenta quedó creada. Un director o administrador debe asignarte un rol antes '
             . 'de que puedas entrar al sistema. Cuando entres, ve a "Mi perfil" para subir tu foto.'
         );
     }

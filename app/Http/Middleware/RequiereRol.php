@@ -44,7 +44,7 @@ class RequiereRol
         if (! in_array($perfil->rol, $roles, true)) {
             return redirect()->route('post-login')->with(
                 'error',
-                'No tienes acceso a esta seccion.'
+                'No tienes acceso a esta sección.'
             );
         }
 

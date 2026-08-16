@@ -59,28 +59,34 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | La hora del sitio donde esta la institucion, no UTC. El original corre en
+    | 'America/Bogota' y varias reglas del sistema dependen de que dia es HOY:
+    | "¿ya hay una clase registrada hoy para este grupo?" y el plazo de 48 horas
+    | para confirmar una clase. Con UTC, una clase de las 8 de la noche cae al
+    | dia siguiente y esas dos reglas responden mal media noche de cada dia.
+    |
+    | A diferencia de Django —que guarda en UTC y convierte al mostrar— aqui las
+    | fechas se guardan ya en hora local: MariaDB no guarda zona en un DATETIME,
+    | asi que fijarla en la aplicacion es lo que mantiene coherente lo que se
+    | escribe con lo que se lee.
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'America/Bogota'),
 
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
-    | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | El sistema es de cara al publico y todo su texto esta en espanol, incluidos
+    | los mensajes del validador: ver lang/es/validation.php.
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'es'),
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'es'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 

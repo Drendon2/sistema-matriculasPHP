@@ -30,10 +30,21 @@ return [
 
     'disks' => [
 
+        /*
+         * Aqui viven las fotos de perfil y las copias de los documentos de
+         * identidad. Se sirven UNICAMENTE por `ArchivoController`, que aplica la
+         * matriz de visibilidad antes de entregar nada.
+         *
+         * `serve` va en false a proposito, y no es un detalle: en true, Laravel
+         * registra una ruta `storage/{path}` que entrega cualquier archivo de
+         * esta carpeta sin preguntar quien lo pide. Con ella puesta, adivinar el
+         * nombre de un archivo bastaba para bajarse la cedula de un menor de
+         * edad — justo lo que este disco existe para impedir.
+         */
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

@@ -26,7 +26,6 @@
 </style>
 </head>
 <body>
-@php($perfil = auth()->user()?->perfil)
 <header>
   <div class="marca-header">
     <img src="{{ $configuracion->logo ? route('logo-institucion') : asset('img/logo.webp') }}"
@@ -35,22 +34,22 @@
   </div>
   <nav>
     @auth
-      @if ($perfil?->rol === 'estudiante')
+      @if ($yo?->rol === 'estudiante')
         @if ($configuracion->promotorias_visibles_para_estudiantes)
           <a href="{{ route('promotorias-disponibles') }}">Promotorías disponibles</a>
         @endif
         <a href="{{ route('mis-matriculas') }}">Mis matrículas</a>
         <a href="{{ route('mis-clases') }}">Mis clases</a>
         <a href="{{ route('mis-companeros') }}">Mis compañeros</a>
-      @elseif ($perfil?->rol)
+      @elseif ($yo?->rol)
         <a href="{{ route('panel') }}">Panel</a>
       @endif
 
-      @if (in_array($perfil?->rol, ['director', 'administrador'], true))
+      @if (in_array($yo?->rol, ['director', 'administrador'], true))
         <a href="{{ route('gestion-inicio') }}">Gestión</a>
       @endif
 
-      @if ($perfil)
+      @if ($yo)
         <a href="{{ route('mi-perfil') }}">Mi perfil</a>
       @endif
 

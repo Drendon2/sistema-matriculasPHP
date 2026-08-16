@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Acudiente;
-use App\Models\ConfiguracionInstitucion;
 use App\Models\DatosEstudiante;
 use App\Models\Matricula;
 use App\Models\Perfil;

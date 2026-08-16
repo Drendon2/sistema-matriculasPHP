@@ -318,11 +318,11 @@ class Matricula extends Model
             );
 
             if ($ocupadas >= $limite) {
-                $palabra = $limite === 1 ? 'promotoria' : 'promotorias';
+                $palabra = $limite === 1 ? 'promotoría' : 'promotorías';
 
                 throw ValidationException::withMessages([
-                    'promotoria' => "Un estudiante puede estar en un maximo de {$limite} {$palabra} "
-                        . 'por periodo, y este ya tiene ese cupo ocupado. Retira una matricula '
+                    'promotoria' => "Un estudiante puede estar en un máximo de {$limite} {$palabra} "
+                        . 'por periodo, y este ya tiene ese cupo ocupado. Retira una matrícula '
                         . 'antes de agregar otra.',
                 ]);
             }
@@ -357,7 +357,7 @@ class Matricula extends Model
 
             if ($grupo->promotoria_id !== $this->promotoria_id) {
                 throw ValidationException::withMessages([
-                    'grupo' => 'El grupo elegido no pertenece a esta promotoria.',
+                    'grupo' => 'El grupo elegido no pertenece a esta promotoría.',
                 ]);
             }
 
