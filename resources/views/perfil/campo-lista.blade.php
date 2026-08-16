@@ -17,7 +17,13 @@
 <div class="field">
   <label for="{{ $campo }}">{{ $etiqueta }}</label>
   <select name="{{ $campo }}" id="{{ $campo }}" @required($obligatorio)>
-    <option value="">{{ $obligatorio ? '-- elige una --' : '-- prefiero no responder --' }}</option>
+    {{--
+      El texto del hueco dice qué pasa si se deja así, y por eso no es el mismo
+      en los dos casos: en un campo obligatorio es una instrucción, y en uno
+      opcional es ya una respuesta. Va neutro («elige» y no «elige una») porque
+      la misma plantilla sirve para género, estrato y nivel educativo.
+    --}}
+    <option value="">{{ $obligatorio ? '-- elige --' : '-- prefiero no responder --' }}</option>
     @foreach ($opciones as $valor => $texto)
       <option value="{{ $valor }}" @selected((string) $actual === (string) $valor)>{{ $texto }}</option>
     @endforeach

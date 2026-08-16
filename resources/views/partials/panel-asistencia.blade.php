@@ -11,7 +11,9 @@
   Regla del Marcador de DESIGN.md aplicada a un cuadro de once píxeles.
 --}}
 <section class="asis" aria-labelledby="asis-titulo">
-  <h3 id="asis-titulo">Asistencia@if ($periodo) — {{ $periodo->nombre }}@endif</h3>
+  {{-- Ver `renovar.blade.php`: una directiva pegada a una letra no se compila. --}}
+  @php($sufijoPeriodo = $periodo ? " — {$periodo->nombre}" : '')
+  <h3 id="asis-titulo">Asistencia{{ $sufijoPeriodo }}</h3>
 
   <div class="asis-fichas">
     @foreach ($asistencia['fichas'] as $f)

@@ -22,7 +22,12 @@
           <path d="M12 5v14M5 12h14"/>
         </svg>
       </span>
-      <input type="file" name="foto_perfil" id="foto_perfil" accept="image/*">
+      {{--
+        `perfil-avatar-input` no es decorativa: es la que estira el input
+        invisible sobre el avatar entero para que la tarjeta sea el control. Sin
+        ella el navegador pinta su «Seleccionar archivo» encima de la foto.
+      --}}
+      <input type="file" name="foto_perfil" id="foto_perfil" accept="image/*" class="perfil-avatar-input">
     </label>
     @error('foto_perfil')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </form>

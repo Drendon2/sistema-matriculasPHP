@@ -13,15 +13,24 @@
 --}}
 @php($opciones = $opciones ?? \App\Models\EncuestaSatisfaccion::ESCALA)
 
+{{--
+  El <ul>/<li> no es decorativo: la hoja de estilos pone la fila horizontal en
+  `.encuesta-escala ul`, que es la estructura que emitía el RadioSelect de
+  Django. Sin la lista, las cinco opciones caen una debajo de otra.
+--}}
 <div class="encuesta-pregunta">
   <p class="encuesta-enunciado">{{ $enunciado }}</p>
   <div class="encuesta-escala">
-    @foreach ($opciones as $valor => $etiqueta)
-    <label>
-      <input type="radio" name="{{ $campo }}" value="{{ $valor }}"
-             @checked((string) old($campo) === (string) $valor)> {{ $etiqueta }}
-    </label>
-    @endforeach
+    <ul>
+      @foreach ($opciones as $valor => $etiqueta)
+      <li>
+        <label>
+          <input type="radio" name="{{ $campo }}" value="{{ $valor }}"
+                 @checked((string) old($campo) === (string) $valor)> {{ $etiqueta }}
+        </label>
+      </li>
+      @endforeach
+    </ul>
   </div>
   @error($campo)<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
 </div>

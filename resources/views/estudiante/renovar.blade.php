@@ -41,12 +41,19 @@
       {{ $cuposLimite }} en total.
     </p>
 
+    {{--
+      El sufijo «— sin cupo» se arma antes y aquí solo se imprime. Escrito como
+      `cupo@endif` la directiva va pegada a una letra y Blade no la compila: la
+      deja literal y el bloque revienta. Es la misma trampa de la cabecera del
+      catálogo, y ya ha mordido dos veces.
+    --}}
     <label for="id_promotoria_nueva">Otra promotoría</label>
     <select name="promotoria_nueva" id="id_promotoria_nueva">
       <option value="">-- ninguna --</option>
       @foreach ($disponibles as $d)
+        @php($sinCupo = $d['llena'] ? ' — sin cupo' : '')
         <option value="{{ $d['promotoria']->id }}" @disabled($d['llena'])
-                @selected(old('promotoria_nueva') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }})@if ($d['llena']) — sin cupo@endif</option>
+                @selected(old('promotoria_nueva') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }}){{ $sinCupo }}</option>
       @endforeach
     </select>
 
@@ -54,8 +61,9 @@
     <select name="promotoria_nueva_2" id="id_promotoria_nueva_2">
       <option value="">-- ninguna --</option>
       @foreach ($disponibles as $d)
+        @php($sinCupo = $d['llena'] ? ' — sin cupo' : '')
         <option value="{{ $d['promotoria']->id }}" @disabled($d['llena'])
-                @selected(old('promotoria_nueva_2') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }})@if ($d['llena']) — sin cupo@endif</option>
+                @selected(old('promotoria_nueva_2') == $d['promotoria']->id)>{{ $d['promotoria']->nombre }} ({{ $d['promotoria']->area->nombre }}){{ $sinCupo }}</option>
       @endforeach
     </select>
   </div>

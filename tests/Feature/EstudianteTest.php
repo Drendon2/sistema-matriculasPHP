@@ -292,6 +292,24 @@ class EstudianteTest extends TestCase
             ->assertSessionHas('error');
     }
 
+    /**
+     * La pantalla no se habia renderizado NUNCA en las pruebas: las tres que
+     * habia acababan en redireccion. Se colo asi un error de compilacion de
+     * Blade que solo se veia abriendola en el navegador.
+     */
+    public function test_la_pantalla_de_renovacion_abre_con_sus_dos_bloques(): void
+    {
+        $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('renovar-matricula'))
+            ->assertOk()
+            // Lo que ya cursó, para renovar.
+            ->assertSee('Violin')
+            // Y el desplegable de promotorías nuevas, que es donde estaba el fallo.
+            ->assertSee('Danza');
+    }
+
     public function test_renovar_crea_la_matricula_pendiente_y_guarda_la_encuesta(): void
     {
         $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);

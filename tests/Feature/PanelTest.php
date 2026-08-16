@@ -587,6 +587,32 @@ class PanelTest extends TestCase
     }
 
     /**
+     * El panel de asistencia de la ficha solo se pinta cuando hay algo que
+     * contar, y por eso ninguna prueba lo habia renderizado: un error de
+     * compilacion de Blade vivio ahi sin que nada lo delatara.
+     */
+    public function test_la_ficha_con_asistencia_abre(): void
+    {
+        $grupo = $this->crearGrupo();
+        $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
+        \App\Models\Asistencia::create([
+            'clase_id' => $clase->id,
+            'matricula_id' => $matricula->id,
+            'estado' => 'asistio',
+        ]);
+
+        $this->actingAs($this->director->user)
+            ->get(route('detalle-usuario', $this->estudiante))
+            ->assertOk()
+            ->assertSee('Asistencia')
+            ->assertSee('Racha');
+    }
+
+    /**
      * Que un profesor pueda abrir la ficha no le da los datos de contacto de
      * cualquiera: solo de quien cursa alguna de sus promotorias.
      */
