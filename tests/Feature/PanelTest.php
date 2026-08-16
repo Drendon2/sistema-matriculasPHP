@@ -133,6 +133,56 @@ class PanelTest extends TestCase
         $respuesta->assertSee('Danza');
     }
 
+    /**
+     * El indice manda solo los titulos: el cuerpo de cada promotoria llega al
+     * desplegarla. Antes iba todo dentro y un director descargaba el catalogo
+     * entero para ver una lista plegada.
+     */
+    public function test_el_indice_no_trae_el_cuerpo_de_las_promotorias(): void
+    {
+        $this->matricular($this->violin);
+
+        $respuesta = $this->actingAs($this->director->user)->get(route('panel'));
+
+        $respuesta->assertOk();
+        $respuesta->assertSee('Violin');
+        // Ni los estudiantes ni los controles: eso vive en el cuerpo.
+        $respuesta->assertDontSee('Pendientes de confirmación', false);
+        $respuesta->assertDontSee('Ana');
+    }
+
+    public function test_el_cuerpo_trae_lo_que_el_indice_ya_no_manda(): void
+    {
+        $this->matricular($this->violin);
+
+        $this->actingAs($this->director->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->assertSee('Pendientes de confirmación', false)
+            ->assertSee('Ana')
+            ->assertSee('Confirmar');
+    }
+
+    /**
+     * Esconder una promotoria de la lista no cierra su URL: la puerta del cuerpo
+     * tiene que ser la misma que la del indice.
+     */
+    public function test_un_profesor_no_lee_el_cuerpo_de_una_promotoria_ajena(): void
+    {
+        $this->matricular($this->danza, $this->crearEstudiante('samu'));
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->danza))
+            ->assertNotFound();
+    }
+
+    public function test_un_estudiante_no_lee_el_cuerpo(): void
+    {
+        $this->actingAs($this->estudiante->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertRedirect(route('post-login'));
+    }
+
     // -----------------------------------------------------------------------
     // Confirmar y rechazar
     // -----------------------------------------------------------------------

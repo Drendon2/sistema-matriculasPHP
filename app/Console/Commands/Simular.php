@@ -606,17 +606,31 @@ class Simular extends Command
                 continue;
             }
 
-            // Horas hacia atras. Ninguna sesion se va mas alla de lo que se
-            // atrasan las matriculas: una clase anterior a la matricula de sus
-            // propios estudiantes no la puede confirmar nadie.
-            $sesiones = match ($escenario) {
-                'abierta' => [2],
-                'vencida' => [24 * 5],
-                default => [24 * 21, 24 * 14, 24 * 7, 24 * 2],
+            // Las sesiones caen en el DIA que dice el horario del grupo, no a
+            // una cantidad redonda de horas hacia atras. No es adorno: el mapa
+            // de calor de una ficha se lee por filas —cada fila es un dia de la
+            // semana— y con las clases repartidas al azar no ensena el patron
+            // semanal, que es justo para lo que existe.
+            //
+            // Ninguna se va mas alla de lo que se atrasan las matriculas: una
+            // clase anterior a la matricula de sus propios estudiantes no la
+            // puede confirmar nadie.
+            //
+            // La excepcion es 'abierta': esa tiene que caer dentro del plazo de
+            // 48 horas para que se pueda ver una confirmacion todavia viva, y
+            // eso manda sobre el dia de la semana.
+            $cuando = match ($escenario) {
+                'abierta' => [now()->subHours(2)],
+                'vencida' => [$this->sesion($grupo, 1)],
+                default => [
+                    $this->sesion($grupo, 3),
+                    $this->sesion($grupo, 2),
+                    $this->sesion($grupo, 1),
+                ],
             };
 
-            foreach ($sesiones as $horas) {
-                $this->unaClase($grupo, $periodo, $inscritos, $horas, $escenario);
+            foreach ($cuando as $fecha) {
+                $this->unaClase($grupo, $periodo, $inscritos, $fecha, $escenario);
             }
 
             $barra->advance();
@@ -627,13 +641,60 @@ class Simular extends Command
     }
 
     /**
+     * La sesion de hace `$semanas` semanas, en el dia que dice el horario.
+     *
+     * El horario es texto libre («Martes 4:00-6:00 p. m.»), asi que el dia se
+     * lee de ahi. Si no se reconoce ninguno —porque alguien escribio el horario
+     * a su manera— cae en miercoles, que es un dia laborable cualquiera: mejor
+     * un dia fijo que uno al azar, porque al azar el mapa deja de tener patron.
+     */
+    private function sesion(Grupo $grupo, int $semanas): Carbon
+    {
+        $dias = [
+            'lunes' => Carbon::MONDAY,
+            'martes' => Carbon::TUESDAY,
+            'miércoles' => Carbon::WEDNESDAY,
+            'miercoles' => Carbon::WEDNESDAY,
+            'jueves' => Carbon::THURSDAY,
+            'viernes' => Carbon::FRIDAY,
+            'sábado' => Carbon::SATURDAY,
+            'sabado' => Carbon::SATURDAY,
+            'domingo' => Carbon::SUNDAY,
+        ];
+
+        $horario = mb_strtolower($grupo->horario);
+        $dia = Carbon::WEDNESDAY;
+
+        foreach ($dias as $nombre => $numero) {
+            if (str_contains($horario, $nombre)) {
+                $dia = $numero;
+
+                break;
+            }
+        }
+
+        // La hora sale tambien del texto cuando se puede leer; si no, media
+        // tarde, que es cuando de verdad se dan estas clases.
+        $hora = preg_match('/(\d{1,2}):(\d{2})/', $grupo->horario, $c) ? (int) $c[1] : 16;
+
+        if ($hora < 7) {
+            $hora += 12; // «2:00 p. m.» viene sin el 14.
+        }
+
+        return Carbon::today()
+            ->subWeeks($semanas)
+            ->next($dia)
+            ->setTime($hora, 0);
+    }
+
+    /**
      * @param  \Illuminate\Support\Collection<int, Matricula>  $inscritos
      */
-    private function unaClase(Grupo $grupo, Periodo $periodo, $inscritos, int $horasAtras, string $escenario): void
+    private function unaClase(Grupo $grupo, Periodo $periodo, $inscritos, Carbon $fecha, string $escenario): void
     {
         $clase = Clase::abrir($grupo, $periodo, $grupo->promotoria->profesor);
 
-        Clase::where('id', $clase->id)->update(['fecha_hora' => now()->subHours($horasAtras)]);
+        Clase::where('id', $clase->id)->update(['fecha_hora' => $fecha]);
         $clase->refresh();
 
         foreach ($inscritos as $matricula) {

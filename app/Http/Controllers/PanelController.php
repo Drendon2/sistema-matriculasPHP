@@ -46,81 +46,143 @@ class PanelController extends Controller
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
-        $periodo = Periodo::enCurso();
-        $exigidos = DocumentoRequerido::activos()->ordenados()->get();
 
-        $promotorias = Promotoria::query()
-            ->with(['area', 'profesor', 'grupos', 'cupos'])
-            ->when($perfil->rol === 'profesor', fn ($q) => $q->where('profesor_id', $perfil->id))
+        $promotorias = $this->visiblesPara($perfil)
+            ->with(['area', 'profesor'])
             ->orderBy('id')
             ->get();
 
-        $matriculas = $this->matriculasDelPanel($promotorias);
-        $renovaciones = $this->renovacionesDe($matriculas);
-        $clasesDeHoy = $this->clasesDeHoy($periodo);
+        // Lo unico que necesita la portada de cada promotoria: cuantas
+        // solicitudes esperan respuesta. Una sola consulta agrupada.
+        $pendientes = Matricula::query()
+            ->whereIn('promotoria_id', $promotorias->pluck('id'))
+            ->where('estado', Matricula::PENDIENTE)
+            ->groupBy('promotoria_id')
+            ->selectRaw('promotoria_id, COUNT(*) as total')
+            ->pluck('total', 'promotoria_id');
 
-        $datos = [];
+        return view('panel.index', [
+            'promotorias' => $promotorias,
+            'pendientes' => $pendientes,
+        ]);
+    }
 
-        foreach ($promotorias as $promotoria) {
-            $suyas = $matriculas->where('promotoria_id', $promotoria->id);
+    /**
+     * El cuerpo de UNA promotoria: sus grupos, sus matriculados y sus
+     * pendientes.
+     *
+     * Se pide aparte, al desplegar. Antes iba dentro del indice y el resultado
+     * era que un director descargaba el catalogo entero —467 KB con trescientos
+     * estudiantes— para ver una lista de veintiun titulos plegados. Ahora la
+     * portada pesa unos pocos KB y cada promotoria trae lo suyo cuando alguien
+     * la abre de verdad.
+     *
+     * Lo que se pinta aqui es exactamente la misma plantilla que antes, asi que
+     * no hay dos versiones de nada; lo que cambia es cuando se pide.
+     */
+    public function cuerpo(Request $request, Promotoria $promotoria): View
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
 
-            // Pendientes: solicitudes que nadie ha resuelto todavia. Se listan
-            // aparte de los grupos aunque alguna tenga grupo asignado, porque
-            // mientras no se confirme no esta en la clase.
-            $pendientes = $suyas->where('estado', Matricula::PENDIENTE);
+        // La misma puerta que filtra el indice: esconder una promotoria de la
+        // lista no cierra su URL.
+        abort_unless(
+            $this->visiblesPara($perfil)->where('promotorias.id', $promotoria->id)->exists(),
+            404
+        );
 
-            // Inscritos: activas y cancelaciones en tramite. La cancelacion sin
-            // resolver sigue en la lista a proposito — el estudiante sigue yendo
-            // a clase hasta que direccion la tramite, y borrarlo de la vista de
-            // su propio profesor antes de eso seria mentir sobre quien esta en el
-            // salon.
-            $inscritas = $suyas->whereIn('estado', Matricula::ESTADOS_INSCRITO);
+        $promotoria->load(['area', 'profesor', 'grupos', 'cupos']);
+        $periodo = Periodo::enCurso();
 
-            $grupos = [];
+        return view('panel.item', [
+            'periodo' => $periodo,
+            'item' => $this->itemDe($promotoria, $perfil, $periodo),
+        ]);
+    }
 
-            foreach ($promotoria->grupos as $grupo) {
-                $delGrupo = $inscritas->where('grupo_id', $grupo->id);
+    /**
+     * Las promotorias que esta persona puede ver en el Panel.
+     *
+     * El profesor solo las que dicta; direccion todas. Vive aparte porque la
+     * usan el indice y la carga de un cuerpo suelto, y separadas acabarian
+     * discrepando: bastaria que una olvidara el filtro para que un profesor
+     * pudiera leer la lista de otra promotoria por URL.
+     */
+    private function visiblesPara(Perfil $perfil)
+    {
+        return Promotoria::query()
+            ->when($perfil->rol === 'profesor', fn ($q) => $q->where('profesor_id', $perfil->id));
+    }
 
-                $grupos[] = [
-                    'grupo' => $grupo,
-                    'estudiantes' => $this->fichas($delGrupo, $exigidos, $renovaciones),
-                    'clase_hoy' => $clasesDeHoy[$grupo->id] ?? null,
-                ];
-            }
+    /**
+     * Todo lo que la plantilla necesita para pintar una promotoria.
+     *
+     * @return array<string, mixed>
+     */
+    private function itemDe(Promotoria $promotoria, Perfil $perfil, ?Periodo $periodo): array
+    {
+        $exigidos = DocumentoRequerido::activos()->ordenados()->get();
 
-            $datos[] = [
-                'promotoria' => $promotoria,
-                'grupos' => $grupos,
-                'sin_grupo' => $this->fichas(
-                    $inscritas->whereNull('grupo_id'),
+        // A proposito SIN filtrar por periodo, como el original: el panel es la
+        // vista de quien dicta sobre su promotoria entera, no sobre un semestre.
+        $suyas = Matricula::query()
+            ->where('promotoria_id', $promotoria->id)
+            ->whereIn('estado', [...Matricula::ESTADOS_INSCRITO, Matricula::PENDIENTE])
+            ->with([
+                'estudiante',
+                'estudiante.datosEstudiante.acudiente',
+                'estudiante.datosEstudiante.documentos',
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $renovaciones = $this->renovacionesDe($suyas);
+        $clasesDeHoy = $this->clasesDeHoy($periodo, $promotoria);
+
+        // Pendientes: solicitudes que nadie ha resuelto todavia. Se listan
+        // aparte de los grupos aunque alguna tenga grupo asignado, porque
+        // mientras no se confirme no esta en la clase.
+        $pendientes = $suyas->where('estado', Matricula::PENDIENTE);
+
+        // Inscritos: activas y cancelaciones en tramite. La cancelacion sin
+        // resolver sigue en la lista a proposito — el estudiante sigue yendo a
+        // clase hasta que direccion la tramite, y borrarlo de la vista de su
+        // propio profesor antes de eso seria mentir sobre quien esta en el salon.
+        $inscritas = $suyas->whereIn('estado', Matricula::ESTADOS_INSCRITO);
+
+        $grupos = [];
+
+        foreach ($promotoria->grupos as $grupo) {
+            $grupos[] = [
+                'grupo' => $grupo,
+                'estudiantes' => $this->fichas(
+                    $inscritas->where('grupo_id', $grupo->id),
                     $exigidos,
                     $renovaciones
                 ),
-                'pendientes' => $this->fichas($pendientes, $exigidos, $renovaciones),
-                'puede_gestionar' => Permisos::puedeGestionarPromotoria($perfil, $promotoria),
-                // Mas estrecho que lo anterior: el boton de clase es solo de
-                // quien la dicta (ver `Permisos::dictaLaPromotoria`).
-                'puede_marcar' => Permisos::dictaLaPromotoria($perfil, $promotoria),
-                'cupo' => $promotoria->cupoEn($periodo),
-                // Se cuenta sobre lo que ya esta en memoria en vez de llamar a
-                // `ocupadosEn()`, que consulta. Parece un detalle y no lo es:
-                // era una consulta POR PROMOTORIA, asi que un catalogo de
-                // veintiuna hacia veintiun `count(*)` para pintar veintiuna
-                // cifras que ya se podian sumar aqui.
-                //
-                // El resultado es identico: `ocupadosEn` cuenta las de ese
-                // periodo con estado distinto de 'retirada', y lo que se trajo
-                // son exactamente esos tres estados.
-                'ocupados' => $periodo === null
-                    ? 0
-                    : $suyas->where('periodo_id', $periodo->id)->count(),
+                'clase_hoy' => $clasesDeHoy[$grupo->id] ?? null,
             ];
         }
 
-        return view('panel.index', [
-            'datos' => $datos,
-            'periodo' => $periodo,
-        ]);
+        return [
+            'promotoria' => $promotoria,
+            'grupos' => $grupos,
+            'sin_grupo' => $this->fichas($inscritas->whereNull('grupo_id'), $exigidos, $renovaciones),
+            'pendientes' => $this->fichas($pendientes, $exigidos, $renovaciones),
+            'puede_gestionar' => Permisos::puedeGestionarPromotoria($perfil, $promotoria),
+            // Mas estrecho que lo anterior: el boton de clase es solo de quien la
+            // dicta (ver `Permisos::dictaLaPromotoria`).
+            'puede_marcar' => Permisos::dictaLaPromotoria($perfil, $promotoria),
+            'cupo' => $promotoria->cupoEn($periodo),
+            // Se cuenta sobre lo que ya esta en memoria en vez de llamar a
+            // `ocupadosEn()`, que consulta. El resultado es identico:
+            // `ocupadosEn` cuenta las de ese periodo con estado distinto de
+            // 'retirada', y lo que se trajo son exactamente esos tres estados.
+            'ocupados' => $periodo === null
+                ? 0
+                : $suyas->where('periodo_id', $periodo->id)->count(),
+        ];
     }
 
     /**
@@ -416,42 +478,15 @@ class PanelController extends Controller
     // -----------------------------------------------------------------------
 
     /**
-     * Todas las matriculas que el panel puede llegar a ensenar, de una consulta.
-     *
-     * A proposito SIN filtrar por periodo, como el original: el panel es la vista
-     * de quien dicta sobre su promotoria entera, no sobre un semestre.
-     *
-     * @param  Collection<int, Promotoria>  $promotorias
-     * @return Collection<int, Matricula>
-     */
-    private function matriculasDelPanel(Collection $promotorias): Collection
-    {
-        if ($promotorias->isEmpty()) {
-            return new Collection();
-        }
-
-        return Matricula::query()
-            ->whereIn('promotoria_id', $promotorias->pluck('id'))
-            ->whereIn('estado', [...Matricula::ESTADOS_INSCRITO, Matricula::PENDIENTE])
-            ->with([
-                'estudiante',
-                'estudiante.datosEstudiante.acudiente',
-                'estudiante.datosEstudiante.documentos',
-            ])
-            ->orderBy('id')
-            ->get();
-    }
-
-    /**
      * Las clases abiertas HOY, por grupo.
      *
-     * Una sola consulta para todo el panel: el boton de clase cambia de texto
-     * segun si el grupo ya tiene lista abierta hoy, y preguntarlo grupo por
-     * grupo seria una consulta por fila.
+     * Una sola consulta para los grupos de esta promotoria: el boton de clase
+     * cambia de texto segun si el grupo ya tiene lista abierta hoy, y
+     * preguntarlo grupo por grupo seria una consulta por fila.
      *
      * @return array<int, \App\Models\Clase>
      */
-    private function clasesDeHoy(?Periodo $periodo): array
+    private function clasesDeHoy(?Periodo $periodo, Promotoria $promotoria): array
     {
         if ($periodo === null) {
             return [];
@@ -460,6 +495,7 @@ class PanelController extends Controller
         return Clase::query()
             ->where('periodo_id', $periodo->id)
             ->whereDate('fecha_hora', today())
+            ->whereIn('grupo_id', $promotoria->grupos->pluck('id'))
             ->get()
             ->keyBy('grupo_id')
             ->all();

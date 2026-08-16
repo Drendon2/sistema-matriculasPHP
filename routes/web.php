@@ -107,6 +107,12 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(function () {
     Route::get('/panel', [PanelController::class, 'index'])->name('panel');
 
+    // El cuerpo de una promotoria, que el indice pide al desplegarla. Es una
+    // pagina de verdad y no un fragmento de una API: sin JavaScript se abre
+    // igual y se lee, que es lo que la deja funcionando sin el.
+    Route::get('/panel/promotoria/{promotoria}/cuerpo', [PanelController::class, 'cuerpo'])
+        ->name('panel-promotoria-cuerpo');
+
     Route::post('/panel/matriculas/{matricula}/confirmar', [PanelController::class, 'confirmar'])
         ->name('panel-confirmar-matricula');
     Route::post('/panel/matriculas/{matricula}/rechazar', [PanelController::class, 'rechazar'])
