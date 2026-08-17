@@ -43,6 +43,18 @@
     @error('rol')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
 
+  {{--
+    Opcional a propósito: muchos de los matriculados son menores sin correo
+    propio. Se avisa en el campo para que quien da el alta no se invente uno.
+  --}}
+  <div class="field">
+    <label for="correo">Correo electrónico</label>
+    <input type="email" name="correo" id="correo" maxlength="255"
+           value="{{ old('correo', $perfil->user?->email) }}">
+    <p class="campo-info">Opcional. Puede repetirse: los hermanos suelen compartir el del acudiente.</p>
+    @error('correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+  </div>
+
   <div class="field">
     <label for="nombre_completo">Nombre completo</label>
     <input type="text" name="nombre_completo" id="nombre_completo" maxlength="90" required

@@ -43,6 +43,15 @@
 <table style="max-width:520px;">
   <tr><th>Edad</th><td>{{ $objetivo->edad }} años</td></tr>
   <tr><th>Teléfono</th><td>{{ $objetivo->telefono }}</td></tr>
+  {{--
+    El correo va con el resto del contacto y bajo la misma puerta: es un dato de
+    contacto, no de identidad, así que lo ve quien ve el teléfono. Un campo que
+    se puede rellenar y no se ve en ninguna parte no sirve para nada.
+  --}}
+  <tr>
+    <th>Correo</th>
+    <td>@if ($objetivo->user->email){{ $objetivo->user->email }}@else<span class="vacio">—</span>@endif</td>
+  </tr>
   @if ($esEstudiante)
   <tr>
     <th>Acudiente</th>

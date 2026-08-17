@@ -149,6 +149,10 @@ class UsuarioController extends Controller
                 $user = User::create([
                     'username' => $datos['username'],
                     'password' => $datos['password'],
+                    // Vacio se guarda como null: «sin correo» es la ausencia del
+                    // dato, y dejar '' obligaria a comprobar las dos cosas en
+                    // cada sitio que lo lea.
+                    'email' => ($datos['correo'] ?? null) ?: null,
                     'activo' => true,
                 ]);
 
@@ -204,6 +208,7 @@ class UsuarioController extends Controller
             DB::transaction(function () use ($request, $usuario, $datos, $datosEstudiante, $acudiente) {
                 $user = $usuario->user;
                 $user->username = $datos['username'];
+                $user->email = ($datos['correo'] ?? null) ?: null;
 
                 // Vacia significa "no la cambies": es lo que permite editar el
                 // telefono de alguien sin tener que inventarle una contrasena.
@@ -349,6 +354,11 @@ class UsuarioController extends Controller
             'nombre_completo' => ['required', 'string', 'max:90'],
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
             'telefono' => ['required', 'string', 'max:15'],
+            // Opcional y NO unico, igual que en el esquema: buena parte de los
+            // matriculados son menores sin correo propio, y dos hermanos
+            // comparten el de su acudiente. Un indice unico convertiria ese caso
+            // corriente en un error que la familia no sabria resolver.
+            'correo' => ['nullable', 'email', 'max:255'],
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:8192'],
             'documento_identidad' => [
                 $esEstudiante ? 'required' : 'nullable', 'string', 'max:15',

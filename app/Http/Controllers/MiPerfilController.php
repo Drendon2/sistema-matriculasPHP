@@ -94,6 +94,7 @@ class MiPerfilController extends Controller
         return match ($request->input('accion')) {
             'foto' => $this->guardarFoto($request, $perfil),
             'contacto' => $this->guardarContacto($request, $perfil),
+            'correo' => $this->guardarCorreo($request, $perfil),
             'documento' => $this->guardarDocumento($request, $perfil),
             'papel' => $this->guardarPapel($request, $perfil),
             'encuesta' => $this->guardarEncuesta($request, $perfil),
@@ -132,6 +133,45 @@ class MiPerfilController extends Controller
         $perfil->save();
 
         return redirect()->route('mi-perfil')->with('success', 'Tu teléfono quedó actualizado.');
+    }
+
+    /**
+     * El correo, que es opcional y vive en la CUENTA y no en el perfil.
+     *
+     * La asimetria con el telefono no es un descuido: el telefono es un dato de
+     * la persona y el correo es de la credencial —esta en `users` desde el
+     * principio, reservado para poder recuperar una clave algun dia—, y hasta
+     * hoy nada lo escribia.
+     *
+     * Opcional, y esa es la decision de fondo: buena parte de quien se inscribe
+     * aqui son menores que no tienen correo propio. Exigirlo obligaria a
+     * inventarse uno por cada uno, que es justamente lo que la tabla evita
+     * autenticando por `username`.
+     *
+     * Y NO se exige unico, igual que en el esquema. Dos hermanos matriculados
+     * comparten el correo de su acudiente, y ese caso es corriente en una casa
+     * de la cultura; un indice unico lo convertiria en un error que la familia
+     * no sabria como resolver. La contrapartida es que el correo no sirve por si
+     * solo para identificar una cuenta: el dia que haya recuperacion de clave
+     * tendra que pedir tambien el usuario.
+     */
+    private function guardarCorreo(Request $request, Perfil $perfil): RedirectResponse
+    {
+        $datos = $request->validate([
+            'correo' => ['nullable', 'email', 'max:255'],
+        ], [], ['correo' => 'correo electrónico']);
+
+        $user = $perfil->user;
+        // Vacio se guarda como null y no como cadena: «sin correo» es la
+        // ausencia del dato, y dejar '' obligaria a comprobar las dos cosas en
+        // cada sitio que lo lea.
+        $user->email = $datos['correo'] ?: null;
+        $user->save();
+
+        return redirect()->route('mi-perfil')->with(
+            'success',
+            $user->email === null ? 'Tu correo quedó vacío.' : 'Tu correo quedó actualizado.'
+        );
     }
 
     private function guardarDocumento(Request $request, Perfil $perfil): RedirectResponse

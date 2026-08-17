@@ -621,6 +621,36 @@ class EstudianteTest extends TestCase
         $this->assertSame('3111111111', $this->ana->fresh()->telefono);
     }
 
+    public function test_se_guarda_el_correo(): void
+    {
+        $this->actingAs($this->ana->user)
+            ->post(route('mi-perfil.guardar'), ['accion' => 'correo', 'correo' => 'ana@ejemplo.co'])
+            ->assertSessionHas('success');
+
+        $this->assertSame('ana@ejemplo.co', $this->ana->fresh()->user->email);
+    }
+
+    /** Dejarlo en blanco lo BORRA, y queda null y no cadena vacia. */
+    public function test_el_correo_en_blanco_lo_deja_vacio(): void
+    {
+        $this->ana->user->update(['email' => 'ana@ejemplo.co']);
+
+        $this->actingAs($this->ana->user)
+            ->post(route('mi-perfil.guardar'), ['accion' => 'correo', 'correo' => ''])
+            ->assertSessionHas('success');
+
+        $this->assertNull($this->ana->fresh()->user->email);
+    }
+
+    public function test_un_correo_mal_escrito_se_rechaza(): void
+    {
+        $this->actingAs($this->ana->user)
+            ->post(route('mi-perfil.guardar'), ['accion' => 'correo', 'correo' => 'esto-no-es-un-correo'])
+            ->assertSessionHasErrors('correo');
+
+        $this->assertNull($this->ana->fresh()->user->email);
+    }
+
     /**
      * La foto se convierte a WebP antes de tocar el disco: es una diferencia
      * deliberada con el original, que guardaba el archivo tal como llegaba del

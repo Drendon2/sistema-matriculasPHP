@@ -50,6 +50,39 @@
   </form>
   @error('telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
 
+  {{--
+    El correo es OPCIONAL y vive en la cuenta, no en el perfil. Sin él puesto se
+    dice «Sin correo» en vez de dejar el renglón vacío: un hueco no distingue
+    «no lo he puesto» de «esta pantalla no lo pide».
+
+    Reutiliza las clases del teléfono porque el patrón es el mismo —texto con un
+    botón que lo cambia por un campo— y son estructurales, no propias del
+    teléfono.
+  --}}
+  <div class="perfil-tel-fila perfil-tel-texto">
+    <span class="campo-info" style="margin:0;">
+      Correo:
+      @if ($perfil->user->email)
+        {{ $perfil->user->email }}
+      @else
+        <span class="vacio">Sin correo</span>
+      @endif
+    </span>
+    <button type="button" class="perfil-editar-btn perfil-tel-toggle" aria-label="Editar correo">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+  <form method="post" action="{{ route('mi-perfil.guardar') }}" class="perfil-contacto-form perfil-tel-form">
+    @csrf
+    <input type="hidden" name="accion" value="correo">
+    <input type="email" name="correo" maxlength="255" placeholder="tu@correo.com"
+           value="{{ old('correo', $perfil->user->email) }}">
+    <button type="submit" class="perfil-editar-btn" aria-label="Guardar correo">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </form>
+  @error('correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+
   @if ($estadisticas)
   <div class="perfil-stats" style="margin-top:1rem;">
     @foreach ($estadisticas as $stat)
@@ -76,11 +109,15 @@
     toggles.forEach(function (toggle) {
       toggle.addEventListener("click", function () {
         var fila = toggle.closest(".perfil-tel-texto");
-        var form = fila.parentElement.querySelector(".perfil-tel-form");
-        if (!fila || !form) { return; }
+        if (!fila) { return; }
+        // El formulario que sigue a ESTA fila, no el primero de la tarjeta: hay
+        // dos campos en línea —teléfono y correo— y buscar por nombre de campo
+        // o por el primero abría siempre el mismo.
+        var form = fila.nextElementSibling;
+        if (!form || !form.classList.contains("perfil-tel-form")) { return; }
         fila.style.display = "none";
         form.style.display = "inline-flex";
-        var input = form.querySelector('input[name="telefono"]');
+        var input = form.querySelector("input:not([type=hidden])");
         if (input) { input.focus(); }
       });
     });

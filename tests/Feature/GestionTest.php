@@ -709,6 +709,61 @@ class GestionTest extends TestCase
         $this->assertSame('Admin Dos', $otro->fresh()->nombre_completo);
     }
 
+    public function test_el_alta_guarda_el_correo(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                'username' => 'con.correo',
+                'correo' => 'profe@ejemplo.co',
+            ]))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertSame('profe@ejemplo.co', User::where('username', 'con.correo')->first()->email);
+    }
+
+    /**
+     * El correo PUEDE repetirse, y es deliberado.
+     *
+     * Dos hermanos matriculados comparten el de su acudiente, y en una casa de
+     * la cultura ese caso es corriente. Un indice unico lo convertiria en un
+     * error que la familia no sabria como resolver.
+     */
+    public function test_dos_cuentas_pueden_compartir_correo(): void
+    {
+        foreach (['hermano.uno', 'hermano.dos'] as $username) {
+            $this->actingAs($this->director->user)
+                ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                    'username' => $username,
+                    'correo' => 'acudiente@ejemplo.co',
+                ]))
+                ->assertRedirect(route('usuario-lista'));
+        }
+
+        $this->assertSame(2, User::where('email', 'acudiente@ejemplo.co')->count());
+    }
+
+    /** Sin correo se guarda null, no cadena vacia. */
+    public function test_el_alta_sin_correo_guarda_null(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario(['username' => 'sin.correo']))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertNull(User::where('username', 'sin.correo')->first()->email);
+    }
+
+    public function test_un_correo_mal_escrito_no_crea_la_cuenta(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                'username' => 'correo.malo',
+                'correo' => 'arroba-ninguna',
+            ]))
+            ->assertSessionHasErrors('correo');
+
+        $this->assertNull(User::where('username', 'correo.malo')->first());
+    }
+
     /** Un director sigue repartiendo los tres roles que si le tocan. */
     public function test_un_director_si_crea_profesores(): void
     {
