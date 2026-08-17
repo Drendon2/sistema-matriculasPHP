@@ -562,6 +562,56 @@ class EstudianteTest extends TestCase
             ->assertOk();
     }
 
+    /**
+     * Cada quien ve su propia asistencia sin tener que pedirsela a nadie. Antes
+     * el mapa solo existia en la ficha que abre el personal.
+     */
+    public function test_el_estudiante_ve_su_asistencia_en_su_perfil(): void
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $clase = Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        \App\Models\Asistencia::create([
+            'clase_id' => $clase->id,
+            'matricula_id' => $matricula->id,
+            'estado' => 'asistio',
+        ]);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('Asistencia')
+            ->assertSee('Racha')
+            // La cabecera de dias, que es lo que hace legible la rejilla.
+            ->assertSee('asis-dias', false);
+    }
+
+    /** Y quien dicta ve lo que dio y cuanto le verificaron. */
+    public function test_quien_dicta_ve_sus_clases_en_su_perfil(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('Clases dictadas')
+            ->assertSee('confirmadas por sus estudiantes');
+    }
+
+    /**
+     * Sin clases no se pinta nada: un panel de ceros no informa y ademas miente
+     * por omision — no se distingue «no he faltado nunca» de «no ha empezado el
+     * periodo».
+     */
+    public function test_sin_clases_el_perfil_no_ensena_panel_de_asistencia(): void
+    {
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertDontSee('asis-dias', false);
+    }
+
     public function test_se_actualiza_el_telefono(): void
     {
         $this->actingAs($this->ana->user)

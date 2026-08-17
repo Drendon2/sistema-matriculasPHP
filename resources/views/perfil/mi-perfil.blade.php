@@ -61,6 +61,15 @@
   </div>
   @endif
 </div>
+{{--
+  Solo si hay algo que contar. Un panel de ceros no informa de nada y ademas
+  miente por omisión: sin clases todavía no se distingue «no he faltado nunca» de
+  «no ha empezado el periodo».
+--}}
+@if ($asistencia)
+  @include('partials.panel-asistencia', ['asistencia' => $asistencia, 'periodo' => $periodo])
+@endif
+
 <script>
   (function () {
     var toggles = document.querySelectorAll(".perfil-tel-toggle");

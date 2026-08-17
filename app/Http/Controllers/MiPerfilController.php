@@ -8,8 +8,10 @@ use App\Models\EncuestaDemografica;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
+use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Imagen;
+use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -67,6 +69,19 @@ class MiPerfilController extends Controller
             // listan preguntas sueltas: ahi lo que falta es la encuesta entera.
             'faltanPreguntas' => $encuesta?->preguntas_faltantes ?? [],
             'estadisticas' => $this->estadisticas($perfil),
+            'periodo' => $periodo = Periodo::enCurso(),
+            // El mismo panel de asistencia que ve el personal en la ficha de una
+            // persona, aqui puesto para que cada quien vea el SUYO: un estudiante
+            // sus clases y sus faltas, quien dicta las que dio y cuantas le
+            // verificaron. Es informacion sobre uno mismo y no habia ninguna
+            // razon para que hubiera que pedirsela a otro.
+            //
+            // Sin acotar por promotoria: aqui no hay nada que esconderle a nadie
+            // de lo suyo. El recorte de «solo mis promotorias» existe en la ficha
+            // porque ahi mira un tercero.
+            'asistencia' => $perfil->rol === 'estudiante'
+                ? ResumenAsistencia::deEstudiante($perfil, $periodo)
+                : ResumenAsistencia::deProfesor($perfil, $periodo),
         ]);
     }
 

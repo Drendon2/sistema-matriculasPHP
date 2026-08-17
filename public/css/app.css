@@ -17,11 +17,11 @@
     --radius-lg: 18px;
     --radius: 12px;
     --radius-sm: 8px;
-    /* Marcas de dato, no controles: una celda de calendario de 11px con el
-       radio de un botón sería casi un círculo, y una rejilla de círculos deja
-       de leerse como calendario. Misma excepción documentada que las barras de
-       estadísticas — ver "Excepción intencional — barras de dato" en DESIGN.md. */
-    --radius-dato: 2px;
+    /* Marcas de dato, no controles: una celda de calendario con el radio de un
+       botón sería casi un círculo, y una rejilla de círculos deja de leerse como
+       calendario. Misma excepción documentada que las barras de estadísticas —
+       ver "Excepción intencional — barras de dato" en DESIGN.md. */
+    --radius-dato: 3px;
     --shadow: 0 1px 2px rgba(24,36,32,0.05), 0 6px 16px rgba(24,36,32,0.08);
     --shadow-lift: 0 4px 10px rgba(24,36,32,0.10), 0 12px 28px rgba(24,36,32,0.12);
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -562,7 +562,15 @@
      en una gráfica de barras porque son valores sueltos sin eje común: una
      barra de "racha 3" al lado de una de "clases 24" compararía cosas que no
      se comparan. */
-  .asis { margin-top: 2.2rem; }
+  /* La medida de la celda vive en variables porque la usan cuatro reglas —la
+     rejilla, la columna de iniciales, la celda y los cuadros de la leyenda— y si
+     se separan pasan dos cosas: las letras dejan de nombrar la fila que tienen
+     enfrente, y la leyenda deja de parecerse a lo que explica.
+
+     Van aquí y no en el envoltorio del calendario: la leyenda es hermana de ese
+     envoltorio, no hija, así que declaradas allí abajo no las heredaba y sus
+     cuadros se quedaban sin medida — es decir, invisibles. */
+  .asis { margin-top: 2.2rem; --cal-celda: 14px; --cal-hueco: 4px; }
   /* Cuatro por fila como tope: más caben, pero una fila de siete fichas se lee
      como una tira de números sueltos en vez de como grupos. El max-width es lo
      que fija el tope sin apagar el auto-fit de las pantallas estrechas. */
@@ -584,26 +592,29 @@
   /* El calendario desborda a lo ancho en pantallas pequeñas: se desplaza él,
      nunca la página. */
   .asis-cal-envoltorio { overflow-x: auto; padding-bottom: 0.3rem; }
-  /* La columna de iniciales y la rejilla, lado a lado y con la MISMA altura de
-     fila y el mismo hueco: si se separan, las letras dejan de nombrar la fila
-     que tienen enfrente y el calendario pasa a mentir. */
-  .asis-cal-marco { display: flex; gap: 6px; width: max-content; }
+  .asis-cal-marco { display: flex; gap: 7px; width: max-content; align-items: start; }
   .asis-dias {
-    display: grid; grid-template-rows: repeat(7, 11px); gap: 3px;
-    font-size: 8px; line-height: 11px; color: var(--ink-faint);
+    display: grid; grid-template-rows: repeat(7, var(--cal-celda)); gap: var(--cal-hueco);
+    font-size: 10px; line-height: var(--cal-celda); color: var(--ink-faint);
     font-family: var(--font-mono); text-align: right;
     /* Fija: con el ancho al contenido, la «W» empujaría la rejilla y las
        columnas de dos fichas distintas no se podrían comparar de un vistazo. */
-    width: 10px; flex: 0 0 10px;
+    width: 11px; flex: 0 0 11px;
   }
   .asis-cal {
     display: grid; grid-auto-flow: column;
-    grid-template-rows: repeat(7, 11px); gap: 3px;
+    grid-template-rows: repeat(7, var(--cal-celda)); gap: var(--cal-hueco);
     width: max-content;
   }
+  /* El día sin clase es un cuadro LLENO y no un contorno. Con el borde suelto la
+     rejilla se leía como una cuadrícula vacía —papel milimetrado— en vez de como
+     un calendario en el que la mayoría de los días, simplemente, no hubo clase.
+     Relleno, el hueco tiene tanta presencia como la marca y el patrón semanal se
+     ve de un vistazo, que es lo único que esta gráfica viene a hacer. */
   .asis-cel {
-    width: 11px; height: 11px; border-radius: var(--radius-dato);
-    background: var(--surface-alt); border: 1px solid var(--border);
+    width: var(--cal-celda); height: var(--cal-celda);
+    border-radius: var(--radius-dato);
+    background: var(--surface-alt); border: 1px solid var(--surface-alt);
   }
   /* Estados del estudiante. Los tres tonos están validados como paleta —banda
      de luminosidad, croma, separación bajo daltonismo y suelo de visión
@@ -614,7 +625,7 @@
      separa de una falta para quien no distingue los dos tonos. */
   .asis-cel.cal-excusa {
     background: #eb6834; border-color: #eb6834;
-    box-shadow: inset 0 0 0 2px var(--surface);
+    box-shadow: inset 0 0 0 3px var(--surface);
   }
   /* Hubo clase y nadie la pasó: contorno punteado sin relleno, la misma
      metáfora que el estado "pendiente" del resto del sistema. */
@@ -632,6 +643,9 @@
     font-size: 0.78rem; color: var(--ink-soft);
   }
   .asis-leyenda li { display: flex; align-items: center; gap: 0.35rem; }
+  /* El cuadro de la leyenda no se encoge aunque el texto de al lado sea largo:
+     si se aplasta deja de ser la misma forma que explica. */
+  .asis-leyenda .asis-cel { flex: 0 0 var(--cal-celda); }
   .asis-leyenda strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 
   /* Interruptor de configuración: la casilla y su texto son un solo blanco de
