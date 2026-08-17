@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Gestion;
 
+use App\Models\Area;
 use App\Models\Grupo;
 use App\Models\Matricula;
+use App\Models\Perfil;
 use App\Models\Promotoria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -40,11 +42,112 @@ class GrupoController extends RecursoController
         ];
     }
 
+    /**
+     * Valor del filtro de profesor que pide las promotorias SIN nadie asignado.
+     *
+     * Hace falta un centinela porque «sin profesor» es un null y la cadena vacia
+     * ya significa «no filtres» en un formulario GET. Y hace falta la opcion:
+     * una promotoria sin nadie asignado es aquella en la que NADIE puede
+     * registrar clases, asi que poder listar sus grupos de un vistazo es lo que
+     * convierte un hueco del catalogo en una tarea.
+     */
+    public const PROFESOR_SIN_ASIGNAR = '__sin__';
+
     protected function listado(Request $request): array
     {
+        $seleccion = [
+            'area' => $request->query('area') ?: null,
+            'promotoria' => $request->query('promotoria') ?: null,
+            'profesor' => $request->query('profesor') ?: null,
+        ];
+
+        $consulta = Grupo::query()
+            ->when($seleccion['promotoria'], fn ($q, $id) => $q->where('grupos.promotoria_id', $id))
+            ->when($seleccion['area'], fn ($q, $id) => $q->whereHas(
+                'promotoria',
+                fn ($sub) => $sub->where('area_id', $id)
+            ))
+            ->when($seleccion['profesor'], fn ($q, $id) => $q->whereHas(
+                'promotoria',
+                fn ($sub) => $id === self::PROFESOR_SIN_ASIGNAR
+                    ? $sub->whereNull('profesor_id')
+                    : $sub->where('profesor_id', $id)
+            ));
+
+        $objetos = $this->filas($consulta);
+
         return [
-            'objetos' => $this->filas(Grupo::query()),
+            'objetos' => $objetos,
             ...$this->columnas(),
+            'filtros' => $this->filtros($seleccion),
+            'hay_filtros' => array_filter($seleccion) !== [],
+            'nota_filtros' => count($objetos).' '.(count($objetos) === 1 ? 'grupo' : 'grupos'),
+            // Con la promotoria ya elegida, «+ Nuevo» llega con ella puesta: es
+            // el caso normal —se filtra para ver los de una y se crea otro ahi
+            // mismo— y ahorra volver a buscarla en un desplegable de veintiuna.
+            'preset_campo' => $seleccion['promotoria'] ? 'promotoria_id' : null,
+            'preset_valor' => $seleccion['promotoria'],
+        ];
+    }
+
+    /**
+     * Los tres desplegables del filtro.
+     *
+     * Las promotorias van agrupadas por departamento en `<optgroup>`: la
+     * jerarquia del catalogo se ve en el propio desplegable sin tener que elegir
+     * antes el departamento y recargar. Es la misma forma que ya usa el filtro
+     * de usuarios.
+     *
+     * @param  array<string, string|null>  $seleccion
+     * @return list<array<string, mixed>>
+     */
+    private function filtros(array $seleccion): array
+    {
+        $promotorias = Promotoria::with('area')
+            ->join('areas', 'areas.id', '=', 'promotorias.area_id')
+            ->orderBy('areas.nombre')
+            ->orderBy('promotorias.nombre')
+            ->select('promotorias.*')
+            ->get();
+
+        $porArea = [];
+
+        foreach ($promotorias as $promotoria) {
+            $porArea[$promotoria->area->nombre][$promotoria->id] = $promotoria->nombre;
+        }
+
+        // Solo quien DICTA algo. Un desplegable con las cien personas de la casa
+        // para elegir entre los ocho que tienen grupos no es un filtro, es un
+        // buscador de agujas.
+        $profesores = Perfil::query()
+            ->whereIn('id', $promotorias->pluck('profesor_id')->filter()->unique())
+            ->orderBy('nombre_completo')
+            ->pluck('nombre_completo', 'id')
+            ->all();
+
+        return [
+            [
+                'nombre' => 'area',
+                'etiqueta' => 'Departamento',
+                'vacio' => 'Todos',
+                'opciones' => Area::orderBy('nombre')->pluck('nombre', 'id')->all(),
+                'valor' => $seleccion['area'],
+            ],
+            [
+                'nombre' => 'promotoria',
+                'etiqueta' => 'Promotoría',
+                'vacio' => 'Todas',
+                'opciones' => $porArea,
+                'agrupadas' => true,
+                'valor' => $seleccion['promotoria'],
+            ],
+            [
+                'nombre' => 'profesor',
+                'etiqueta' => 'Profesor',
+                'vacio' => 'Todos',
+                'opciones' => $profesores + [self::PROFESOR_SIN_ASIGNAR => 'Sin asignar'],
+                'valor' => $seleccion['profesor'],
+            ],
         ];
     }
 

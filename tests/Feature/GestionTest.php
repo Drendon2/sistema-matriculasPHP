@@ -1076,6 +1076,147 @@ class GestionTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Filtros del listado de grupos
+    // -----------------------------------------------------------------------
+
+    /**
+     * Monta un segundo departamento con su promotoria, su profesor y su grupo,
+     * para que cada filtro tenga algo que dejar fuera.
+     *
+     * @return array{grupo: Grupo, otroGrupo: Grupo, otroProfesor: Perfil, danza: Area}
+     */
+    private function montarCatalogoParaFiltrar(): array
+    {
+        $danza = Area::create(['nombre' => 'Danza']);
+        $otroProfesor = $this->crearPerfil('profe2', 'profesor');
+
+        $ballet = Promotoria::create([
+            'nombre' => 'Ballet',
+            'area_id' => $danza->id,
+            'profesor_id' => $otroProfesor->id,
+        ]);
+
+        return [
+            'grupo' => Grupo::create([
+                'promotoria_id' => $this->violin->id,
+                'nivel' => 'basico',
+                'horario' => 'Lunes 4-6 p. m.',
+                'salon' => 'Salon 1',
+                'cupo_maximo' => 10,
+            ]),
+            'otroGrupo' => Grupo::create([
+                'promotoria_id' => $ballet->id,
+                'nivel' => 'basico',
+                'horario' => 'Martes 4-6 p. m.',
+                'salon' => 'Salon 2',
+                'cupo_maximo' => 10,
+            ]),
+            'otroProfesor' => $otroProfesor,
+            'danza' => $danza,
+        ];
+    }
+
+    public function test_los_grupos_se_filtran_por_departamento(): void
+    {
+        $c = $this->montarCatalogoParaFiltrar();
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista', ['area' => $c['danza']->id]))
+            ->assertOk()
+            // La FILA, no el nombre suelto: «Violin» aparece igual como opcion
+            // del propio desplegable de promotorias.
+            ->assertSee('Ballet - Básico')
+            ->assertDontSee('Violin - Básico');
+    }
+
+    public function test_los_grupos_se_filtran_por_promotoria(): void
+    {
+        $this->montarCatalogoParaFiltrar();
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista', ['promotoria' => $this->violin->id]))
+            ->assertOk()
+            ->assertSee('Violin - Básico')
+            ->assertDontSee('Ballet - Básico');
+    }
+
+    public function test_los_grupos_se_filtran_por_profesor(): void
+    {
+        $c = $this->montarCatalogoParaFiltrar();
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista', ['profesor' => $c['otroProfesor']->id]))
+            ->assertOk()
+            ->assertSee('Ballet - Básico')
+            ->assertDontSee('Violin - Básico');
+    }
+
+    /**
+     * «Sin asignar» no es un adorno del desplegable.
+     *
+     * Una promotoria sin nadie asignado es aquella en la que NADIE puede
+     * registrar clases: poder listar sus grupos de un vistazo es lo que
+     * convierte un hueco del catalogo en una tarea.
+     */
+    public function test_los_grupos_se_filtran_por_promotoria_sin_profesor(): void
+    {
+        $this->montarCatalogoParaFiltrar();
+
+        $huerfana = Promotoria::create(['nombre' => 'Titeres', 'area_id' => $this->musica->id]);
+        Grupo::create([
+            'promotoria_id' => $huerfana->id,
+            'nivel' => 'basico',
+            'horario' => 'Viernes 4-6 p. m.',
+            'salon' => 'Salon 3',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista', ['profesor' => \App\Http\Controllers\Gestion\GrupoController::PROFESOR_SIN_ASIGNAR]))
+            ->assertOk()
+            ->assertSee('Titeres - Básico')
+            ->assertDontSee('Ballet - Básico');
+    }
+
+    /** Los filtros se combinan: departamento Y profesor a la vez. */
+    public function test_los_filtros_de_grupos_se_combinan(): void
+    {
+        $c = $this->montarCatalogoParaFiltrar();
+
+        // Danza + el profesor de Violin: no existe esa combinacion.
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista', [
+                'area' => $c['danza']->id,
+                'profesor' => $this->profesor->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Ninguno coincide con estos filtros', false);
+    }
+
+    /**
+     * Sin nada y sin coincidencias son dos mensajes distintos.
+     *
+     * «No hay grupos» manda a crear uno; «ninguno coincide» manda a soltar el
+     * filtro. Con el mismo texto, quien filtra de mas cree que borro el catalogo.
+     */
+    public function test_sin_grupos_y_sin_coincidencias_dicen_cosas_distintas(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-lista'))
+            ->assertOk()
+            ->assertSee('Todavía no hay nada aquí', false);
+    }
+
+    /** Los otros catalogos no pintan barra de filtros. */
+    public function test_los_otros_catalogos_siguen_sin_filtros(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('area-lista'))
+            ->assertOk()
+            ->assertDontSee('class="filtros"', false);
+    }
+
+    // -----------------------------------------------------------------------
     // Los tres indicadores nuevos del tablero
     // -----------------------------------------------------------------------
 

@@ -13,6 +13,11 @@
     $etiqueta_protegido . qué impide borrarlo
     $preset_campo/valor . para que "+ Nuevo" llegue con el padre ya elegido
     $migas .............. la ruta de vuelta cuando se entra por la jerarquía
+    $filtros ............ opcional: [{nombre, etiqueta, vacio, opciones, valor}]
+                          Solo Grupos los usa hoy. Los otros tres catálogos no
+                          pasan nada y la barra no se pinta, que es por lo que va
+                          aquí y no en una plantilla aparte: la tabla, el estado
+                          vacío y el botón de nuevo son los mismos.
 --}}
 @php($migas = $migas ?? [])
 @php($rutaFila = $ruta_fila ?? null)
@@ -33,8 +38,56 @@
 <h2>{{ $titulo }}</h2>
 <p><a class="btn" href="{{ route($ruta_nuevo).$preset }}">+ Nuevo</a></p>
 
+@php($losFiltros = $filtros ?? [])
+@php($hayFiltros = $hay_filtros ?? false)
+
+@if ($losFiltros)
+<form method="get" class="filtros">
+  @foreach ($losFiltros as $f)
+  <div class="filtro">
+    <label for="f-{{ $f['nombre'] }}">{{ $f['etiqueta'] }}</label>
+    <select name="{{ $f['nombre'] }}" id="f-{{ $f['nombre'] }}">
+      <option value="">{{ $f['vacio'] }}</option>
+      @if (! empty($f['agrupadas']))
+        {{-- La jerarquía del catálogo se ve en el propio desplegable, sin tener
+             que elegir antes el departamento y recargar. --}}
+        @foreach ($f['opciones'] as $grupo => $opciones)
+          <optgroup label="{{ $grupo }}">
+            @foreach ($opciones as $valor => $etiqueta)
+              <option value="{{ $valor }}" @selected((string) $f['valor'] === (string) $valor)>{{ $etiqueta }}</option>
+            @endforeach
+          </optgroup>
+        @endforeach
+      @else
+        @foreach ($f['opciones'] as $valor => $etiqueta)
+          <option value="{{ $valor }}" @selected((string) $f['valor'] === (string) $valor)>{{ $etiqueta }}</option>
+        @endforeach
+      @endif
+    </select>
+  </div>
+  @endforeach
+
+  <div class="filtro filtro-acciones">
+    <button type="submit" class="btn btn-sm">Filtrar</button>
+    @if ($hayFiltros)
+      <a class="btn btn-blanco btn-sm" href="{{ route($ruta_lista) }}">Limpiar</a>
+    @endif
+  </div>
+</form>
+
+@if ($hayFiltros && isset($nota_filtros))
+  <p class="filtros-nota">{{ $nota_filtros }}</p>
+@endif
+@endif
+
 @if (! $objetos)
-  <p class="vacio">Todavía no hay nada aquí.</p>
+  {{-- Sin nada y sin filtros son dos cosas distintas: «no hay grupos» manda a
+       crear uno, «ninguno coincide» manda a soltar el filtro. --}}
+  @if ($hayFiltros)
+    <p class="vacio">Ninguno coincide con estos filtros.</p>
+  @else
+    <p class="vacio">Todavía no hay nada aquí.</p>
+  @endif
 @else
 <table>
   <tbody>
