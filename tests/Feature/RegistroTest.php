@@ -86,6 +86,37 @@ class RegistroTest extends TestCase
     }
 
     /**
+     * Ocho caracteres como minimo.
+     *
+     * No es un puerto: el original no valida la contrasena por ninguna parte
+     * (ver el porque en `AppServiceProvider::exigirContrasenaMinima`). Es un
+     * anadido, y esta prueba es lo que impide que se pierda por el camino.
+     */
+    public function test_una_contrasena_corta_se_rechaza(): void
+    {
+        $this->post(route('registro.guardar'), [
+            ...$this->datos,
+            'password' => 'corta7c',
+            'password_confirmation' => 'corta7c',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertSame(0, User::count());
+        $this->assertSame(0, Perfil::count());
+    }
+
+    /** Ocho justos entran: el limite es "al menos", no "mas de". */
+    public function test_ocho_caracteres_justos_se_admiten(): void
+    {
+        $this->post(route('registro.guardar'), [
+            ...$this->datos,
+            'password' => 'ochojust',
+            'password_confirmation' => 'ochojust',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNotNull(User::where('username', 'profe.nuevo')->first());
+    }
+
+    /**
      * El registro admite cinco por minuto desde una direccion.
      *
      * Aqui el contador SI va por IP y no por cuenta: lo que se frena es dar de

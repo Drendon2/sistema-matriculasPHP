@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -268,7 +269,18 @@ class UsuarioController extends Controller
             ],
             // Al crear es obligatoria; al editar, en blanco quiere decir
             // "dejala como esta".
-            'password' => [$perfil === null ? 'required' : 'nullable', 'string'],
+            //
+            // El minimo convive con eso sin pelearse: `ConvertEmptyStringsToNull`
+            // deja el campo vacio en null, y `nullable` salta las reglas que
+            // vienen detras. Asi que editar el telefono de alguien sigue sin
+            // pedir contrasena, pero en cuanto se escribe una tiene que cumplir
+            // — que es justo el caso que importa, porque una contrasena puesta
+            // desde Gestion se la lleva la persona tal cual.
+            'password' => [
+                $perfil === null ? 'required' : 'nullable',
+                'string',
+                Password::defaults(),
+            ],
             'rol' => ['required', Rule::in(array_keys(Perfil::ROLES))],
             'nombre_completo' => ['required', 'string', 'max:90'],
             'fecha_nacimiento' => ['required', 'date', 'before:today'],

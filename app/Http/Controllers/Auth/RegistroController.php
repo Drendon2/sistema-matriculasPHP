@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 /**
@@ -33,7 +34,7 @@ class RegistroController extends Controller
     {
         $datos = $request->validate([
             'username' => ['required', 'string', 'max:150', Rule::unique('users', 'username')],
-            'password' => ['required', 'string', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
             'nombre_completo' => ['required', 'string', 'max:90'],
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
             'telefono' => ['required', 'string', 'max:15'],

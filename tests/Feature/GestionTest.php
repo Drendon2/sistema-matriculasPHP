@@ -374,7 +374,7 @@ class GestionTest extends TestCase
         $this->actingAs($this->director->user)
             ->post(route('usuario-nuevo'), [
                 'username' => 'nuevo',
-                'password' => 'secreta',
+                'password' => 'secreta123',
                 'rol' => 'estudiante',
                 'nombre_completo' => 'Nuevo Estudiante',
                 'fecha_nacimiento' => Carbon::today()->subYears(20)->toDateString(),
@@ -395,7 +395,7 @@ class GestionTest extends TestCase
         $this->actingAs($this->director->user)
             ->post(route('usuario-nuevo'), [
                 'username' => 'nino',
-                'password' => 'secreta',
+                'password' => 'secreta123',
                 'rol' => 'estudiante',
                 'nombre_completo' => 'Nino Pequeno',
                 'fecha_nacimiento' => Carbon::today()->subYears(9)->toDateString(),
@@ -425,6 +425,53 @@ class GestionTest extends TestCase
 
         $this->assertSame($antes, $this->estudiante->fresh()->user->password);
         $this->assertSame('Ana Maria', $this->estudiante->fresh()->nombre_completo);
+    }
+
+    /**
+     * Dejarla en blanco sigue valiendo, pero escribir una corta no.
+     *
+     * Es la pareja de la prueba de arriba y la razon por la que el campo se
+     * queda en `nullable` en vez de pasar a `required`: son dos cosas distintas
+     * —«no la toques» y «ponle esta»— y solo la segunda tiene que cumplir el
+     * minimo. Si se confundieran, editar el telefono de alguien obligaria a
+     * inventarle una contrasena nueva.
+     */
+    public function test_al_editar_una_contrasena_corta_se_rechaza(): void
+    {
+        $antes = $this->estudiante->user->password;
+
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-editar', $this->estudiante), [
+                'username' => 'ana',
+                'password' => 'corta7c',
+                'rol' => 'estudiante',
+                'nombre_completo' => 'Ana Maria',
+                'fecha_nacimiento' => $this->estudiante->fecha_nacimiento->toDateString(),
+                'telefono' => '3009998877',
+                'documento_identidad' => $this->estudiante->datosEstudiante->documento_identidad,
+            ])
+            ->assertSessionHasErrors('password');
+
+        // Y no se cambio nada mas por el camino: el nombre sigue como estaba.
+        $this->assertSame($antes, $this->estudiante->fresh()->user->password);
+        $this->assertNotSame('Ana Maria', $this->estudiante->fresh()->nombre_completo);
+    }
+
+    /** Una contrasena corta tampoco crea la cuenta desde Gestion. */
+    public function test_al_crear_una_contrasena_corta_se_rechaza(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), [
+                'username' => 'nuevo.corto',
+                'password' => 'corta7c',
+                'rol' => 'profesor',
+                'nombre_completo' => 'Profe Corto',
+                'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
+                'telefono' => '3001112233',
+            ])
+            ->assertSessionHasErrors('password');
+
+        $this->assertNull(User::where('username', 'nuevo.corto')->first());
     }
 
     /**

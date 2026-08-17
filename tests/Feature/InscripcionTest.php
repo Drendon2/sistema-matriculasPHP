@@ -302,6 +302,22 @@ class InscripcionTest extends TestCase
             ->assertSee('Mi perfil');
     }
 
+    /** Ocho caracteres como minimo, tambien en la puerta del publico. */
+    public function test_una_contrasena_corta_no_crea_cuenta_ni_matricula(): void
+    {
+        $this->post(route('inscripcion.guardar'), $this->datos([
+            'password' => 'corta7c',
+            'password_confirmation' => 'corta7c',
+        ]))->assertSessionHasErrors('password');
+
+        // Lo que importa de este formulario: no queda nada a medias. La cuenta,
+        // el perfil, los datos del estudiante y la matricula nacen en la misma
+        // transaccion, y si la contrasena no pasa no llega a abrirse.
+        $this->assertNull(User::where('username', 'ana.nueva')->first());
+        $this->assertSame(0, Matricula::count());
+        $this->assertSame(0, DatosEstudiante::count());
+    }
+
     /**
      * La inscripcion admite diez por minuto desde una direccion.
      *

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->limitarIntentos();
+        $this->exigirContrasenaMinima();
 
         // En Hostinger el SSL termina antes de PHP, asi que la aplicacion ve
         // http y generaria enlaces y formularios en http dentro de una pagina
@@ -94,5 +96,38 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($usuario.'|'.$request->ip());
         });
+    }
+
+    /**
+     * El minimo de la contrasena, definido en UN solo sitio.
+     *
+     * Hay tres formularios que crean credenciales —el autorregistro de profesor,
+     * la inscripcion de estudiante y el alta desde Gestion— y hasta ahora
+     * ninguno pedia longitud: se aceptaba una contrasena de un solo caracter en
+     * un formulario publico, en un sistema que guarda copias de documentos de
+     * identidad de menores.
+     *
+     * Va como `Password::defaults()` y no como un `min:8` repetido tres veces
+     * porque tres copias de una regla es la forma seria de que acaben
+     * discrepando: el dia que este numero suba, tiene que subir en los tres a la
+     * vez o no ha subido en ninguno.
+     *
+     * OJO, no es un puerto: el original NO valida la contrasena por ninguna
+     * parte. Su `settings.py` lista los cuatro AUTH_PASSWORD_VALIDATORS de
+     * Django, pero son la plantilla que deja `startproject` y ahi nadie los
+     * invoca — solo corren desde `UserCreationForm` o `SetPasswordForm`, y el
+     * original registra con un `forms.Form` plano que llama directamente a
+     * `create_user()`. Configuracion muerta. Esta regla es un anadido
+     * deliberado, no una equivalencia.
+     *
+     * Se queda en la longitud y no se copian los otros tres validadores (lista
+     * de contrasenas comunes, no-solo-digitos, parecido al usuario) porque eso
+     * ya seria decidir politica de contrasenas, y esa decision no esta escrita
+     * en ninguna parte. Si algun dia se toma, se anade aqui encadenando y los
+     * tres formularios la reciben solos.
+     */
+    private function exigirContrasenaMinima(): void
+    {
+        Password::defaults(fn () => Password::min(8));
     }
 }
