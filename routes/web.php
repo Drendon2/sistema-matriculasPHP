@@ -138,6 +138,8 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
         ->name('panel-cupo-promotoria');
     Route::post('/panel/promotoria/{promotoria}/asignar-grupo-lote', [PanelController::class, 'asignarGrupoLote'])
         ->name('panel-asignar-grupo-lote');
+    Route::post('/panel/promotoria/{promotoria}/pendientes-lote', [PanelController::class, 'resolverPendientesLote'])
+        ->name('panel-pendientes-lote');
 
     // Grupos
     Route::get('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'crear'])
@@ -203,6 +205,11 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     // Cancelaciones
     Route::get('/cancelaciones', [Gestion\CancelacionesController::class, 'index'])
         ->name('gestion-cancelaciones');
+    // El lote va ANTES que la de abajo: con `{matricula}` por delante, la palabra
+    // «lote» se leeria como el id de una matricula y el enlace implicito
+    // devolveria un 404 en vez de llegar aqui.
+    Route::post('/cancelaciones/lote', [Gestion\CancelacionesController::class, 'resolverLote'])
+        ->name('gestion-cancelaciones-lote');
     Route::post('/cancelaciones/{matricula}/{decision}', [Gestion\CancelacionesController::class, 'resolver'])
         ->name('gestion-resolver-cancelacion');
 

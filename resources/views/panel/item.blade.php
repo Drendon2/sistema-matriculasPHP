@@ -53,9 +53,41 @@
 @if (! $item['pendientes'])
   <p class="vacio">No hay solicitudes pendientes.</p>
 @else
-<table>
+{{--
+  Resolver en bloque. Al abrir matrículas llegan veinte solicitudes juntas y casi
+  todas se responden igual; de a una son veinte idas y vueltas para una decisión
+  ya tomada.
+
+  Los dos botones van con el mismo peso visual que en la fila: confirmar en verde
+  de acción y rechazar en rojo de retirada, sin que ninguno sea el «recomendado».
+
+  El formulario va FUERA de la tabla y las casillas lo alcanzan con `form`, igual
+  que en el reparto por grupo: cada fila ya tiene los suyos para responder a una
+  sola, y anidar formularios es HTML inválido.
+--}}
+@php($lotePendientes = 'lote-pendientes-' . $item['promotoria']->id)
+@if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
+<form action="{{ route('panel-pendientes-lote', $item['promotoria']) }}" method="post"
+      id="{{ $lotePendientes }}" class="lote-barra">
+  @csrf
+  <span class="lote-cuenta" data-lote-cuenta>Ninguno marcado</span>
+  <button type="submit" name="decision" value="confirmar" class="btn btn-sm" data-lote-enviar disabled>
+    Confirmar marcados
+  </button>
+  <button type="submit" name="decision" value="rechazar" class="btn btn-retirar btn-sm" data-lote-enviar disabled>
+    Rechazar marcados
+  </button>
+</form>
+@endif
+
+<table @if ($item['puede_gestionar'] && count($item['pendientes']) > 1) data-lote-tabla="{{ $lotePendientes }}" @endif>
   <thead>
     <tr>
+      @if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
+      <th style="width:1%;">
+        <input type="checkbox" data-lote-todos aria-label="Marcar todas las solicitudes pendientes">
+      </th>
+      @endif
       <th></th><th>Nombre</th><th>Trayectoria</th><th>Edad</th><th>Teléfono</th><th>Acudiente</th>
       @if ($item['puede_gestionar'])<th></th>@endif
       @if ($esAdministrador)<th></th>@endif
@@ -64,6 +96,13 @@
   <tbody>
     @foreach ($item['pendientes'] as $e)
     <tr>
+      @if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
+      <td>
+        <input type="checkbox" name="matricula_ids[]" value="{{ $e['matricula']->id }}"
+               form="{{ $lotePendientes }}" data-lote-fila
+               aria-label="Marcar la solicitud de {{ $e['perfil']->nombre_completo }}">
+      </td>
+      @endif
       <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
       <td>@include('panel.nombre', ['e' => $e])</td>
       <td>

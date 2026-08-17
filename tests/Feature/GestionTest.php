@@ -177,6 +177,78 @@ class GestionTest extends TestCase
         $this->assertSame(Matricula::CANCELACION_SOLICITADA, $matricula->fresh()->estado);
     }
 
+    public function test_aprobar_en_lote_retira_a_todos_los_marcados(): void
+    {
+        $otra = Promotoria::create(['nombre' => 'Piano', 'area_id' => $this->musica->id]);
+
+        $unas = [
+            $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA),
+            $this->matricular($this->crearEstudiante('otro'), $otra, Matricula::CANCELACION_SOLICITADA),
+        ];
+
+        $this->actingAs($this->director->user)
+            ->post(route('gestion-cancelaciones-lote'), [
+                'decision' => 'aprobar',
+                'matricula_ids' => array_map(fn (Matricula $m) => $m->id, $unas),
+            ])
+            ->assertSessionHas('success');
+
+        foreach ($unas as $matricula) {
+            $this->assertSame(Matricula::RETIRADA, $matricula->fresh()->estado);
+        }
+
+        $this->assertSame(0, $this->violin->ocupadosEn($this->periodo));
+    }
+
+    /**
+     * Rechazar en lote resuelve las de los menores y deja fuera a los mayores,
+     * diciendo quienes son.
+     *
+     * Es la misma regla que de a una —a un mayor no se le discute la salida—
+     * aplicada sobre una seleccion mezclada, que es como va a llegar de verdad:
+     * quien marca «todas» no va mirando la edad fila por fila.
+     */
+    public function test_rechazar_en_lote_solo_toca_a_los_menores(): void
+    {
+        $menor = $this->crearEstudiante('nino', Carbon::today()->subYears(10)->toDateString());
+        $delMenor = $this->matricular($menor, $this->violin, Matricula::CANCELACION_SOLICITADA);
+        $delAdulto = $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
+
+        $respuesta = $this->actingAs($this->director->user)
+            ->post(route('gestion-cancelaciones-lote'), [
+                'decision' => 'rechazar',
+                'matricula_ids' => [$delMenor->id, $delAdulto->id],
+            ]);
+
+        $this->assertSame(Matricula::ACTIVA, $delMenor->fresh()->estado);
+        $this->assertSame(Matricula::CANCELACION_SOLICITADA, $delAdulto->fresh()->estado);
+
+        $respuesta->assertSessionHas(
+            'error',
+            fn (string $mensaje) => str_contains($mensaje, $this->estudiante->nombre_completo)
+        );
+    }
+
+    /** Lo que ya no esta en tramite no entra en el lote. */
+    public function test_el_lote_de_cancelaciones_ignora_lo_ya_resuelto(): void
+    {
+        $activa = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $enTramite = $this->matricular(
+            $this->crearEstudiante('otro'),
+            $this->violin,
+            Matricula::CANCELACION_SOLICITADA
+        );
+
+        $this->actingAs($this->director->user)
+            ->post(route('gestion-cancelaciones-lote'), [
+                'decision' => 'aprobar',
+                'matricula_ids' => [$activa->id, $enTramite->id],
+            ]);
+
+        $this->assertSame(Matricula::ACTIVA, $activa->fresh()->estado);
+        $this->assertSame(Matricula::RETIRADA, $enTramite->fresh()->estado);
+    }
+
     public function test_la_portada_avisa_de_las_cancelaciones_pendientes(): void
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);

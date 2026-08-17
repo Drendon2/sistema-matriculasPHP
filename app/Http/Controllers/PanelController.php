@@ -269,6 +269,139 @@ class PanelController extends Controller
     }
 
     /**
+     * Resuelve de una vez varias solicitudes pendientes de la promotoria.
+     *
+     * El mismo gesto que el reparto por lote y por el mismo motivo: al abrir
+     * matriculas llegan veinte solicitudes juntas y casi todas se responden
+     * igual. De a una son veinte idas y vueltas para una decision ya tomada.
+     *
+     * A DIFERENCIA del reparto por grupo, esto NO es todo o nada, y la
+     * diferencia no es un descuido. Alli el lote se deshace entero porque lo que
+     * falla es un cupo compartido: si caben ocho de doce, saber CUALES entraron
+     * exige mirarlos uno a uno, que es justo el trabajo que el lote viene a
+     * evitar. Aqui cada matricula falla por su cuenta y por un motivo que se
+     * puede nombrar —ese estudiante ya ocupa todas sus promotorias—, asi que
+     * deshacer las diecinueve que si valian para castigar a la que no seria
+     * peor: se confirman las que pueden y se dice, por su nombre, quien quedo
+     * fuera y por que.
+     */
+    public function resolverPendientesLote(Request $request, Promotoria $promotoria): RedirectResponse
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        if (! Permisos::puedeGestionarPromotoria($perfil, $promotoria)) {
+            return $this->volver('No tienes acceso a esta promotoría.');
+        }
+
+        $decision = $request->input('decision');
+
+        abort_unless(in_array($decision, ['confirmar', 'rechazar'], true), 404);
+
+        // Se filtra por promotoria y por estado aqui y no solo en la plantilla:
+        // lo que no encaje simplemente no entra en el lote.
+        $matriculas = Matricula::query()
+            ->whereIn('id', (array) $request->input('matricula_ids', []))
+            ->where('promotoria_id', $promotoria->id)
+            ->where('estado', Matricula::PENDIENTE)
+            ->with('estudiante')
+            ->get();
+
+        if ($matriculas->isEmpty()) {
+            return $this->volver('No marcaste ninguna solicitud.');
+        }
+
+        if ($decision === 'rechazar') {
+            // Rechazar no tiene condiciones: una solicitud pendiente siempre se
+            // puede negar. Queda 'retirada', el mismo estado que si el
+            // estudiante se hubiera echado atras.
+            DB::transaction(function () use ($matriculas) {
+                foreach ($matriculas as $matricula) {
+                    $matricula->estado = Matricula::RETIRADA;
+                    $matricula->save();
+                }
+            });
+
+            $cuantas = $matriculas->count();
+
+            return $this->volver(
+                $cuantas === 1
+                    ? '1 solicitud rechazada.'
+                    : "{$cuantas} solicitudes rechazadas.",
+                exito: true
+            );
+        }
+
+        $limite = Matricula::limitePromotorias();
+        $confirmadas = 0;
+        $sinCupo = [];
+
+        DB::transaction(function () use ($matriculas, $limite, &$confirmadas, &$sinCupo) {
+            foreach ($matriculas as $matricula) {
+                // El mismo tope que aplica la confirmacion de a una, y por la
+                // misma razon: entre la solicitud y esta pantalla el estudiante
+                // pudo llenar su cupo por otro lado, o el administrador pudo
+                // bajar el limite. Se cuenta DENTRO del bucle para que dos
+                // matriculas del mismo estudiante en el mismo lote no se cuelen
+                // las dos.
+                $ocupadas = Matricula::promotoriasOcupadas(
+                    $matricula->estudiante_id,
+                    $matricula->periodo_id,
+                    $matricula->id
+                );
+
+                if ($ocupadas >= $limite) {
+                    $sinCupo[] = $matricula->estudiante->nombre_completo;
+
+                    continue;
+                }
+
+                $matricula->estado = Matricula::ACTIVA;
+                $matricula->save();
+                $confirmadas++;
+            }
+        });
+
+        return $this->volver(
+            $this->resumenDeConfirmacion($confirmadas, $sinCupo, $limite),
+            exito: $sinCupo === []
+        );
+    }
+
+    /**
+     * El parte de lo que paso con el lote.
+     *
+     * Nombra a quien quedo fuera en vez de dar solo la cifra: «18 de 20» obliga
+     * a comparar la lista a ojo para averiguar quienes son los dos, que es
+     * exactamente lo que no se puede hacer con veinte filas.
+     *
+     * @param  list<string>  $sinCupo
+     */
+    private function resumenDeConfirmacion(int $confirmadas, array $sinCupo, int $limite): string
+    {
+        $hechas = $confirmadas === 1 ? '1 matrícula confirmada' : "{$confirmadas} matrículas confirmadas";
+
+        if ($sinCupo === []) {
+            return "{$hechas}.";
+        }
+
+        $palabra = $limite === 1 ? 'la promotoría permitida' : "las {$limite} promotorías permitidas";
+
+        // Sin repetir: quien tenga dos solicitudes bloqueadas aparecia dos veces
+        // en la misma frase, y el aviso se leia como un error del sistema.
+        $sinCupo = array_values(array_unique($sinCupo));
+        $quienes = implode(', ', $sinCupo);
+
+        $cola = count($sinCupo) === 1
+            ? "{$quienes} ya ocupa {$palabra} en este periodo, así que su solicitud sigue pendiente."
+            : "{$quienes} ya ocupan {$palabra} en este periodo, así que sus solicitudes siguen pendientes.";
+
+        return $confirmadas === 0
+            ? "No se confirmó ninguna: {$cola}"
+            : "{$hechas}. {$cola}";
+    }
+
+    /**
      * Fija (o quita) el cupo de una promotoria para el periodo en curso.
      *
      * Dejar el campo vacio quita el tope. El profesor lo hace sobre las que

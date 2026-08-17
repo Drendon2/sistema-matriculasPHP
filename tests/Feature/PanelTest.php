@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\Clase;
+use App\Models\ConfiguracionInstitucion;
 use App\Models\CupoPromotoria;
 use App\Models\DatosEstudiante;
 use App\Models\Grupo;
@@ -499,6 +500,126 @@ class PanelTest extends TestCase
         foreach ($matriculas as $matricula) {
             $this->assertSame($grupo->id, $matricula->fresh()->grupo_id);
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Pendientes en lote
+    // -----------------------------------------------------------------------
+
+    public function test_confirmar_en_lote_activa_las_marcadas(): void
+    {
+        $matriculas = [
+            $this->matricular($this->violin),
+            $this->matricular($this->violin, $this->crearEstudiante('samu')),
+            $this->matricular($this->violin, $this->crearEstudiante('beto')),
+        ];
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-pendientes-lote', $this->violin), [
+                'decision' => 'confirmar',
+                'matricula_ids' => array_map(fn (Matricula $m) => $m->id, $matriculas),
+            ])
+            ->assertSessionHas('success');
+
+        foreach ($matriculas as $matricula) {
+            $this->assertSame(Matricula::ACTIVA, $matricula->fresh()->estado);
+        }
+    }
+
+    public function test_rechazar_en_lote_las_retira(): void
+    {
+        $matriculas = [
+            $this->matricular($this->violin),
+            $this->matricular($this->violin, $this->crearEstudiante('samu')),
+        ];
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-pendientes-lote', $this->violin), [
+                'decision' => 'rechazar',
+                'matricula_ids' => array_map(fn (Matricula $m) => $m->id, $matriculas),
+            ])
+            ->assertSessionHas('success');
+
+        foreach ($matriculas as $matricula) {
+            $this->assertSame(Matricula::RETIRADA, $matricula->fresh()->estado);
+        }
+    }
+
+    /**
+     * A diferencia del reparto por grupo, esto NO es todo o nada.
+     *
+     * Cada matricula falla por su cuenta y por un motivo que se puede nombrar,
+     * asi que deshacer las que si valian para castigar a la que no seria peor
+     * que resolverlas. Se confirma lo que se puede y se dice quien quedo fuera.
+     */
+    /**
+     * El escenario tiene que montarse BAJANDO el limite, y eso importa: mientras
+     * el limite no cambie, el indice unico sobre la ranura impide siquiera crear
+     * la solicitud que sobra. La unica forma de llegar a una pendiente que no se
+     * puede confirmar es que el administrador recorte el cupo despues —que es
+     * justo el caso que el `confirmar` de a uno ya contemplaba.
+     */
+    public function test_confirmar_en_lote_salta_a_quien_no_tiene_cupo_y_sigue(): void
+    {
+        // Con el limite en 2, este alcanza a pedir dos promotorias.
+        $lleno = $this->crearEstudiante('samu');
+        $suyaViolin = $this->matricular($this->violin, $lleno);
+        $this->matricular($this->danza, $lleno);
+
+        $libre = $this->matricular($this->violin, $this->crearEstudiante('beto'));
+
+        // Y ahora direccion lo baja a una: las dos suyas dejan de caber.
+        ConfiguracionInstitucion::actual()->update(['limite_promotorias_por_periodo' => 1]);
+
+        $respuesta = $this->actingAs($this->profesor->user)
+            ->post(route('panel-pendientes-lote', $this->violin), [
+                'decision' => 'confirmar',
+                'matricula_ids' => [$suyaViolin->id, $libre->id],
+            ]);
+
+        // La que cabia entro; la otra sigue esperando, no se perdio.
+        $this->assertSame(Matricula::ACTIVA, $libre->fresh()->estado);
+        $this->assertSame(Matricula::PENDIENTE, $suyaViolin->fresh()->estado);
+
+        // Y el aviso dice a QUIEN, no solo cuantos: con veinte filas, «1 de 2»
+        // obliga a comparar la lista a ojo.
+        $respuesta->assertSessionHas(
+            'error',
+            fn (string $mensaje) => str_contains($mensaje, $lleno->nombre_completo)
+        );
+    }
+
+    /** Lo que no sea de esta promotoria o ya este resuelto no entra en el lote. */
+    public function test_el_lote_de_pendientes_ignora_lo_ajeno_y_lo_ya_resuelto(): void
+    {
+        $ajena = $this->matricular($this->danza, $this->crearEstudiante('samu'));
+        $yaActiva = $this->matricular($this->violin, $this->crearEstudiante('beto'), Matricula::ACTIVA);
+        $buena = $this->matricular($this->violin);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-pendientes-lote', $this->violin), [
+                'decision' => 'rechazar',
+                'matricula_ids' => [$ajena->id, $yaActiva->id, $buena->id],
+            ]);
+
+        $this->assertSame(Matricula::PENDIENTE, $ajena->fresh()->estado);
+        $this->assertSame(Matricula::ACTIVA, $yaActiva->fresh()->estado);
+        $this->assertSame(Matricula::RETIRADA, $buena->fresh()->estado);
+    }
+
+    public function test_un_profesor_ajeno_no_resuelve_pendientes_en_lote(): void
+    {
+        $otro = $this->crearPerfil('otro', 'profesor');
+        $matricula = $this->matricular($this->violin);
+
+        $this->actingAs($otro->user)
+            ->post(route('panel-pendientes-lote', $this->violin), [
+                'decision' => 'confirmar',
+                'matricula_ids' => [$matricula->id],
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(Matricula::PENDIENTE, $matricula->fresh()->estado);
     }
 
     // -----------------------------------------------------------------------

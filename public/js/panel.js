@@ -1,15 +1,14 @@
 /*
- * PANEL: CARGA AL DESPLEGAR, Y LOS ADORNOS DEL LOTE
- * =================================================
- * Dos cosas pequeñas que solo hacen falta en el Panel.
+ * PANEL: CARGA AL DESPLEGAR
+ * =========================
+ * Una sola cosa, y solo hace falta en el Panel: el cuerpo de cada promotoría se
+ * pide cuando alguien la abre, no antes. El índice manda solo los títulos; con
+ * trescientos estudiantes, mandarlo todo eran cientos de KB para enseñar una
+ * lista de veintiún renglones plegados.
  *
- * 1. El cuerpo de cada promotoría se pide cuando alguien la abre, no antes. El
- *    índice manda solo los títulos; con trescientos estudiantes, mandarlo todo
- *    eran cientos de KB para enseñar una lista de veintiún renglones plegados.
- *
- * 2. La casilla de "todos" y la cuenta de marcados del reparto por lote. El lote
- *    funciona sin esto —se marcan las casillas a mano y se envía—, así que aquí
- *    solo hay comodidad, nunca reglas.
+ * La casilla de «todos» y la cuenta de marcados vivían aquí y se fueron a
+ * lote.js: dejaron de ser cosa del Panel en cuanto los pendientes y las
+ * cancelaciones empezaron a usarlas.
  *
  * Va como ARCHIVO y fuera de <main>. Los scripts que viven dentro se vuelven a
  * ejecutar en cada repintado sin recarga (ver acciones.js), y como estos delegan
@@ -78,63 +77,9 @@
     true
   );
 
-  /* ---------------------------------------------------------------------
-     2. Los adornos del reparto por lote
-     --------------------------------------------------------------------- */
-
-  function tablaDe(casilla) {
-    return casilla.closest("table[data-lote-tabla]");
-  }
-
-  function casillasDe(tabla) {
-    return tabla ? tabla.querySelectorAll("[data-lote-fila]") : [];
-  }
-
-  function refrescar(tabla) {
-    if (!tabla) { return; }
-    var form = document.getElementById(tabla.getAttribute("data-lote-tabla"));
-    if (!form) { return; }
-
-    var todas = casillasDe(tabla);
-    var marcadas = 0;
-    todas.forEach(function (c) { if (c.checked) { marcadas++; } });
-
-    var cuenta = form.querySelector("[data-lote-cuenta]");
-    if (cuenta) {
-      cuenta.textContent = marcadas === 0 ? "Ninguno marcado"
-        : marcadas + (marcadas === 1 ? " marcado" : " marcados");
-    }
-
-    var boton = form.querySelector("[data-lote-enviar]");
-    if (boton) { boton.disabled = marcadas === 0; }
-
-    var todos = tabla.querySelector("[data-lote-todos]");
-    if (todos) {
-      todos.checked = marcadas > 0 && marcadas === todas.length;
-      // Ni marcada ni vacía: con la mitad seleccionada, cualquiera de los dos
-      // estados llanos diría una mentira sobre lo que va a pasar al pulsarla.
-      todos.indeterminate = marcadas > 0 && marcadas < todas.length;
-    }
-  }
-
+  // Las tablas recien inyectadas traen sus casillas: se avisa a lote.js para que
+  // ponga al dia la cuenta y los botones de esa promotoria.
   function refrescarLotes(raiz) {
-    (raiz || document).querySelectorAll("table[data-lote-tabla]").forEach(refrescar);
+    document.dispatchEvent(new CustomEvent("lote:refrescar", { detail: { raiz: raiz } }));
   }
-
-  document.addEventListener("change", function (evento) {
-    var origen = evento.target;
-    if (!origen.matches) { return; }
-
-    if (origen.matches("[data-lote-todos]")) {
-      var tabla = tablaDe(origen);
-      casillasDe(tabla).forEach(function (c) { c.checked = origen.checked; });
-      refrescar(tabla);
-    } else if (origen.matches("[data-lote-fila]")) {
-      refrescar(tablaDe(origen));
-    }
-  });
-
-  // Al cargar: el navegador conserva las casillas marcadas al volver atrás, y la
-  // cuenta tiene que reflejarlo.
-  refrescarLotes(document);
 })();

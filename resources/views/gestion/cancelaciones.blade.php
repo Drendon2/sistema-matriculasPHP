@@ -14,9 +14,38 @@
 @if (! count($pendientes))
   <p class="vacio">No hay cancelaciones pendientes.</p>
 @else
-<table>
+{{--
+  Resolver en bloque. Al cerrar un periodo esta cola se llena y casi todas se
+  resuelven igual.
+
+  «Rechazar marcadas» se pinta siempre, aunque en la selección haya mayores de
+  edad: el servidor resuelve las que puede y dice por su nombre a quién no,
+  porque esconder el botón según lo marcado obligaría a explicar en pantalla una
+  regla que se entiende mucho mejor en la respuesta. Y sigue sin haber botón
+  recomendado — en verde de acción, «Rechazar» empujaría a negar la salida de un
+  niño, y esa decisión no la debe inclinar el sistema.
+--}}
+@if (count($pendientes) > 1)
+<form action="{{ route('gestion-cancelaciones-lote') }}" method="post" id="lote-cancelaciones" class="lote-barra">
+  @csrf
+  <span class="lote-cuenta" data-lote-cuenta>Ninguno marcado</span>
+  <button type="submit" name="decision" value="aprobar" class="btn btn-retirar btn-sm" data-lote-enviar disabled>
+    Aprobar retiros marcados
+  </button>
+  <button type="submit" name="decision" value="rechazar" class="btn btn-secundario btn-sm" data-lote-enviar disabled>
+    Rechazar marcadas
+  </button>
+</form>
+@endif
+
+<table @if (count($pendientes) > 1) data-lote-tabla="lote-cancelaciones" @endif>
   <thead>
     <tr>
+      @if (count($pendientes) > 1)
+      <th style="width:1%;">
+        <input type="checkbox" data-lote-todos aria-label="Marcar todas las cancelaciones">
+      </th>
+      @endif
       <th>Estudiante</th>
       <th>Promotoría</th>
       <th>Periodo</th>
@@ -28,6 +57,13 @@
     @foreach ($pendientes as $m)
     @php($acudiente = $m->estudiante->datosEstudiante?->acudiente)
     <tr>
+      @if (count($pendientes) > 1)
+      <td>
+        <input type="checkbox" name="matricula_ids[]" value="{{ $m->id }}"
+               form="lote-cancelaciones" data-lote-fila
+               aria-label="Marcar la cancelación de {{ $m->estudiante->nombre_completo }}">
+      </td>
+      @endif
       <td>
         @if (\App\Support\Permisos::puedeVerFicha($yo, $m->estudiante))
           <a href="{{ route('detalle-usuario', $m->estudiante) }}">{{ $m->estudiante->nombre_completo }}</a>
@@ -75,3 +111,11 @@
 </table>
 @endif
 @endsection
+
+@push('scripts')
+{{--
+  Solo la casilla de «todos» y la cuenta de marcados. Sin JavaScript la pantalla
+  funciona igual: se marcan las casillas a mano y se envía.
+--}}
+<script src="{{ asset('js/lote.js') }}" defer></script>
+@endpush
