@@ -108,7 +108,7 @@ otro huso.
 php artisan test
 ```
 
-167 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+214 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.
@@ -126,12 +126,54 @@ php database/verificacion_concurrencia.php
 El *document root* del dominio tiene que apuntar a `public/`. Dejarlo en la raíz
 del proyecto expone el `.env` y el código fuente entero a internet.
 
-`vendor/` no está versionado: se instala en el servidor con
-`composer install --no-dev --optimize-autoloader`.
+### Pasos
+
+```bash
+composer install --no-dev --optimize-autoloader
+
+cp .env.production.example .env     # NO el .env.example, que es el de desarrollo
+# edita el .env: dominio, base de datos y las líneas marcadas «CAMBIAR»
+
+php artisan key:generate            # se genera aquí, no se copia la de local
+php artisan migrate --force         # --force: en producción pide confirmación
+
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+`vendor/` no está versionado, de ahí el primer paso. Las tres cachés del final
+son las que hacen que cada petición no vuelva a leer y compilar la configuración,
+las rutas y las plantillas; **hay que repetirlas después de cada despliegue**, y
+`config:cache` además de cada cambio en el `.env` — con la configuración cacheada,
+editar el `.env` deja de tener efecto hasta que se regenera.
+
+### Las cuatro líneas que importan del `.env`
+
+`.env.production.example` ya viene con ellas puestas, pero conviene saber por qué
+están:
+
+| | |
+|---|---|
+| `APP_DEBUG=false` | Con `true`, cualquiera que provoque un error 500 recibe la traza completa: credenciales de la base y el contenido de las consultas, que aquí incluye nombres, teléfonos y documentos de identidad de menores. |
+| `APP_ENV=production` | Además de la configuración, es lo único que impide que `php artisan simular` siembre 300 cuentas de prueba con contraseña conocida. |
+| `SESSION_SECURE_COOKIE=true` | Sin ella la cookie de sesión viaja también por http plano. |
+| `LOG_LEVEL=error` | En `debug` se escribe cada consulta: llena la cuota de disco del plan compartido y deja datos personales en un archivo que nadie vigila. |
+
+### Lo demás
 
 Las fotos y las copias de documentos se guardan en `storage/app/private`, **fuera
 de `public/`**, y solo se entregan por una ruta que comprueba antes quién las
 pide. Hay que dejarle permiso de escritura a `storage/` y a `bootstrap/cache/`.
+
+Conviene crear **un segundo administrador** antes de abrir el sistema. La cuenta
+de un administrador solo la edita otro administrador, así que si se pierde el
+acceso al único que hay, ni un director puede recuperarlo: habría que tocar la
+base de datos.
+
+Los respaldos se sacan con `./respaldar.sh`, que guarda las dos cosas que no se
+pueden reconstruir desde el repositorio —la base **con sus triggers** y los
+archivos subidos—. Su carpeta de destino no puede quedar bajo `public/`.
 
 El proyecto **no necesita** el scheduler de Laravel: los plazos se calculan al
 leer, no con tareas programadas.
