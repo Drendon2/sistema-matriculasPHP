@@ -354,6 +354,119 @@ class InformeTest extends TestCase
         $this->assertSame(1, substr_count($csv, 'Ana Apellido'));
     }
 
+    // -----------------------------------------------------------------------
+    // Acotar a una promotoria o a un grupo
+    // -----------------------------------------------------------------------
+
+    private function grupoDe(Promotoria $promotoria, string $nivel = 'basico'): Grupo
+    {
+        return Grupo::create([
+            'promotoria_id' => $promotoria->id,
+            'nivel' => $nivel,
+            'horario' => 'Lunes 4-6 p. m.',
+            'salon' => 'Salon 1',
+            'cupo_maximo' => 10,
+        ]);
+    }
+
+    private function matricularEnGrupo(Perfil $perfil, Grupo $grupo): Matricula
+    {
+        $matricula = $this->matricular($perfil, $grupo->promotoria);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        return $matricula;
+    }
+
+    /**
+     * La lista de UN grupo: la que se lleva impresa al salon.
+     *
+     * Con el informe entero encima, quien dicta tendria que buscar sus veinte
+     * filas entre trescientas.
+     */
+    public function test_se_puede_pedir_la_lista_de_un_solo_grupo(): void
+    {
+        $basico = $this->grupoDe($this->violin, 'basico');
+        $avanzado = $this->grupoDe($this->violin, 'avanzado');
+
+        $this->matricularEnGrupo($this->crearEstudiante('delbasico'), $basico);
+        $this->matricularEnGrupo($this->crearEstudiante('delavanzado'), $avanzado);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->profesor->user)
+                ->get(route('informe-estudiantes', ['grupo' => $basico->id]))
+        );
+
+        $this->assertStringContainsString('Delbasico Apellido', $csv);
+        $this->assertStringNotContainsString('Delavanzado Apellido', $csv);
+    }
+
+    public function test_se_puede_pedir_la_lista_de_una_sola_promotoria(): void
+    {
+        $this->matricular($this->crearEstudiante('mia'), $this->violin);
+        $this->matricular($this->crearEstudiante('otra'), $this->danza);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->director->user)
+                ->get(route('informe-estudiantes', ['promotoria' => $this->violin->id]))
+        );
+
+        $this->assertStringContainsString('Mia Apellido', $csv);
+        $this->assertStringNotContainsString('Otra Apellido', $csv);
+    }
+
+    /**
+     * Pedir el grupo de una promotoria ajena da 404, no un archivo vacio.
+     *
+     * Un CSV con la cabecera y ninguna fila se lee como «ese grupo esta vacio»,
+     * que es una respuesta falsa a una pregunta que no correspondia hacer.
+     */
+    public function test_un_profesor_no_baja_la_lista_de_un_grupo_ajeno(): void
+    {
+        $ajeno = $this->grupoDe($this->danza);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('informe-estudiantes', ['grupo' => $ajeno->id]))
+            ->assertNotFound();
+    }
+
+    public function test_un_profesor_no_baja_la_lista_de_una_promotoria_ajena(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->get(route('informe-estudiantes', ['promotoria' => $this->danza->id]))
+            ->assertNotFound();
+    }
+
+    /** Direccion si baja la de cualquiera. */
+    public function test_el_director_baja_la_lista_de_cualquier_grupo(): void
+    {
+        $grupo = $this->grupoDe($this->danza);
+        $this->matricularEnGrupo($this->crearEstudiante('suyo'), $grupo);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->director->user)
+                ->get(route('informe-estudiantes', ['grupo' => $grupo->id]))
+        );
+
+        $this->assertStringContainsString('Suyo Apellido', $csv);
+    }
+
+    /**
+     * El archivo lleva el nombre de la promotoria y del grupo.
+     *
+     * Quien dicta se baja tres listas seguidas, una por horario; con el mismo
+     * nombre las tres, el navegador las guarda como «(1)» y «(2)» y para saber
+     * cual es cual hay que abrirlas.
+     */
+    public function test_el_archivo_de_un_grupo_lleva_su_nombre(): void
+    {
+        $grupo = $this->grupoDe($this->violin);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('informe-estudiantes', ['grupo' => $grupo->id]))
+            ->assertDownload('estudiantes-violin-basico-'.now()->format('Y-m-d').'.csv');
+    }
+
     /**
      * Ni una fila de mas ni una de menos cuando el informe pasa de UNA tanda.
      *

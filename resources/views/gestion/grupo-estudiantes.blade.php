@@ -17,7 +17,16 @@
   puede consultar, aunque no editar— quedaba a un clic que no existía en ninguna
   parte de su recorrido.
 --}}
-<p><a class="btn btn-secundario btn-sm" href="{{ route('grupo-clases', $grupo) }}">Ver clases y asistencia</a></p>
+<p>
+  <a class="btn btn-secundario btn-sm" href="{{ route('grupo-clases', $grupo) }}">Ver clases y asistencia</a>
+  {{--
+    La lista de este grupo en hoja de cálculo. El informe se acota solo a lo que
+    quien pide puede ver, así que el enlace no necesita comprobar nada.
+  --}}
+  <a class="btn btn-secundario btn-sm" href="{{ route('informe-estudiantes', ['grupo' => $grupo->id]) }}">
+    Descargar lista (Excel)
+  </a>
+</p>
 
 @if (! $estudiantes)
   <p class="vacio">Todavía no hay estudiantes en este grupo.</p>

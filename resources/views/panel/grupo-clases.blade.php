@@ -14,6 +14,16 @@
   {{ $grupo->nivel_display }} · {{ $grupo->horario }} · Salón {{ $grupo->salon }}@if ($periodo) · {{ $periodo->nombre }}@endif
 </p>
 
+{{--
+  La lista de este grupo, aquí también: es la pantalla donde quien dicta pasa
+  lista, y es justo donde se acuerda de que necesita la lista en papel.
+--}}
+<p>
+  <a class="btn btn-secundario btn-sm" href="{{ route('informe-estudiantes', ['grupo' => $grupo->id]) }}">
+    Descargar lista (Excel)
+  </a>
+</p>
+
 @if (! $periodo)
   <p class="vacio">No hay un periodo en curso, así que todavía no hay clases que mostrar.</p>
 @else

@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\EncuestaDemografica;
+use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Csv;
+use App\Support\Permisos;
 use Generator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -46,12 +49,19 @@ class InformeController extends Controller
      * Se acota al periodo en curso: la lista que se pide aqui es la de quien
      * esta yendo a clase ahora, no el historico. El historico de una persona
      * vive en su ficha.
+     *
+     * Se puede pedir entero, de una promotoria o de UN GRUPO. Lo de un grupo es
+     * lo que de verdad se lleva impreso al salon: la lista de a quien le toca
+     * ese horario. Con el informe entero encima, quien dicta tendria que buscar
+     * sus veinte filas entre trescientas.
      */
     public function estudiantes(Request $request): StreamedResponse
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
         $periodo = Periodo::enCurso();
+        $grupo = $this->grupoPedido($request, $perfil);
+        $promotoria = $this->promotoriaPedida($request, $perfil, $grupo);
 
         $consulta = Matricula::query()
             ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
@@ -66,10 +76,8 @@ class InformeController extends Controller
                     Promotoria::where('profesor_id', $perfil->id)->select('id')
                 )
             )
-            ->when(
-                $request->query('promotoria'),
-                fn ($q, $id) => $q->where('promotoria_id', $id)
-            )
+            ->when($promotoria, fn ($q) => $q->where('promotoria_id', $promotoria->id))
+            ->when($grupo, fn ($q) => $q->where('grupo_id', $grupo->id))
             ->with([
                 'estudiante.datosEstudiante.acudiente',
                 'promotoria.area',
@@ -83,7 +91,7 @@ class InformeController extends Controller
             ->orderBy('perfiles.nombre_completo')
             ->select('matriculas.*');
 
-        return Csv::descargar('estudiantes-por-grupo', [
+        return Csv::descargar($this->nombreDelArchivo($promotoria, $grupo), [
             'Departamento',
             'Promotoría',
             'Grupo',
@@ -96,6 +104,84 @@ class InformeController extends Controller
             'Teléfono del acudiente',
             'Estado',
         ], $this->filasDeEstudiantes($consulta));
+    }
+
+    /**
+     * El grupo que se pide, si se pide, y solo si esta persona puede verlo.
+     *
+     * Un 404 y no una lista vacia: pedir el grupo de una promotoria ajena tiene
+     * que decir que no, no devolver un archivo con la cabecera y ninguna fila.
+     * Lo segundo se lee como «ese grupo esta vacio», que es una respuesta falsa
+     * a una pregunta que no correspondia hacer.
+     *
+     * La regla es la misma de siempre: direccion cualquiera, quien dicta solo
+     * las suyas.
+     */
+    private function grupoPedido(Request $request, Perfil $perfil): ?Grupo
+    {
+        $id = $request->query('grupo');
+
+        if (! $id) {
+            return null;
+        }
+
+        $grupo = Grupo::with('promotoria')->find($id);
+
+        abort_if($grupo === null, 404);
+        abort_unless(Permisos::puedeGestionarPromotoria($perfil, $grupo->promotoria), 404);
+
+        return $grupo;
+    }
+
+    /**
+     * La promotoria que se pide, con la misma puerta.
+     *
+     * Si ya vino un grupo, manda el suyo: pedir a la vez el grupo A y la
+     * promotoria B es una peticion incoherente, y quedarse con la promotoria del
+     * grupo es la unica lectura que no devuelve algo vacio sin explicacion.
+     */
+    private function promotoriaPedida(Request $request, Perfil $perfil, ?Grupo $grupo): ?Promotoria
+    {
+        if ($grupo !== null) {
+            return $grupo->promotoria;
+        }
+
+        $id = $request->query('promotoria');
+
+        if (! $id) {
+            return null;
+        }
+
+        $promotoria = Promotoria::find($id);
+
+        abort_if($promotoria === null, 404);
+        abort_unless(Permisos::puedeGestionarPromotoria($perfil, $promotoria), 404);
+
+        return $promotoria;
+    }
+
+    /**
+     * Como se llama el archivo.
+     *
+     * Lleva el nombre de la promotoria y del grupo porque quien dicta se baja
+     * tres listas seguidas, una por horario, y con el mismo nombre las tres el
+     * navegador las guarda como «(1)» y «(2)»: para saber cual es cual hay que
+     * abrirlas. Con el nombre dentro se distinguen en la carpeta de descargas.
+     */
+    private function nombreDelArchivo(?Promotoria $promotoria, ?Grupo $grupo): string
+    {
+        // Sin acotar sigue siendo «por grupo», que es como esta organizado.
+        if ($promotoria === null) {
+            return 'estudiantes-por-grupo';
+        }
+
+        $partes = ['estudiantes', $promotoria->nombre];
+
+        if ($grupo !== null) {
+            $partes[] = $grupo->nivel_display;
+        }
+
+        return Str::slug(implode(' ', $partes)) ?: 'estudiantes-por-grupo';
     }
 
     /**

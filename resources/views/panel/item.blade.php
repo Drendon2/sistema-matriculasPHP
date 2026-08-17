@@ -168,6 +168,12 @@
       </form>
       @endif
       <a href="{{ route('grupo-clases', $g['grupo']) }}">clases</a>
+      {{--
+        La lista de ESTE horario, que es la que se lleva impresa al salón. La de
+        la promotoría entera está arriba; aquí abajo, con veinte filas en vez de
+        doscientas, es la que se usa de verdad.
+      --}}
+      <a href="{{ route('informe-estudiantes', ['grupo' => $g['grupo']->id]) }}">lista (Excel)</a>
       <a href="{{ route('panel-grupo-editar', $g['grupo']) }}">editar</a>
       <form action="{{ route('panel-grupo-eliminar', $g['grupo']) }}" method="post" style="display:inline;">
         @csrf
