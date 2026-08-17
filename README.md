@@ -12,9 +12,10 @@ No es una traducción automática de código: son las mismas reglas de negocio y
 mismas pantallas, reimplementadas sobre otra pila. El proyecto Django sigue siendo
 la especificación funcional de referencia.
 
-> **Estado: reconstrucción completa.** Las tres áreas del sistema —autoservicio
-> del estudiante, panel de quien dicta y gestión de dirección— están terminadas y
-> probadas. Falta el despliegue en el servidor.
+> **Estado: reconstrucción completa y auditada.** Las tres áreas del sistema
+> —autoservicio del estudiante, panel de quien dicta y gestión de dirección—
+> están terminadas y probadas, con 275 pruebas en verde. Falta el despliegue en
+> el servidor.
 
 ## Stack
 
@@ -27,8 +28,11 @@ la especificación funcional de referencia.
 | Autenticación | Sesiones nativas de Laravel, por `username` |
 | Interacción | JavaScript plano, sin build step |
 
-Sin Node ni compilación de assets: el CSS va como archivo estático y el JS son dos
-ficheros sueltos. Es deliberado — el destino es hosting compartido.
+Sin Node ni compilación de assets: el CSS va como archivo estático y el JS son
+cuatro ficheros sueltos, ninguno imprescindible. Es deliberado — el destino es
+hosting compartido. Todo lo que hace el JavaScript es comodidad: las casillas de
+selección múltiple, la carga diferida del Panel, el paso entre periodos con el
+dedo. Sin él, las pantallas se marcan a mano y los enlaces siguen ahí.
 
 ## Qué resuelve
 
@@ -53,6 +57,14 @@ Algunas reglas que no se ven a simple vista:
 - **Privacidad diferenciada por rol**: quién ve nombre, edad, teléfono, acudiente,
   encuesta o documento de identidad está definido de forma estricta (pensado para
   la Ley 1581 de Colombia). Ningún archivo subido se sirve por URL directa.
+- **El rol de administrador no se reparte hacia arriba.** Un director crea y
+  edita usuarios, pero no puede nombrar administradores ni tocar la cuenta de
+  uno: si pudiera, se daría el rol a sí mismo —o le cambiaría la contraseña al
+  administrador— y las tres pantallas que el enrutado le reserva dejarían de
+  significar nada.
+- **A un mayor de edad no se le discute la salida.** Rechazar una cancelación
+  solo cabe con menores, y existe para dar tiempo a hablar con el acudiente antes
+  de que un niño se salga por su cuenta.
 - **Configurable sin tocar código**: nombre, logo, color de acento, cuántas
   promotorías puede cursar alguien y qué papeles se exigen se editan desde la
   propia interfaz.
@@ -64,15 +76,71 @@ satisfacción, sus matrículas y el retiro, confirmación de clases, sus compañ
 y su perfil (foto, documento, papeles y encuesta demográfica).
 
 **Panel** (quien dicta, dirección y administración) — confirmar y rechazar
-solicitudes, fijar el cupo del periodo, crear grupos y repartir en ellos a los
-matriculados (uno a uno o por lote), registrar clases, pasar lista y consultar la
-ficha y la trayectoria de cada persona.
+solicitudes (una a una o por lote), fijar el cupo del periodo, crear grupos y
+repartir en ellos a los matriculados (uno a uno o por lote), registrar clases,
+pasar lista y consultar la ficha y la trayectoria de cada persona.
 
 **Gestión** (dirección y administración) — el catálogo en cuatro niveles
-(departamento → promotoría → grupo → estudiantes), la ventana de matrículas, los
-cupos de todo el catálogo de una vez, las cancelaciones por resolver, los
+(departamento → promotoría → grupo → estudiantes) con filtros de grupos por
+departamento, promotoría y profesor; la ventana de matrículas, los cupos de todo
+el catálogo de una vez, las cancelaciones por resolver (también por lote), los
 usuarios con filtros por catálogo y periodo, los ajustes de la institución y las
 estadísticas agregadas.
+
+## Informes descargables
+
+Dos, en CSV, que abren con doble clic en Excel y al importar en Hojas de cálculo:
+
+| | |
+|---|---|
+| **Estudiantes por grupo** | La lista que se lleva impresa al salón: nombre, edad, teléfono y acudiente. Se puede pedir entera, de una promotoría o de un solo grupo, y hay enlace en las tres pantallas donde se entra a un grupo. |
+| **Informe completo de la institución** | Todo el padrón con rol, contacto, promotoría, nivel, tiempo cursado y la encuesta demográfica. **Solo administrador**, y con aviso en pantalla antes de descargar. |
+
+El segundo es el único sitio donde la encuesta demográfica sale con nombre y
+apellido: en pantalla siempre va agregada. Fue una decisión de dirección, tomada
+a sabiendas, para poder reportar a quien financia la institución.
+
+CSV y no `.xlsx` a propósito: un `.xlsx` real pediría `phpoffice/phpspreadsheet`
+—unos 10 MB en `vendor/` y bastante memoria por descarga— y el destino es hosting
+compartido. Llevan BOM UTF‑8 y separador `;`, que es lo que hace que Excel en
+español los abra con las tildes bien y en columnas.
+
+## Estadísticas
+
+Matrícula por departamento y promotoría con permanencia y deserción, mapa de
+calor de la actividad de la casa, ranking de profesores por clases dictadas —con
+cuántas les verificaron sus estudiantes al lado— y ranking de estudiantes por
+constancia, más la encuesta demográfica y la de satisfacción agregadas.
+
+Se camina entre periodos con flechas (o deslizando el dedo en el móvil), lo mismo
+que el panel de asistencia de cada perfil. Solo se ofrecen los periodos donde esa
+persona tiene algo: una flecha que lleva a un panel vacío no informa de nada.
+
+## Seguridad
+
+Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
+
+- **Límite de intentos** en las tres puertas que se pueden empujar sin cuenta. El
+  del login cuenta por **usuario + IP** y no por IP sola: una escuela entera sale
+  a internet por una sola dirección, y con el contador por IP treinta estudiantes
+  entrando desde la sala de cómputo se bloquearían entre sí.
+- **Ocho caracteres mínimo** en las contraseñas, declarado una sola vez con
+  `Password::defaults()`. No es un puerto: el original no valida la contraseña
+  por ninguna parte.
+- **Archivos fuera del webroot.** Fotos y documentos viven en
+  `storage/app/private` y se entregan por rutas que comprueban antes quién los
+  pide. Las fotos se re-codifican a WebP con GD, lo que destruye cualquier carga
+  útil incrustada.
+- **CSRF** en todos los formularios que cambian estado, y consultas siempre por
+  el ORM: no hay una sola concatenación de SQL con datos del usuario.
+- **Celdas de CSV neutralizadas**: un valor que empieza por `=`, `+`, `-` o `@`
+  lo ejecutaría Excel al abrir el archivo, y aquí los nombres y los barrios los
+  escribe el público.
+
+Queda anotado un asunto conocido: **desactivar una cuenta no cierra la sesión que
+ya tuviera abierta**. `activo` se comprueba al iniciar sesión y no en cada
+petición, así que quien fue dado de baja conserva acceso hasta que su sesión
+expire (`SESSION_LIFETIME`, 120 minutos por defecto).
 
 ## Puesta en marcha local
 
@@ -108,7 +176,7 @@ otro huso.
 php artisan test
 ```
 
-214 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+275 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.
