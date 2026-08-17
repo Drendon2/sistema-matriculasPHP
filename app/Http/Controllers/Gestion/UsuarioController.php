@@ -13,6 +13,7 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
 use App\Support\Imagen;
+use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -124,7 +125,7 @@ class UsuarioController extends Controller
         ]);
     }
 
-    public function crear(): View
+    public function crear(Request $request): View
     {
         return view('gestion.usuario-form', [
             'titulo' => 'Nuevo usuario',
@@ -133,11 +134,14 @@ class UsuarioController extends Controller
             'accion' => route('usuario-nuevo'),
             'datos' => null,
             'acudiente' => null,
+            'roles' => $this->rolesQuePuedeRepartir($request),
         ]);
     }
 
     public function guardar(Request $request): RedirectResponse
     {
+        $this->exigirRolRepartible($request);
+
         $datos = $this->validar($request, null);
 
         try {
@@ -168,8 +172,10 @@ class UsuarioController extends Controller
         return redirect()->route('usuario-lista')->with('success', 'Usuario creado.');
     }
 
-    public function editar(Perfil $usuario): View
+    public function editar(Request $request, Perfil $usuario): View
     {
+        $this->exigirAccesoA($request, $usuario);
+
         $datos = $usuario->datosEstudiante;
 
         return view('gestion.usuario-form', [
@@ -179,11 +185,17 @@ class UsuarioController extends Controller
             'accion' => route('usuario-editar', $usuario),
             'datos' => $datos,
             'acudiente' => $datos?->acudiente,
+            'roles' => $this->rolesQuePuedeRepartir($request),
         ]);
     }
 
     public function actualizar(Request $request, Perfil $usuario): RedirectResponse
     {
+        // Las dos puertas, y hacen falta las dos: una impide ascender a nadie a
+        // administrador, la otra impide tocar al que ya lo es.
+        $this->exigirAccesoA($request, $usuario);
+        $this->exigirRolRepartible($request);
+
         $datos = $this->validar($request, $usuario);
         $datosEstudiante = $usuario->datosEstudiante;
         $acudiente = $datosEstudiante?->acudiente;
@@ -238,6 +250,11 @@ class UsuarioController extends Controller
      */
     public function alternarActivo(Request $request, Perfil $usuario): RedirectResponse
     {
+        // Desactivar tambien es tocar la cuenta. Sin esto, un director que no
+        // puede suplantar al administrador si podria dejarlo fuera, y con el a
+        // las tres pantallas que solo el abre.
+        $this->exigirAccesoA($request, $usuario);
+
         if ($usuario->user_id === $request->user()->id) {
             return redirect()->route('usuario-lista')
                 ->with('error', 'No puedes desactivar tu propia cuenta.');
@@ -254,6 +271,48 @@ class UsuarioController extends Controller
     }
 
     // -----------------------------------------------------------------------
+    // Quien puede repartir que rol, y sobre quien
+    // -----------------------------------------------------------------------
+
+    /** @return list<string> */
+    private function rolesQuePuedeRepartir(Request $request): array
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        return Permisos::rolesAsignablesPor($perfil);
+    }
+
+    /**
+     * Corta si se intenta repartir un rol que esta persona no reparte.
+     *
+     * Un 403 y no un error de campo: el formulario no ofrece ese rol siquiera
+     * —el desplegable solo pinta los asignables—, asi que llegar aqui con
+     * `rol=administrador` significa que la peticion se compuso a mano. Eso no es
+     * un dato mal escrito que haya que corregir en pantalla, es alguien
+     * intentando pasar por encima de la regla.
+     */
+    private function exigirRolRepartible(Request $request): void
+    {
+        abort_unless(
+            in_array($request->input('rol'), $this->rolesQuePuedeRepartir($request), true),
+            403,
+            'No puedes asignar ese rol.'
+        );
+    }
+
+    /** Corta si la cuenta de destino esta por encima de quien la quiere tocar. */
+    private function exigirAccesoA(Request $request, Perfil $usuario): void
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        abort_unless(
+            Permisos::puedeEditarUsuario($perfil, $usuario),
+            403,
+            'La cuenta de un administrador solo la edita otro administrador.'
+        );
+    }
 
     /**
      * @return array<string, mixed>
@@ -281,7 +340,12 @@ class UsuarioController extends Controller
                 'string',
                 Password::defaults(),
             ],
-            'rol' => ['required', Rule::in(array_keys(Perfil::ROLES))],
+            // Acotado a lo que ESTA persona reparte, no a la lista entera. La
+            // puerta de verdad es `exigirRolRepartible`, que ya corto antes de
+            // llegar aqui; esto es la segunda vuelta de llave, para que la regla
+            // siga puesta si algun dia alguien anade un camino nuevo a este
+            // formulario y se olvida de la primera.
+            'rol' => ['required', Rule::in($this->rolesQuePuedeRepartir($request))],
             'nombre_completo' => ['required', 'string', 'max:90'],
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
             'telefono' => ['required', 'string', 'max:15'],

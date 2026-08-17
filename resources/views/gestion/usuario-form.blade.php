@@ -27,9 +27,17 @@
 
   <div class="field">
     <label for="rol">Rol</label>
+    {{--
+      Solo los roles que QUIEN MIRA puede repartir: un director no ve
+      «Administrador» en la lista. El corte de verdad esta en el controlador
+      —esconder una opcion no cierra el POST—, pero ofrecer algo que va a
+      rebotar es peor que no ofrecerlo.
+    --}}
     <select name="rol" id="rol" required>
-      @foreach (\App\Models\Perfil::ROLES as $valor => $etiqueta)
-        <option value="{{ $valor }}" @selected(old('rol', $perfil->rol) === $valor)>{{ $etiqueta }}</option>
+      @foreach ($roles as $valor)
+        <option value="{{ $valor }}" @selected(old('rol', $perfil->rol) === $valor)>
+          {{ \App\Models\Perfil::ROLES[$valor] }}
+        </option>
       @endforeach
     </select>
     @error('rol')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror

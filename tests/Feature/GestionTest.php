@@ -474,6 +474,179 @@ class GestionTest extends TestCase
         $this->assertNull(User::where('username', 'nuevo.corto')->first());
     }
 
+    // -----------------------------------------------------------------------
+    // El director no llega a administrador
+    // -----------------------------------------------------------------------
+    //
+    // Las rutas de usuarios estan abiertas a director Y administrador, pero el
+    // enrutado reserva al administrador tres pantallas: la configuracion de la
+    // institucion, las estadisticas con la encuesta demografica y la descarga de
+    // copias de documentos de identidad. Sin estas puertas, un director se daba
+    // el rol a si mismo —o le cambiaba la clave al administrador— y esas tres
+    // reservas dejaban de significar nada.
+
+    /** @return array<string, mixed> */
+    private function datosDeUsuario(array $extra = []): array
+    {
+        return [
+            'username' => 'nuevo.usuario',
+            'password' => 'secreta123',
+            'rol' => 'profesor',
+            'nombre_completo' => 'Nuevo Usuario',
+            'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
+            'telefono' => '3001112233',
+            ...$extra,
+        ];
+    }
+
+    public function test_un_director_no_crea_administradores(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                'username' => 'colado',
+                'rol' => 'administrador',
+            ]))
+            ->assertForbidden();
+
+        $this->assertNull(User::where('username', 'colado')->first());
+    }
+
+    public function test_un_director_no_asciende_a_nadie_a_administrador(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-editar', $this->profesor), $this->datosDeUsuario([
+                'username' => 'profe',
+                'password' => '',
+                'rol' => 'administrador',
+                'nombre_completo' => 'Profe',
+            ]))
+            ->assertForbidden();
+
+        $this->assertSame('profesor', $this->profesor->fresh()->rol);
+    }
+
+    /** El camino corto y el mas obvio: ascenderse uno mismo. */
+    public function test_un_director_no_se_asciende_a_si_mismo(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-editar', $this->director), $this->datosDeUsuario([
+                'username' => 'dire',
+                'password' => '',
+                'rol' => 'administrador',
+                'nombre_completo' => 'Dire',
+            ]))
+            ->assertForbidden();
+
+        $this->assertSame('director', $this->director->fresh()->rol);
+    }
+
+    /**
+     * El otro camino: no ascenderse, sino suplantar.
+     *
+     * Sin esto la restriccion anterior no vale nada — bastaba con ponerle al
+     * administrador una contrasena conocida y entrar como el.
+     */
+    public function test_un_director_no_le_cambia_la_contrasena_al_administrador(): void
+    {
+        $antes = $this->admin->user->password;
+
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-editar', $this->admin), $this->datosDeUsuario([
+                'username' => 'admin',
+                'password' => 'lamiaahora',
+                'rol' => 'administrador',
+                'nombre_completo' => 'Admin',
+            ]))
+            ->assertForbidden();
+
+        $this->assertSame($antes, $this->admin->fresh()->user->password);
+    }
+
+    public function test_un_director_no_abre_la_edicion_de_un_administrador(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-editar', $this->admin))
+            ->assertForbidden();
+    }
+
+    /**
+     * Desactivar tambien es tocar la cuenta.
+     *
+     * No es ascenso, pero deja al administrador fuera y con el a las tres
+     * pantallas que solo el abre, que es el mismo daño por el otro lado.
+     */
+    public function test_un_director_no_desactiva_a_un_administrador(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-alternar-activo', $this->admin))
+            ->assertForbidden();
+
+        $this->assertTrue($this->admin->fresh()->user->activo);
+    }
+
+    /** El desplegable no ofrece lo que va a rebotar. */
+    public function test_el_formulario_no_le_ofrece_administrador_a_un_director(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-nuevo'))
+            ->assertOk()
+            ->assertDontSee('value="administrador"', false)
+            ->assertSee('value="profesor"', false);
+    }
+
+    /** Ni el listado pinta acciones sobre una cuenta que no puede tocar. */
+    public function test_el_listado_no_le_ofrece_editar_al_administrador(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista'))
+            ->assertOk()
+            ->assertDontSee(route('usuario-editar', $this->admin), false)
+            ->assertSee(route('usuario-editar', $this->profesor), false);
+    }
+
+    // -- Y el administrador sigue pudiendo con todo -------------------------
+    //
+    // La contraparte, y es la mitad que importa: una restriccion que de paso
+    // hubiera cerrado la puerta al administrador seria peor que el problema.
+
+    public function test_el_administrador_si_crea_administradores(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                'username' => 'otro.admin',
+                'rol' => 'administrador',
+            ]))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertSame('administrador', User::where('username', 'otro.admin')->first()->perfil->rol);
+    }
+
+    public function test_el_administrador_si_edita_a_otro_administrador(): void
+    {
+        $otro = $this->crearPerfil('admin2', 'administrador');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $otro), $this->datosDeUsuario([
+                'username' => 'admin2',
+                'password' => '',
+                'rol' => 'administrador',
+                'nombre_completo' => 'Admin Dos',
+            ]))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertSame('Admin Dos', $otro->fresh()->nombre_completo);
+    }
+
+    /** Un director sigue repartiendo los tres roles que si le tocan. */
+    public function test_un_director_si_crea_profesores(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario(['username' => 'profe.nuevo']))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertSame('profesor', User::where('username', 'profe.nuevo')->first()->perfil->rol);
+    }
+
     /**
      * Desactivar y no borrar: borrar el usuario se llevaria su perfil y con el
      * todo su historial de matriculas.

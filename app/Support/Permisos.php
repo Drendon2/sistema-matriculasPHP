@@ -70,6 +70,56 @@ class Permisos
     }
 
     /**
+     * Que roles puede REPARTIR esta persona.
+     *
+     * El administrador reparte cualquiera, incluido el suyo. El director reparte
+     * todo MENOS administrador, y ahi esta el fondo del asunto: las rutas de
+     * usuarios estan abiertas a los dos, pero el enrutado reserva al
+     * administrador tres pantallas —la configuracion de la institucion, las
+     * estadisticas con la encuesta demografica y la descarga de copias de
+     * documentos de identidad—. Si un director pudiera repartir el rol de
+     * administrador, se lo daria a si mismo y esas tres puertas dejarian de
+     * significar nada: la restriccion se saltaria sola, sin forzar nada.
+     *
+     * @return list<string>
+     */
+    public static function rolesAsignablesPor(Perfil $solicitante): array
+    {
+        $todos = array_keys(Perfil::ROLES);
+
+        if ($solicitante->rol === 'administrador') {
+            return $todos;
+        }
+
+        return array_values(array_filter($todos, fn (string $rol) => $rol !== 'administrador'));
+    }
+
+    /**
+     * ¿Puede tocar la cuenta de esta persona?
+     *
+     * La otra mitad de lo anterior, y hace falta las dos. Limitar solo los roles
+     * que se reparten deja abierto el camino corto: un director no se asciende,
+     * pero le cambia la contrasena al administrador y entra como el. Editar la
+     * cuenta de alguien es poder suplantarlo, asi que la cuenta de un
+     * administrador solo la toca otro administrador.
+     *
+     * Cubre las tres formas de tocarla —editar, cambiar el rol y activar o
+     * desactivar—, porque las tres pasan por el mismo formulario o por el mismo
+     * listado y dejar una fuera es dejarla entera fuera.
+     *
+     * Nadie queda encerrado: un administrador siempre puede editar a otro, y a
+     * si mismo.
+     */
+    public static function puedeEditarUsuario(Perfil $solicitante, Perfil $objetivo): bool
+    {
+        if ($solicitante->rol === 'administrador') {
+            return true;
+        }
+
+        return $objetivo->rol !== 'administrador';
+    }
+
+    /**
      * ¿Puede abrir la ficha de otra persona? Se mira hacia abajo, no hacia los
      * lados.
      *

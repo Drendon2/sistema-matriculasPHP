@@ -154,10 +154,32 @@
           <span class="estado estado-retirada">Inactivo</span>
         @endif
       </td>
+      {{--
+        La cuenta de un administrador solo la toca otro administrador. Se
+        precalcula porque la usan las dos acciones de la fila.
+
+        Va en la forma de UNA LÍNEA, con la asignación entre paréntesis, y no en
+        la de bloque abierto y cerrado. Este archivo ya usa la de una línea más
+        arriba, y Blade extrae los bloques de PHP crudo con una expresión regular
+        perezosa ANTES de compilar ninguna directiva. Con las dos formas
+        mezcladas en el mismo archivo, esa expresión abre en la primera de una
+        línea y cierra en el cierre del bloque, se traga las veinticinco líneas
+        que haya en medio y las deja sin compilar: el `if`, el `foreach` y el
+        resto salen impresos como texto.
+
+        Cuidado también con lo que se escribe AQUÍ DENTRO: un comentario que
+        nombre esas dos directivas literalmente dispara la misma extracción y se
+        acaba pintando el comentario entero en pantalla. Por eso este las
+        describe en vez de escribirlas. Es prima hermana de la trampa de una
+        directiva pegada a una letra.
+      --}}
+      @php($puedeTocarla = \App\Support\Permisos::puedeEditarUsuario($yo, $perfil))
       <td style="text-align:right;white-space:nowrap;">
         <span class="accion-fila">
+        @if ($puedeTocarla)
         <a href="{{ route('usuario-editar', $perfil) }}">Editar</a>
-        @if ($perfil->user_id !== auth()->id())
+        @endif
+        @if ($puedeTocarla && $perfil->user_id !== auth()->id())
         <form action="{{ route('usuario-alternar-activo', $perfil) }}" method="post" style="display:inline;">
           @csrf
           @if ($perfil->user->activo)
