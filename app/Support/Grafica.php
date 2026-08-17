@@ -35,8 +35,37 @@ class Grafica
     /** El trazo, del mismo grosor que el diametro, rellena el disco. */
     private const RADIO = 30;
 
-    /** Hueco en px entre sectores contiguos. */
-    private const SEPARACION = 2;
+    /**
+     * Arco minimo de un sector, en px de circunferencia.
+     *
+     * Los sectores CASAN entre si, sin hueco. Antes se les restaban 2 px para
+     * separarlos y a este tamano —una torta de 120 px, con 188 de
+     * circunferencia— eso es mas del 1 % del disco por cada corte: con cuatro
+     * sectores se iba un 4 % en huecos, y a simple vista parecia una gráfica mal
+     * terminada mas que una decision.
+     *
+     * Quitarlos no le quita legibilidad a nadie. La separacion no era lo que
+     * distinguia un sector de su vecino: eso lo hace la paleta, elegida
+     * justamente para que CUALQUIER par se distinga —tambien con daltonismo— y
+     * no solo los contiguos. Y quien no puede fiarse del color tiene al lado la
+     * leyenda con el numero y el porcentaje de cada opcion, que es y era la
+     * compensacion de verdad.
+     *
+     * El minimo si se queda: un sector de una respuesta entre trescientas mide
+     * medio pixel de arco, y sin suelo desapareceria del dibujo mientras la
+     * leyenda sigue diciendo que existe.
+     */
+    private const ARCO_MINIMO = 0.5;
+
+    /**
+     * Cuanto se mete cada sector debajo del siguiente, en px de circunferencia.
+     *
+     * Medio pixel sobre 188 es un 0,27 % del disco: no se ve y no mueve ninguna
+     * proporcion —los porcentajes de la leyenda salen del dato, no del dibujo—,
+     * pero es lo que evita la costura del suavizado entre dos sectores que casan
+     * exactos.
+     */
+    private const SOLAPE = 0.5;
 
     /**
      * Agrega `porcentaje` (ancho de barra 0-100, relativo al valor mas alto).
@@ -153,12 +182,23 @@ class Grafica
         $sectores = [];
         $recorrido = 0.0;
 
-        foreach ($conValor as $entrada) {
+        $ultimo = count($conValor) - 1;
+
+        foreach ($conValor as $indice => $entrada) {
             $arco = $circunferencia * $entrada['total'] / $total;
 
-            // Un unico sector ocuparia la vuelta entera: restarle el hueco solo
-            // dejaria una muesca contra si mismo, asi que ahi no se separa nada.
-            $visible = count($conValor) === 1 ? $arco : max($arco - self::SEPARACION, 0.5);
+            // Cada sector se alarga un pelo para meterse debajo del siguiente.
+            // Dos arcos que terminan y empiezan en el MISMO punto dejan una
+            // costura clara: los bordes van suavizados, y dos medios pixeles
+            // translucidos uno al lado del otro no suman uno opaco — se ve el
+            // fondo entre medias, que es justo el hueco que se venia a quitar.
+            // Con el solape, el de encima tapa la costura del de abajo.
+            //
+            // El ULTIMO no se alarga: se dibuja primero y el primero de la lista
+            // ya esta pintado, asi que lo que invadiera quedaria por debajo y no
+            // taparia nada; lo unico que haria es pasarse de la vuelta.
+            $solape = $indice === $ultimo ? 0 : self::SOLAPE;
+            $visible = max($arco + $solape, self::ARCO_MINIMO);
 
             $sectores[] = [
                 'color' => $entrada['color'],

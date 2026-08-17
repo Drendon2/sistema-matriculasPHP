@@ -9,6 +9,11 @@
   El grupo va rotado -90° para que la torta empiece a las 12 y no a las 3, que es
   por donde arranca el trazo de un círculo en SVG.
 
+  Los sectores CASAN entre sí, sin hueco: el orden del `@foreach` importa, porque
+  cada uno se mete medio píxel debajo del siguiente para tapar la costura del
+  suavizado (ver `Grafica::SOLAPE`). Pintados en otro orden, el solape quedaría
+  por debajo y la costura volvería.
+
   La leyenda no es decorativa: lleva el número y el porcentaje de cada opción,
   que es lo que permite leer la gráfica sin depender del color (uno de los tonos
   queda por debajo de 3:1 contra el fondo, y esa es su compensación obligatoria).
