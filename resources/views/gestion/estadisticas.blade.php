@@ -6,6 +6,50 @@
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>Estadísticas</h2>
 
+{{--
+  El paso entre periodos. Las flechas van a los lados del nombre porque es la
+  forma en que se lee un calendario: atrás a la izquierda, adelante a la derecha.
+
+  Cuando no hay a dónde ir la flecha se pinta igual, apagada, en vez de
+  desaparecer: si se quitara, las dos flechas cambiarían de sitio al llegar al
+  extremo y la que quedara caería justo donde estaba la otra — un clic de más
+  saltaría dos periodos sin querer.
+
+  En el móvil se puede además deslizar con el dedo sobre esta barra. Es un atajo,
+  no el único camino: los enlaces siguen ahí y funcionan sin JavaScript.
+--}}
+@if ($periodoActual)
+<nav class="periodo-nav" aria-label="Periodo del tablero" data-periodo-nav>
+  @if ($haciaAtras)
+    <a class="periodo-flecha" href="{{ route('gestion-estadisticas-periodo', $haciaAtras) }}"
+       rel="prev" aria-label="Periodo anterior: {{ $haciaAtras->nombre }}" data-periodo-atras>&larr;</a>
+  @else
+    <span class="periodo-flecha periodo-flecha-off" aria-hidden="true">&larr;</span>
+  @endif
+
+  <span class="periodo-actual">
+    {{ $periodoActual->nombre }}
+    @if ($esElEnCurso)<span class="estado estado-activa">En curso</span>@endif
+  </span>
+
+  @if ($haciaAdelante)
+    <a class="periodo-flecha" href="{{ route('gestion-estadisticas-periodo', $haciaAdelante) }}"
+       rel="next" aria-label="Periodo siguiente: {{ $haciaAdelante->nombre }}" data-periodo-adelante>&rarr;</a>
+  @else
+    <span class="periodo-flecha periodo-flecha-off" aria-hidden="true">&rarr;</span>
+  @endif
+</nav>
+
+{{--
+  Lo que cambia con el periodo y lo que no. Decirlo evita la lectura equivocada
+  más probable de esta pantalla: que TODO el tablero se mueve con la flecha.
+--}}
+<p class="campo-info" style="margin:-0.6rem 0 1.4rem;">
+  El periodo mueve las matrículas, el mapa de actividad y los dos rankings. El
+  catálogo y la encuesta demográfica son de toda la institución y no cambian.
+</p>
+@endif
+
 <div class="card" style="margin-bottom: 2.2rem;">
   <div class="dash-resumen">
     <div>
@@ -87,7 +131,121 @@
   @endforeach
 @endif
 
+{{--
+  Actividad de la casa: qué días se dio clase y cuántas.
+
+  Es el mismo calendario de las fichas, con la misma rejilla de siete filas y una
+  columna por semana, pero contando todas las clases del periodo. La escala es
+  relativa al día más cargado —ver `ResumenAsistencia::deInstitucion`—: con una
+  escala fija, un martes normal de la institución entera ya saturaría el tono más
+  oscuro y el mapa dejaría de decir nada.
+--}}
+@if ($mapaInstitucion)
+<h3 style="margin-top:2rem;">
+  Actividad de la institución
+  @if ($periodoActual)<span class="h4-nota">— {{ $periodoActual->nombre }}</span>@endif
+</h3>
+
+<div class="card" style="margin-bottom:2rem;">
+  @include('partials.mapa-calor', ['mapa' => $mapaInstitucion])
+
+  @if ($mapaInstitucion['diasSemana'])
+  <h4 style="margin:1.4rem 0 0.6rem;">Días de la semana con más clase</h4>
+  <p class="campo-info" style="margin-top:-0.4rem;">
+    Sirve para decidir horarios: si un día concentra la mitad de las clases,
+    abrir ahí un grupo nuevo es pelearse por el salón.
+  </p>
+  @include('gestion.barras', ['filas' => array_map(
+    fn ($d) => ['etiqueta' => $d['etiqueta'], 'total' => $d['total'], 'porcentaje' => $d['porcentaje']],
+    $mapaInstitucion['diasSemana']
+  )])
+  @endif
+</div>
+@endif
+
+{{--
+  Los dos rankings. Van juntos porque se leen juntos: uno dice quién sostiene las
+  clases y el otro quién las aprovecha.
+--}}
 <div class="dash-grid-2">
+  <div>
+    <h3>Profesores con más clases</h3>
+    {{--
+      La columna de verificadas no es un adorno. Registrar una clase es apretar
+      un botón, y quien lo aprieta es parte interesada; un ranking a secas
+      premiaría a quien más veces lo pulsa. Con las dos cifras al lado, la lista
+      dice lo que se puede afirmar de verdad.
+    --}}
+    <p class="campo-info" style="margin-top:-0.4rem;">
+      «Verificadas» son las que confirmaron sus propios estudiantes.
+    </p>
+    @if (! $profesoresActivos)
+      <p class="vacio">No hay clases registradas en este periodo.</p>
+    @else
+    <table>
+      <thead>
+        <tr><th>Profesor</th><th>Clases</th><th>Verificadas</th><th>Grupos</th></tr>
+      </thead>
+      <tbody>
+        @foreach ($profesoresActivos as $p)
+        <tr>
+          <td>
+            @if (\App\Support\Permisos::puedeVerFicha($yo, $p['perfil']))
+              <a href="{{ route('detalle-usuario', $p['perfil']) }}">{{ $p['perfil']->nombre_completo }}</a>
+            @else
+              {{ $p['perfil']->nombre_completo }}
+            @endif
+          </td>
+          <td>{{ $p['clases'] }}</td>
+          <td>{{ $p['verificadas'] }} <span class="campo-info">({{ $p['pct'] }}%)</span></td>
+          <td>{{ $p['grupos'] }}</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+    @endif
+  </div>
+
+  <div>
+    <h3>Estudiantes más constantes</h3>
+    {{--
+      Ordenado por PORCENTAJE y no por número de asistencias: a quien cursa dos
+      promotorías le caben el doble de sesiones y por el número absoluto
+      encabezaría siempre sin ser más constante. El mínimo se dice aquí, no se
+      esconde en el código: sin él, un 1 de 1 sería un 100 %.
+    --}}
+    <p class="campo-info" style="margin-top:-0.4rem;">
+      Desde {{ $minimoConstancia }} clases con lista pasada. Las clases sin
+      marcar no cuentan como falta.
+    </p>
+    @if (! $estudiantesConstantes)
+      <p class="vacio">Todavía no hay suficientes clases con lista pasada.</p>
+    @else
+    <table>
+      <thead>
+        <tr><th>Estudiante</th><th>Asistió</th><th>Constancia</th></tr>
+      </thead>
+      <tbody>
+        @foreach ($estudiantesConstantes as $e)
+        <tr>
+          <td>
+            @if (\App\Support\Permisos::puedeVerFicha($yo, $e['perfil']))
+              <a href="{{ route('detalle-usuario', $e['perfil']) }}">{{ $e['perfil']->nombre_completo }}</a>
+            @else
+              {{ $e['perfil']->nombre_completo }}
+            @endif
+          </td>
+          <td>{{ $e['asistio'] }} de {{ $e['marcadas'] }}</td>
+          <td>{{ $e['pct'] }}%</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+    @endif
+  </div>
+</div>
+
+<div class="dash-grid-2" style="margin-top:1.7rem;">
   <div>
     <h3>Grupos por nivel</h3>
     @include('gestion.barras', ['filas' => $gruposPorCurso])
@@ -222,3 +380,8 @@
   @include('gestion.barras', ['filas' => $victimaConflictoStats])
 </details>
 @endsection
+
+@push('scripts')
+{{-- Solo el gesto de deslizar. Las flechas funcionan sin esto. --}}
+<script src="{{ asset('js/periodo.js') }}" defer></script>
+@endpush

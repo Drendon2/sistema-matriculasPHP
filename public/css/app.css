@@ -570,7 +570,15 @@
      Van aquí y no en el envoltorio del calendario: la leyenda es hermana de ese
      envoltorio, no hija, así que declaradas allí abajo no las heredaba y sus
      cuadros se quedaban sin medida — es decir, invisibles. */
-  .asis { margin-top: 2.2rem; --cal-celda: 14px; --cal-hueco: 4px; }
+  .asis { margin-top: 2.2rem; }
+  /* Las medidas van en el envoltorio que trae el PROPIO parcial del mapa, no en
+     `.asis`. Estaban en `.asis` —la sección de una ficha— y al reutilizar el
+     mapa en Estadísticas, que no es una ficha, el calendario se quedó sin
+     medida: siete filas de cero píxeles, es decir invisible. Es la misma trampa
+     que ya se arregló una vez con la leyenda, y vuelve cada vez que este bloque
+     se pinta en un sitio nuevo. Declaradas aquí no puede volver a pasar: quien
+     incluye el mapa se lleva las variables con él. */
+  .mapa-calor { --cal-celda: 14px; --cal-hueco: 4px; }
   /* Cuatro por fila como tope: más caben, pero una fila de siete fichas se lee
      como una tira de números sueltos en vez de como grupos. El max-width es lo
      que fija el tope sin apagar el auto-fit de las pantallas estrechas. */
@@ -632,10 +640,38 @@
   .asis-cel.cal-sin_marcar {
     background: var(--surface); border-style: dotted; border-color: var(--border-strong);
   }
-  /* Cuántas clases dictó (magnitud): una sola tinta en tres pasos. */
-  .asis-cel.cal-n1 { background: #bcd4f2; border-color: #bcd4f2; }
-  .asis-cel.cal-n2 { background: #6ba3e3; border-color: #6ba3e3; }
-  .asis-cel.cal-n3 { background: #2a78d6; border-color: #2a78d6; }
+  /* Cuántas clases dictó (magnitud): una sola tinta en pasos.
+     Tres bastan en una ficha —nadie da diez clases en un día— y el cuarto lo
+     pide el mapa de toda la institución, donde un día flojo y uno fuerte se
+     separan mucho más y con tres pasos el contraste se perdía. */
+  .asis-cel.cal-n1 { background: #cfe0f6; border-color: #cfe0f6; }
+  .asis-cel.cal-n2 { background: #8fbaea; border-color: #8fbaea; }
+  .asis-cel.cal-n3 { background: #4a8bdb; border-color: #4a8bdb; }
+  .asis-cel.cal-n4 { background: #1d5fb0; border-color: #1d5fb0; }
+
+  /* La barra de paso entre periodos. Las flechas mantienen su sitio aunque no
+     lleven a ninguna parte: si desaparecieran, al llegar al extremo la que queda
+     se correría justo donde estaba la otra y un clic de más saltaría dos
+     periodos sin querer. */
+  .periodo-nav {
+    display: flex; align-items: center; justify-content: center;
+    gap: 1rem; margin: -0.4rem 0 1.4rem;
+    touch-action: pan-y;
+  }
+  .periodo-flecha {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.1rem; height: 2.1rem; border-radius: 50%;
+    border: 1px solid var(--border); text-decoration: none;
+    font-size: 1.05rem; line-height: 1; color: var(--accent);
+    background: #fff;
+  }
+  .periodo-flecha:hover { background: var(--accent-soft); }
+  .periodo-flecha-off { color: var(--ink-faint); opacity: 0.4; cursor: default; }
+  .periodo-actual {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-size: 1.05rem; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
 
   .asis-leyenda {
     list-style: none; padding: 0; margin: 0.7rem 0 0;

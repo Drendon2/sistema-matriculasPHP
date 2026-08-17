@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Area;
+use App\Models\Asistencia;
+use App\Models\Clase;
 use App\Models\EncuestaDemografica;
 use App\Models\EncuestaSatisfaccion;
 use App\Models\Grupo;
@@ -12,6 +14,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Grafica;
+use App\Support\ResumenAsistencia;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -31,9 +34,36 @@ class EstadisticasController extends Controller
      */
     private const NOTA_BAJA = 2;
 
-    public function __invoke(Request $request): View
+    /**
+     * Cuantas clases marcadas hacen falta para entrar en el ranking de
+     * constancia.
+     *
+     * Sin minimo, un 1 de 1 es un 100 % y desplaza a quien lleva veinte de
+     * veintidos: el ranking se llenaria de gente que apenas empezo. Cinco es
+     * poco mas de un mes de clases semanales — suficiente para que el
+     * porcentaje signifique algo y no tanto como para dejar fuera a quien entro
+     * a mitad de periodo.
+     */
+    private const MINIMO_CLASES_CONSTANCIA = 5;
+
+    /**
+     * El tablero, del periodo que se pida.
+     *
+     * Sin periodo en la URL se ensena el EN CURSO, que es lo que se viene a
+     * mirar el 99 % de las veces; las flechas caminan por el resto. Es la misma
+     * forma que ya usa la pantalla de cupos, para que moverse entre periodos se
+     * haga igual en los dos sitios.
+     */
+    public function __invoke(Request $request, ?Periodo $periodo = null): View
     {
-        $periodoActual = Periodo::enCurso();
+        // Del mas reciente al mas antiguo: es el orden en que se piensan y el
+        // que hace que la flecha «izquierda» sea siempre «hacia atras».
+        $periodos = Periodo::orderByDesc('fecha_inicio')->orderByDesc('id')->get();
+        $periodoActual = $periodo ?? Periodo::enCurso() ?? $periodos->first();
+
+        $indice = $periodoActual === null
+            ? false
+            : $periodos->search(fn (Periodo $p) => $p->id === $periodoActual->id);
 
         $periodoPrevio = $periodoActual === null ? null : Periodo::query()
             ->where('fecha_inicio', '<', $periodoActual->fecha_inicio)
@@ -49,6 +79,16 @@ class EstadisticasController extends Controller
             'arbolDepartamentos' => $this->arbol($periodoActual, $baseRenovacion, $noRenovaron),
             'periodoActual' => $periodoActual,
             'periodoPrevio' => $periodoPrevio,
+            // La navegación: hacia atras es el SIGUIENTE de la lista, porque va
+            // ordenada del mas reciente al mas antiguo.
+            'periodos' => $periodos,
+            'haciaAtras' => $indice === false ? null : $periodos->get($indice + 1),
+            'haciaAdelante' => $indice === false || $indice === 0 ? null : $periodos->get($indice - 1),
+            'esElEnCurso' => $periodoActual !== null && $periodoActual->activo,
+            'mapaInstitucion' => ResumenAsistencia::deInstitucion($periodoActual),
+            'profesoresActivos' => $this->profesoresMasActivos($periodoActual),
+            'estudiantesConstantes' => $this->estudiantesMasConstantes($periodoActual),
+            'minimoConstancia' => self::MINIMO_CLASES_CONSTANCIA,
             'gruposPorCurso' => Grafica::conPorcentaje($this->gruposPorNivel()),
             'estudiantesPorPeriodo' => Grafica::conPorcentaje($this->porPeriodo()),
             'totalEstudiantesActivos' => Matricula::where('estado', Matricula::ACTIVA)
@@ -494,6 +534,143 @@ class EstadisticasController extends Controller
             ->selectRaw("{$campo} as valor, COUNT(*) as total")
             ->pluck('total', 'valor')
             ->map(fn ($t) => (int) $t)
+            ->all();
+    }
+
+    /**
+     * Quien dicto mas clases en el periodo, con cuantas le verificaron.
+     *
+     * La columna de verificadas NO es un adorno: en este sistema registrar una
+     * clase es apretar un boton, y quien lo aprieta es parte interesada. Un
+     * ranking a secas premiaria a quien mas veces lo pulsa, que no es lo mismo
+     * que quien mas clases dio. Con las dos cifras al lado, la lista dice lo que
+     * de verdad se puede afirmar: cuantas registro y cuantas dieron por ciertas
+     * sus estudiantes.
+     *
+     * Se cuenta por el VINCULO con la promotoria y no por `registrada_por_id`,
+     * igual que en el resto del sistema: un director que ademas dicta tiene que
+     * aparecer aqui.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function profesoresMasActivos(?Periodo $periodo, int $cuantos = 10): array
+    {
+        if ($periodo === null) {
+            return [];
+        }
+
+        $clases = Clase::query()
+            ->where('clases.periodo_id', $periodo->id)
+            ->join('grupos', 'grupos.id', '=', 'clases.grupo_id')
+            ->join('promotorias', 'promotorias.id', '=', 'grupos.promotoria_id')
+            ->whereNotNull('promotorias.profesor_id')
+            ->withCount('confirmaciones')
+            ->select('clases.*', 'promotorias.profesor_id')
+            ->get();
+
+        if ($clases->isEmpty()) {
+            return [];
+        }
+
+        $porProfesor = [];
+
+        foreach ($clases as $clase) {
+            $id = $clase->profesor_id;
+            $porProfesor[$id] ??= ['clases' => 0, 'verificadas' => 0, 'grupos' => []];
+            $porProfesor[$id]['clases']++;
+            $porProfesor[$id]['grupos'][$clase->grupo_id] = true;
+
+            if ($clase->estaConfirmada($clase->confirmaciones_count)) {
+                $porProfesor[$id]['verificadas']++;
+            }
+        }
+
+        uasort($porProfesor, fn (array $a, array $b) => $b['clases'] <=> $a['clases']);
+
+        $perfiles = Perfil::whereIn('id', array_keys($porProfesor))->get()->keyBy('id');
+        $filas = [];
+
+        foreach (array_slice($porProfesor, 0, $cuantos, true) as $id => $datos) {
+            $perfil = $perfiles->get($id);
+
+            if ($perfil === null) {
+                continue;
+            }
+
+            $filas[] = [
+                'perfil' => $perfil,
+                'clases' => $datos['clases'],
+                'verificadas' => $datos['verificadas'],
+                'grupos' => count($datos['grupos']),
+                'pct' => (int) round($datos['verificadas'] / $datos['clases'] * 100),
+            ];
+        }
+
+        return $filas;
+    }
+
+    /**
+     * Quien falta menos: el ranking de constancia.
+     *
+     * Se ordena por PORCENTAJE y no por numero de asistencias, porque la
+     * pregunta es quien es constante y no quien tiene mas clases en su horario:
+     * a quien cursa dos promotorias le caben el doble de sesiones y por el
+     * numero absoluto encabezaria siempre la lista sin ser mas constante que
+     * nadie.
+     *
+     * Y por eso mismo hace falta un minimo. Con una sola clase marcada, un
+     * 1 de 1 es un 100 % que desplazaria a quien lleva veinte de veintidos, y
+     * eso convertiria el ranking en una lista de gente que apenas ha empezado.
+     * El minimo va explicado en la pantalla, no escondido aqui.
+     *
+     * Las clases sin marcar NO cuentan como falta: que quien dicta no haya
+     * pasado lista no es un dato sobre el estudiante.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function estudiantesMasConstantes(?Periodo $periodo, int $cuantos = 10): array
+    {
+        if ($periodo === null) {
+            return [];
+        }
+
+        $filas = Asistencia::query()
+            ->join('matriculas', 'matriculas.id', '=', 'asistencias.matricula_id')
+            ->where('matriculas.periodo_id', $periodo->id)
+            ->whereIn('asistencias.estado', [Asistencia::ASISTIO, Asistencia::FALTO, Asistencia::EXCUSA])
+            ->groupBy('matriculas.estudiante_id')
+            ->selectRaw('
+                matriculas.estudiante_id,
+                COUNT(*) as marcadas,
+                SUM(asistencias.estado = ?) as asistio
+            ', [Asistencia::ASISTIO])
+            ->having('marcadas', '>=', self::MINIMO_CLASES_CONSTANCIA)
+            ->get();
+
+        if ($filas->isEmpty()) {
+            return [];
+        }
+
+        $perfiles = Perfil::whereIn('id', $filas->pluck('estudiante_id'))->get()->keyBy('id');
+
+        return $filas
+            ->map(function ($fila) use ($perfiles) {
+                $marcadas = (int) $fila->marcadas;
+                $asistio = (int) $fila->asistio;
+
+                return [
+                    'perfil' => $perfiles->get($fila->estudiante_id),
+                    'asistio' => $asistio,
+                    'marcadas' => $marcadas,
+                    'pct' => (int) round($asistio / $marcadas * 100),
+                ];
+            })
+            ->filter(fn (array $f) => $f['perfil'] !== null)
+            // El desempate va por numero de clases: entre dos que no faltaron
+            // nunca, la lista encabeza quien lo sostuvo mas veces.
+            ->sortByDesc(fn (array $f) => [$f['pct'], $f['marcadas']])
+            ->take($cuantos)
+            ->values()
             ->all();
     }
 

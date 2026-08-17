@@ -302,5 +302,10 @@ Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(funct
     Route::post('/institucion/documentos/{documento}/alternar', [Gestion\ConfiguracionController::class, 'documentoAlternar'])
         ->name('documento-requerido-alternar');
 
+    // Sin periodo se ensena el en curso; con periodo, ese. Dos rutas y no una
+    // con parametro opcional porque el nombre sin parametro es el que usan el
+    // menu y la portada, y asi no tienen que saber en que periodo estamos.
     Route::get('/estadisticas', Gestion\EstadisticasController::class)->name('gestion-estadisticas');
+    Route::get('/estadisticas/{periodo}', Gestion\EstadisticasController::class)
+        ->name('gestion-estadisticas-periodo');
 });

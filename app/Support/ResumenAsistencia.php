@@ -355,6 +355,121 @@ class ResumenAsistencia
         ];
     }
 
+    /**
+     * El mapa de calor de la institucion entera: que dias hubo mas movimiento.
+     *
+     * Es el mismo calendario que la ficha de quien dicta, pero contando TODAS
+     * las clases del periodo en vez de las de una persona. Y por eso la escala
+     * es RELATIVA y no absoluta: en una ficha «3 o mas» distingue bien, porque
+     * nadie da diez clases en un dia; en la casa entera un martes normal ya
+     * pasa de diez, y con una escala fija el mapa saldria todo del tono mas
+     * oscuro y no diria nada. Los cuatro pasos se reparten contra el dia mas
+     * cargado del propio periodo.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function deInstitucion(?Periodo $periodo): ?array
+    {
+        if ($periodo === null) {
+            return null;
+        }
+
+        $porDia = Clase::query()
+            ->where('periodo_id', $periodo->id)
+            ->selectRaw('DATE(fecha_hora) as dia, COUNT(*) as total')
+            ->groupBy('dia')
+            ->pluck('total', 'dia')
+            ->map(fn ($t) => (int) $t)
+            ->all();
+
+        if ($porDia === []) {
+            return null;
+        }
+
+        $maximo = max($porDia);
+        $cuantas = array_sum($porDia);
+
+        // Los dias de la SEMANA que mas se repiten. Es la pregunta que la
+        // rejilla contesta de un vistazo pero no en numeros, y es la que sirve
+        // para decidir horarios: si el sabado concentra la mitad de las clases,
+        // abrir un grupo nuevo el sabado es pelearse por el salon.
+        $porDiaSemana = array_fill(1, 7, 0);
+
+        foreach ($porDia as $iso => $total) {
+            $porDiaSemana[Carbon::parse($iso)->dayOfWeekIso] += $total;
+        }
+
+        arsort($porDiaSemana);
+
+        return [
+            'tipo' => 'institucion',
+            'fichas' => [
+                ['etiqueta' => 'Clases dictadas', 'valor' => $cuantas],
+                ['etiqueta' => 'Días con clase', 'valor' => count($porDia)],
+                ['etiqueta' => 'Día más cargado', 'valor' => $maximo, 'nota' => 'clases en un solo día'],
+                [
+                    'etiqueta' => 'Promedio por día',
+                    'valor' => round($cuantas / count($porDia), 1),
+                    'nota' => 'contando solo los días con clase',
+                ],
+            ],
+            'celdas' => self::celdas(
+                $porDia,
+                $periodo,
+                fn (int $total) => 'cal-n'.self::escalon($total, $maximo),
+                fn (int $total) => $total.($total === 1 ? ' clase' : ' clases')
+            ),
+            'leyenda' => [
+                ['clase' => 'cal-n1', 'etiqueta' => 'Poco movimiento', 'valor' => null],
+                ['clase' => 'cal-n2', 'etiqueta' => '·', 'valor' => null],
+                ['clase' => 'cal-n3', 'etiqueta' => '·', 'valor' => null],
+                ['clase' => 'cal-n4', 'etiqueta' => "Hasta {$maximo} clases", 'valor' => null],
+            ],
+            'diasSemana' => self::nombresDeDia($porDiaSemana, $cuantas),
+        ];
+    }
+
+    /**
+     * En cual de los cuatro pasos cae un dia, contra el mas cargado.
+     *
+     * Se reparte por cuartos y no en tramos fijos porque el objetivo es que el
+     * mapa se lea en cualquier periodo: uno con quince clases y otro con
+     * trescientas tienen que ensenar el mismo contraste entre sus dias flojos y
+     * sus dias fuertes.
+     */
+    private static function escalon(int $total, int $maximo): int
+    {
+        if ($maximo <= 0) {
+            return 1;
+        }
+
+        return max(1, (int) ceil($total / $maximo * 4));
+    }
+
+    /**
+     * @param  array<int, int>  $porDiaSemana  ya ordenado de mas a menos
+     * @return list<array<string, mixed>>
+     */
+    private static function nombresDeDia(array $porDiaSemana, int $total): array
+    {
+        $nombres = [1 => 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        $filas = [];
+
+        foreach ($porDiaSemana as $dia => $clases) {
+            if ($clases === 0) {
+                continue;
+            }
+
+            $filas[] = [
+                'etiqueta' => $nombres[$dia],
+                'total' => $clases,
+                'porcentaje' => (int) round($clases / $total * 100),
+            ];
+        }
+
+        return $filas;
+    }
+
     private static function prioridad(string $estado): int
     {
         $posicion = array_search($estado, self::PRIORIDAD_DIA, true);

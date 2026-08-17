@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Asistencia;
+use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
+use App\Models\ConfirmacionClase;
 use App\Models\CupoPromotoria;
 use App\Models\DatosEstudiante;
 use App\Models\DocumentoRequerido;
@@ -1041,8 +1044,14 @@ class GestionTest extends TestCase
             ->assertSee('Todavía nadie ha contestado la encuesta de satisfacción', false);
     }
 
-    /** Sin periodo en curso no hay nada que medir, y la pantalla no se cae. */
-    public function test_las_estadisticas_abren_sin_periodo_en_curso(): void
+    /**
+     * Sin periodo EN CURSO se cae al mas reciente, no a una pantalla vacia.
+     *
+     * Entre dos semestres no hay ninguno activo, y en ese hueco lo que se quiere
+     * mirar es justamente el que acaba de terminar. Es lo mismo que ya hace la
+     * pantalla de cupos, para que las dos se comporten igual.
+     */
+    public function test_sin_periodo_en_curso_las_estadisticas_ensenan_el_mas_reciente(): void
     {
         $this->periodo->activo = false;
         $this->periodo->save();
@@ -1050,6 +1059,168 @@ class GestionTest extends TestCase
         $this->actingAs($this->admin->user)
             ->get(route('gestion-estadisticas'))
             ->assertOk()
+            ->assertSee($this->periodo->nombre)
+            ->assertDontSee('no hay nada que medir');
+    }
+
+    /** Sin NINGUN periodo si no hay nada que medir, y la pantalla no se cae. */
+    public function test_las_estadisticas_abren_sin_ningun_periodo(): void
+    {
+        Matricula::query()->delete();
+        Periodo::query()->delete();
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
             ->assertSee('no hay nada que medir');
+    }
+
+    // -----------------------------------------------------------------------
+    // Los tres indicadores nuevos del tablero
+    // -----------------------------------------------------------------------
+
+    /** Registra $cuantas clases del grupo, y confirma las primeras $verificadas. */
+    private function dictar(Grupo $grupo, int $cuantas, int $verificadas = 0): void
+    {
+        $inscritos = Matricula::where('grupo_id', $grupo->id)
+            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->get();
+
+        for ($n = 1; $n <= $cuantas; $n++) {
+            $clase = Clase::create([
+                'grupo_id' => $grupo->id,
+                'periodo_id' => $this->periodo->id,
+                'fecha_hora' => Carbon::today()->subDays($n)->setTime(10, 0),
+                'registrada_por_id' => $this->profesor->id,
+                'confirmaciones_requeridas' => 1,
+            ]);
+
+            if ($n <= $verificadas && $inscritos->isNotEmpty()) {
+                ConfirmacionClase::create([
+                    'clase_id' => $clase->id,
+                    'matricula_id' => $inscritos->first()->id,
+                ]);
+            }
+        }
+    }
+
+    private function grupoDeViolin(): Grupo
+    {
+        return Grupo::create([
+            'promotoria_id' => $this->violin->id,
+            'nivel' => 'basico',
+            'horario' => 'Lunes 4-6 p. m.',
+            'salon' => 'Salon 1',
+            'cupo_maximo' => 20,
+        ]);
+    }
+
+    public function test_el_mapa_de_actividad_cuenta_las_clases_del_periodo(): void
+    {
+        $this->dictar($this->grupoDeViolin(), 3);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Actividad de la institución', false)
+            ->assertSee('Clases dictadas')
+            ->assertSee('Días de la semana con más clase', false);
+    }
+
+    /**
+     * El ranking de profesores enseña las verificadas al lado de las dictadas.
+     *
+     * No es un adorno: registrar una clase es apretar un boton y quien lo aprieta
+     * es parte interesada. Sin la segunda cifra, el ranking premiaria a quien mas
+     * veces lo pulsa, que no es lo mismo que quien mas clases dio.
+     */
+    public function test_el_ranking_de_profesores_separa_dictadas_de_verificadas(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $this->dictar($grupo, 4, verificadas: 2);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Profesores con más clases', false)
+            ->assertSee('Profe')
+            ->assertSee('(50%)', false);
+    }
+
+    /**
+     * El ranking de constancia exige un minimo de clases.
+     *
+     * Sin el, un 1 de 1 seria un 100 % y desplazaria a quien lleva veinte de
+     * veintidos: la lista se llenaria de gente que apenas empezo.
+     */
+    public function test_el_ranking_de_constancia_deja_fuera_a_quien_tiene_pocas_clases(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $this->dictar($grupo, 3);
+
+        // Tres asistencias perfectas, por debajo del minimo: no entra.
+        foreach (Clase::where('grupo_id', $grupo->id)->get() as $clase) {
+            Asistencia::create([
+                'clase_id' => $clase->id,
+                'matricula_id' => $matricula->id,
+                'estado' => Asistencia::ASISTIO,
+            ]);
+        }
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Todavía no hay suficientes clases', false);
+    }
+
+    public function test_el_ranking_de_constancia_entra_al_llegar_al_minimo(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $this->dictar($grupo, 6);
+
+        // Cinco presentes y una falta: 83 %.
+        foreach (Clase::where('grupo_id', $grupo->id)->orderBy('id')->get() as $indice => $clase) {
+            Asistencia::create([
+                'clase_id' => $clase->id,
+                'matricula_id' => $matricula->id,
+                'estado' => $indice === 0 ? Asistencia::FALTO : Asistencia::ASISTIO,
+            ]);
+        }
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Estudiantes más constantes', false)
+            ->assertSee('5 de 6')
+            ->assertSee('83%');
+    }
+
+    /** Las flechas caminan por los periodos. */
+    public function test_se_puede_pedir_el_tablero_de_otro_periodo(): void
+    {
+        $viejo = Periodo::create([
+            'nombre' => '2025-2',
+            'fecha_inicio' => '2025-07-01',
+            'fecha_fin' => '2025-12-15',
+            'activo' => false,
+            'matriculas_abiertas' => false,
+        ]);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas-periodo', $viejo))
+            ->assertOk()
+            ->assertSee('2025-2');
     }
 }
