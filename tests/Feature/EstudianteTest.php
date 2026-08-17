@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\ConfirmacionClase;
 use App\Models\DatosEstudiante;
@@ -610,6 +611,133 @@ class EstudianteTest extends TestCase
             ->get(route('mi-perfil'))
             ->assertOk()
             ->assertDontSee('asis-dias', false);
+    }
+
+    // -----------------------------------------------------------------------
+    // El paso entre periodos del panel de asistencia
+    // -----------------------------------------------------------------------
+
+    /**
+     * Le da a Ana matricula y clase en el periodo anterior, el que ya trae el
+     * `setUp`, para que tenga dos por los que caminar.
+     */
+    private function darleElPeriodoAnterior(): Periodo
+    {
+        $matricula = $this->inscribir($this->ana, $this->violin, $this->grupo, $this->anterior);
+
+        $clase = Clase::create([
+            'grupo_id' => $this->grupo->id,
+            'periodo_id' => $this->anterior->id,
+            'fecha_hora' => Carbon::parse('2025-08-05 10:00'),
+            'registrada_por_id' => $this->profesor->id,
+            'confirmaciones_requeridas' => 1,
+        ]);
+
+        Asistencia::create([
+            'clase_id' => $clase->id,
+            'matricula_id' => $matricula->id,
+            'estado' => Asistencia::ASISTIO,
+        ]);
+
+        return $this->anterior;
+    }
+
+    /**
+     * Con un solo periodo no hay a donde ir, asi que no se pinta la barra.
+     *
+     * Dos flechas apagadas y un nombre no son una navegacion, son un adorno que
+     * invita a pulsar algo que no hace nada.
+     */
+    public function test_con_un_solo_periodo_no_aparece_la_barra(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('asis-dias', false)
+            ->assertDontSee('periodo-nav', false);
+    }
+
+    public function test_con_dos_periodos_las_flechas_caminan(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+        $anterior = $this->darleElPeriodoAnterior();
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('periodo-nav', false)
+            // Arranca en el EN CURSO, y la flecha de atras lleva al anterior.
+            ->assertSee($this->periodo->nombre)
+            ->assertSee(route('mi-perfil', ['periodo' => $anterior->id]), false);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil', ['periodo' => $anterior->id]))
+            ->assertOk()
+            ->assertSee('2025-2');
+    }
+
+    /**
+     * Solo se ofrecen los periodos donde esa persona TIENE algo.
+     *
+     * Un periodo suelto en el que no estuvo matriculada no puede aparecer: esa
+     * flecha llevaria a un panel vacio y quien navega no sabria si es que no fue
+     * a clase o que no estaba matriculado.
+     */
+    /**
+     * Un periodo donde estuvo matriculada pero NADIE registro clases no se
+     * ofrece.
+     *
+     * La flecha llevaria a un panel de ceros, y este proyecto ya tiene decidido
+     * que eso no se pinta: no informa y ademas miente por omision, porque no se
+     * distingue «no falte nunca» de «no hubo clases».
+     */
+    public function test_no_se_ofrece_un_periodo_sin_clases_registradas(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        // Matriculada en el anterior, pero alli nadie registro una sola clase.
+        $this->inscribir($this->ana, $this->violin, $this->grupo, $this->anterior);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertDontSee('periodo-nav', false);
+    }
+
+    public function test_no_se_ofrece_un_periodo_en_el_que_no_estuvo(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        $ajeno = Periodo::create([
+            'nombre' => '2024-1',
+            'fecha_inicio' => '2024-01-15',
+            'fecha_fin' => '2024-06-30',
+            'activo' => false,
+            'matriculas_abiertas' => false,
+        ]);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertDontSee(route('mi-perfil', ['periodo' => $ajeno->id]), false);
+    }
+
+    /** Pedir un periodo ajeno no rompe: se cae al que corresponde. */
+    public function test_pedir_un_periodo_ajeno_cae_en_el_que_corresponde(): void
+    {
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        Clase::abrir($this->grupo, $this->periodo, $this->profesor);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil', ['periodo' => 9999]))
+            ->assertOk()
+            ->assertSee($this->periodo->nombre);
     }
 
     public function test_se_actualiza_el_telefono(): void

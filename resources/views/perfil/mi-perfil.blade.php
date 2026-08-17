@@ -100,7 +100,13 @@
   «no ha empezado el periodo».
 --}}
 @if ($asistencia)
-  @include('partials.panel-asistencia', ['asistencia' => $asistencia, 'periodo' => $periodo])
+  @include('partials.panel-asistencia', [
+    'asistencia' => $asistencia,
+    'periodo' => $periodo,
+    'periodoAtras' => $periodoAtras,
+    'periodoAdelante' => $periodoAdelante,
+    'periodoEsElEnCurso' => $periodoEsElEnCurso,
+  ])
 @endif
 
 <script>
@@ -283,3 +289,8 @@
   })();
 </script>
 @endsection
+
+@push('scripts')
+{{-- Solo el gesto de deslizar entre periodos. Las flechas funcionan sin esto. --}}
+<script src="{{ asset('js/periodo.js') }}" defer></script>
+@endpush

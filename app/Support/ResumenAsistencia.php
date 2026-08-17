@@ -470,6 +470,76 @@ class ResumenAsistencia
         return $filas;
     }
 
+    /**
+     * Por que periodos puede caminar esta persona, y en cual empieza.
+     *
+     * Solo se ofrecen los periodos donde HAY algo suyo, y esa es la decision de
+     * fondo. Un estudiante que curso dos semestres no tiene por que pasar por
+     * los seis que existen: cuatro de esas flechas llevarian a un panel vacio
+     * sin ninguna explicacion, y el que navega no puede saber si es que no fue a
+     * clase o que no estaba matriculado. Con la lista acotada, todo destino
+     * tiene algo que ensenar.
+     *
+     * Arranca en el periodo en curso si esa persona tiene algo en el; si no, en
+     * el mas reciente que si —entre dos semestres, o para alguien que ya no
+     * cursa, lo que se quiere ver es lo ultimo que hizo, no una pantalla vacia.
+     *
+     * `$comoEstudiante` decide donde mirar, con el mismo criterio que usa el
+     * panel: los estudiantes tienen matriculas, el resto registra clases. Un
+     * director que ademas dicta entra por la segunda, igual que en su ficha.
+     *
+     * @return array{periodo: ?Periodo, atras: ?Periodo, adelante: ?Periodo}
+     */
+    public static function navegacionDePeriodos(
+        Perfil $perfil,
+        ?string $pedido,
+        bool $comoEstudiante
+    ): array {
+        // Periodos con CLASES suyas, no con matriculas suyas. Estar matriculado
+        // en un semestre donde nadie registro una sola clase da un panel de
+        // ceros, y este proyecto ya tiene decidido que eso no se pinta: no
+        // informa y ademas miente por omision. Con este filtro, cada flecha
+        // lleva a algo que se puede leer.
+        //
+        // Para el estudiante se cruzan grupo Y periodo: las clases del grupo en
+        // un semestre en el que no estaba no son suyas.
+        $ids = $comoEstudiante
+            ? Clase::query()
+                ->join('matriculas', function ($union) use ($perfil) {
+                    $union->on('matriculas.grupo_id', '=', 'clases.grupo_id')
+                        ->on('matriculas.periodo_id', '=', 'clases.periodo_id')
+                        ->where('matriculas.estudiante_id', '=', $perfil->id);
+                })
+                ->distinct()
+                ->pluck('clases.periodo_id')
+            : Clase::where('registrada_por_id', $perfil->id)->distinct()->pluck('periodo_id');
+
+        // Del mas reciente al mas antiguo, para que la flecha izquierda sea
+        // siempre «hacia atras».
+        $periodos = Periodo::whereIn('id', $ids)
+            ->orderByDesc('fecha_inicio')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($periodos->isEmpty()) {
+            return ['periodo' => null, 'atras' => null, 'adelante' => null];
+        }
+
+        $enCurso = Periodo::enCurso();
+
+        $periodo = ($pedido ? $periodos->firstWhere('id', (int) $pedido) : null)
+            ?? ($enCurso ? $periodos->firstWhere('id', $enCurso->id) : null)
+            ?? $periodos->first();
+
+        $indice = $periodos->search(fn (Periodo $p) => $p->id === $periodo->id);
+
+        return [
+            'periodo' => $periodo,
+            'atras' => $periodos->get($indice + 1),
+            'adelante' => $indice === 0 ? null : $periodos->get($indice - 1),
+        ];
+    }
+
     private static function prioridad(string $estado): int
     {
         $posicion = array_search($estado, self::PRIORIDAD_DIA, true);

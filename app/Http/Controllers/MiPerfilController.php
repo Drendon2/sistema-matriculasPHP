@@ -50,6 +50,18 @@ class MiPerfilController extends Controller
         $datos = $perfil->datosEstudiante;
         $encuesta = $perfil->encuesta;
 
+        // El panel de asistencia camina por los periodos donde esta persona
+        // tiene algo. El resto de la pagina —foto, papeles, encuesta— no cambia
+        // con el periodo, y por eso va como parametro de consulta y no en el
+        // camino: lo que se mueve es una seccion, no la pantalla.
+        $esEstudiante = $perfil->rol === 'estudiante';
+        $navegacion = ResumenAsistencia::navegacionDePeriodos(
+            $perfil,
+            $request->query('periodo'),
+            $esEstudiante
+        );
+        $periodo = $navegacion['periodo'];
+
         return view('perfil.mi-perfil', [
             'perfil' => $perfil,
             'datos' => $datos,
@@ -69,7 +81,16 @@ class MiPerfilController extends Controller
             // listan preguntas sueltas: ahi lo que falta es la encuesta entera.
             'faltanPreguntas' => $encuesta?->preguntas_faltantes ?? [],
             'estadisticas' => $this->estadisticas($perfil),
-            'periodo' => $periodo = Periodo::enCurso(),
+            'periodo' => $periodo,
+            // Las flechas del panel de asistencia. Conservan el resto de la URL
+            // vacio a proposito: esta pantalla no tiene otros parametros.
+            'periodoAtras' => $navegacion['atras']
+                ? route('mi-perfil', ['periodo' => $navegacion['atras']->id])
+                : null,
+            'periodoAdelante' => $navegacion['adelante']
+                ? route('mi-perfil', ['periodo' => $navegacion['adelante']->id])
+                : null,
+            'periodoEsElEnCurso' => $periodo !== null && $periodo->activo,
             // El mismo panel de asistencia que ve el personal en la ficha de una
             // persona, aqui puesto para que cada quien vea el SUYO: un estudiante
             // sus clases y sus faltas, quien dicta las que dio y cuantas le
@@ -79,7 +100,7 @@ class MiPerfilController extends Controller
             // Sin acotar por promotoria: aqui no hay nada que esconderle a nadie
             // de lo suyo. El recorte de «solo mis promotorias» existe en la ficha
             // porque ahi mira un tercero.
-            'asistencia' => $perfil->rol === 'estudiante'
+            'asistencia' => $esEstudiante
                 ? ResumenAsistencia::deEstudiante($perfil, $periodo)
                 : ResumenAsistencia::deProfesor($perfil, $periodo),
         ]);

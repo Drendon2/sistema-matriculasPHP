@@ -19,26 +19,18 @@
   no el único camino: los enlaces siguen ahí y funcionan sin JavaScript.
 --}}
 @if ($periodoActual)
-<nav class="periodo-nav" aria-label="Periodo del tablero" data-periodo-nav>
-  @if ($haciaAtras)
-    <a class="periodo-flecha" href="{{ route('gestion-estadisticas-periodo', $haciaAtras) }}"
-       rel="prev" aria-label="Periodo anterior: {{ $haciaAtras->nombre }}" data-periodo-atras>&larr;</a>
-  @else
-    <span class="periodo-flecha periodo-flecha-off" aria-hidden="true">&larr;</span>
-  @endif
-
-  <span class="periodo-actual">
-    {{ $periodoActual->nombre }}
-    @if ($esElEnCurso)<span class="estado estado-activa">En curso</span>@endif
-  </span>
-
-  @if ($haciaAdelante)
-    <a class="periodo-flecha" href="{{ route('gestion-estadisticas-periodo', $haciaAdelante) }}"
-       rel="next" aria-label="Periodo siguiente: {{ $haciaAdelante->nombre }}" data-periodo-adelante>&rarr;</a>
-  @else
-    <span class="periodo-flecha periodo-flecha-off" aria-hidden="true">&rarr;</span>
-  @endif
-</nav>
+{{--
+  La misma barra que los perfiles, desde `partials/periodo-nav`. Aquí el periodo
+  va en el CAMINO y no como parámetro de consulta, porque el tablero entero es de
+  ese periodo; en una ficha solo se mueve un panel. Por eso el parcial recibe
+  URLs ya armadas en vez de una ruta.
+--}}
+@include('partials.periodo-nav', [
+  'periodo' => $periodoActual,
+  'urlAtras' => $haciaAtras ? route('gestion-estadisticas-periodo', $haciaAtras) : null,
+  'urlAdelante' => $haciaAdelante ? route('gestion-estadisticas-periodo', $haciaAdelante) : null,
+  'enCurso' => $esElEnCurso,
+])
 
 {{--
   Lo que cambia con el periodo y lo que no. Decirlo evita la lectura equivocada

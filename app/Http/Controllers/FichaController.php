@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\DocumentoRequerido;
 use App\Models\Matricula;
 use App\Models\Perfil;
-use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Permisos;
 use App\Support\ResumenAsistencia;
@@ -68,7 +67,16 @@ class FichaController extends Controller
             ))
             : [];
 
-        $periodo = Periodo::enCurso();
+        // El periodo del panel de asistencia lo eligen las flechas. Va como
+        // parametro de consulta y no en el camino porque lo que se mueve es una
+        // seccion: el contacto, la trayectoria y los papeles de esta ficha son
+        // los mismos en cualquier periodo.
+        $navegacion = ResumenAsistencia::navegacionDePeriodos(
+            $usuario,
+            $request->query('periodo'),
+            $esEstudiante
+        );
+        $periodo = $navegacion['periodo'];
 
         // El panel de asistencia sigue la misma matriz que el resto de la ficha:
         // un profesor ve lo de SUS promotorias y no la asistencia del estudiante
@@ -90,6 +98,13 @@ class FichaController extends Controller
             'papelesPendientes' => $papelesPendientes,
             'asistencia' => $asistencia,
             'periodo' => $periodo,
+            'periodoAtras' => $navegacion['atras']
+                ? route('detalle-usuario', [$usuario, 'periodo' => $navegacion['atras']->id])
+                : null,
+            'periodoAdelante' => $navegacion['adelante']
+                ? route('detalle-usuario', [$usuario, 'periodo' => $navegacion['adelante']->id])
+                : null,
+            'periodoEsElEnCurso' => $periodo !== null && $periodo->activo,
             'acudiente' => $datos && $veContacto ? $datos->acudiente : null,
             'resumen' => $esEstudiante ? Matricula::resumenTrayectoria($usuario) : null,
             // Las promotorias salen del VINCULO y no del rol: un director que
