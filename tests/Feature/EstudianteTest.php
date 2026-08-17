@@ -801,6 +801,30 @@ class EstudianteTest extends TestCase
         Storage::disk('local')->assertExists($ruta);
     }
 
+    /**
+     * La opcion de genero se llama «No binario», nunca «Otro».
+     *
+     * Es una divergencia deliberada del original Django, pedida por direccion, y
+     * esta prueba existe para que no vuelva por descuido al portar algo desde
+     * alli: en una lista de identidades, «Otro» no nombra a nadie —define a esas
+     * personas por no ser las dos primeras—, y la encuesta que le pregunta a
+     * alguien quien es puede usar su nombre.
+     *
+     * `Otro` sigue siendo correcto en OCUPACIONES, que es una categoria laboral
+     * y no una identidad; por eso la prueba mira la lista de genero y no la
+     * pagina entera.
+     */
+    public function test_el_genero_ofrece_no_binario_y_no_otro(): void
+    {
+        $this->assertSame('No binario', EncuestaDemografica::GENEROS['o']);
+        $this->assertNotContains('Otro', EncuestaDemografica::GENEROS);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('No binario');
+    }
+
     public function test_se_guarda_la_encuesta_demografica(): void
     {
         $this->actingAs($this->ana->user)

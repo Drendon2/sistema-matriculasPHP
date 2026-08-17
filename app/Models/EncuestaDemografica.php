@@ -22,10 +22,30 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class EncuestaDemografica extends Model
 {
+    /**
+     * «No binario» y no «Otro», que es lo que decia el original.
+     *
+     * Es una divergencia DELIBERADA de la especificacion Django
+     * (`models.py:441`), pedida por direccion, y la razon no es de estilo: en una
+     * lista de identidades, «Otro» no nombra a nadie — define a esas personas por
+     * no ser las dos primeras. Quien se reconoce ahi tiene un nombre, y la
+     * encuesta que le pregunta quien es puede usarlo.
+     *
+     * La CLAVE guardada sigue siendo `o`. Cambiarla obligaria a migrar las filas
+     * y no aporta nada: el codigo es opaco, nadie lo lee, y lo que se ensena es
+     * la etiqueta. Se cambia ahora y no despues a proposito: el sistema todavia
+     * no esta desplegado, asi que no hay ninguna respuesta real que reetiquetar
+     * —las 44 que existen son de las cuentas sembradas por `simular`—. Una vez
+     * en produccion, cambiar la etiqueta de una opcion ya contestada seria
+     * reescribir lo que alguien respondio.
+     *
+     * `otro` SI se queda en OCUPACIONES: ahi no es una identidad sino una
+     * categoria laboral, y «otro oficio» no define a nadie por descarte.
+     */
     public const GENEROS = [
         'f' => 'Femenino',
         'm' => 'Masculino',
-        'o' => 'Otro',
+        'o' => 'No binario',
         'ns' => 'Prefiero no responder',
     ];
 
