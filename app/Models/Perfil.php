@@ -20,6 +20,13 @@ use Illuminate\Support\Carbon;
  *     acudiente ......... admin, director, profesor (profesor solo de SUS promotorias)
  *     encuesta .......... solo el dueno de la cuenta y el administrador
  *     copia_documento ... solo el administrador
+ *
+ * La linea de la encuesta sigue siendo cierta, pero desde que existe el informe
+ * completo (`InformeController::institucion`) conviene leerla entera: el
+ * administrador no solo la VE, tambien puede SACARLA en bloque y con nombre en
+ * una hoja de calculo. La puerta no cambio —sigue siendo solo el—, lo que cambio
+ * es que a partir de ahi el dato ya no vive dentro del sistema. Fue una decision
+ * de direccion, tomada a sabiendas, y la pantalla lo avisa antes de descargar.
  */
 class Perfil extends Model
 {

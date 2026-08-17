@@ -48,6 +48,17 @@
 <p><a class="btn btn-sm" href="{{ route('panel-grupo-nuevo', $item['promotoria']) }}">+ Nuevo grupo</a></p>
 @endif
 
+{{--
+  La lista de esta promotoría en hoja de cálculo, para llevarla impresa o para
+  llamar a las familias. El informe se acota solo a lo que quien pide puede ver,
+  así que el enlace no necesita comprobar nada.
+--}}
+<p style="margin:0.6rem 0 0;">
+  <a href="{{ route('informe-estudiantes', ['promotoria' => $item['promotoria']->id]) }}">
+    Descargar lista de estudiantes (Excel)
+  </a>
+</p>
+
 @php($totalPendientes = count($item['pendientes']))
 <h4>Pendientes de confirmación{{ $totalPendientes ? " ({$totalPendientes})" : '' }}</h4>
 @if (! $item['pendientes'])

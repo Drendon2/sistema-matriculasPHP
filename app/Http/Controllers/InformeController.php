@@ -1,0 +1,339 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\EncuestaDemografica;
+use App\Models\Matricula;
+use App\Models\Perfil;
+use App\Models\Periodo;
+use App\Models\Promotoria;
+use App\Support\Csv;
+use Generator;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+/**
+ * Los informes descargables.
+ *
+ * Son dos y tienen alcances MUY distintos, asi que van con puertas distintas:
+ *
+ * - El de estudiantes por grupo es operativo: la lista que se lleva quien dicta
+ *   para pasar asistencia en papel o para llamar a una familia. Lo baja el
+ *   personal, y un profesor solo el de las promotorias que dicta.
+ * - El de la institucion es el completo, con la encuesta demografica NOMINAL.
+ *   Solo el administrador. Ver el aviso largo en `institucion()`.
+ */
+class InformeController extends Controller
+{
+    /**
+     * Cuantas filas se traen por tanda.
+     *
+     * Es constante y no un numero suelto porque hay una prueba que necesita
+     * superarla: el fallo que se arreglo aqui —tandas que se solapan y repiten
+     * filas— solo aparece cuando el informe pasa de una tanda, y con cuatro
+     * filas de prueba no se veia.
+     */
+    private const POR_TANDA = 100;
+
+    /**
+     * Estudiantes por promotoria y grupo, con su contacto.
+     *
+     * Sigue la misma matriz de visibilidad que la ficha: edad, telefono y
+     * acudiente son para direccion, y para el profesor SOLO de sus promotorias.
+     * Por eso el filtro no es un adorno del listado sino la propia puerta — un
+     * profesor que pida el informe entero recibe unicamente lo suyo.
+     *
+     * Se acota al periodo en curso: la lista que se pide aqui es la de quien
+     * esta yendo a clase ahora, no el historico. El historico de una persona
+     * vive en su ficha.
+     */
+    public function estudiantes(Request $request): StreamedResponse
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+        $periodo = Periodo::enCurso();
+
+        $consulta = Matricula::query()
+            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->when($periodo, fn ($q) => $q->where('periodo_id', $periodo->id))
+            // Sin periodo en curso no hay lista que dar: se devuelve vacio en
+            // vez de barrer el historico entero.
+            ->when($periodo === null, fn ($q) => $q->whereRaw('1 = 0'))
+            ->when(
+                $perfil->rol === 'profesor',
+                fn ($q) => $q->whereIn(
+                    'promotoria_id',
+                    Promotoria::where('profesor_id', $perfil->id)->select('id')
+                )
+            )
+            ->when(
+                $request->query('promotoria'),
+                fn ($q, $id) => $q->where('promotoria_id', $id)
+            )
+            ->with([
+                'estudiante.datosEstudiante.acudiente',
+                'promotoria.area',
+                'grupo',
+            ])
+            ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
+            ->join('areas', 'areas.id', '=', 'promotorias.area_id')
+            ->join('perfiles', 'perfiles.id', '=', 'matriculas.estudiante_id')
+            ->orderBy('areas.nombre')
+            ->orderBy('promotorias.nombre')
+            ->orderBy('perfiles.nombre_completo')
+            ->select('matriculas.*');
+
+        return Csv::descargar('estudiantes-por-grupo', [
+            'Departamento',
+            'Promotoría',
+            'Grupo',
+            'Horario',
+            'Salón',
+            'Estudiante',
+            'Edad',
+            'Teléfono',
+            'Acudiente',
+            'Teléfono del acudiente',
+            'Estado',
+        ], $this->filasDeEstudiantes($consulta));
+    }
+
+    /**
+     * @return Generator<int, list<string>>
+     */
+    private function filasDeEstudiantes($consulta): Generator
+    {
+        // Por tandas y no de una: el informe puede ser de cientos de filas con
+        // cuatro relaciones cargadas cada una, y en hosting compartido traerlas
+        // todas a memoria a la vez es justo lo que no conviene.
+        //
+        // `lazy` y NO `lazyById`. Este informe va ordenado por departamento,
+        // promotoria y nombre, y `lazyById` pagina preguntando por el id mayor
+        // que el ultimo devuelto: con otro orden, «el ultimo» es un id
+        // cualquiera, las tandas se solapan y las filas se repiten. Costo 4961
+        // filas para 302 matriculas, y no se veia en las pruebas porque con
+        // pocos datos todo cabe en la primera tanda.
+        foreach ($consulta->lazy(self::POR_TANDA) as $matricula) {
+            $datos = $matricula->estudiante->datosEstudiante;
+            $acudiente = $datos?->acudiente;
+
+            yield array_map(Csv::celda(...), [
+                $matricula->promotoria->area->nombre,
+                $matricula->promotoria->nombre,
+                $matricula->grupo?->nivel_display ?? 'Sin grupo',
+                $matricula->grupo?->horario,
+                $matricula->grupo?->salon,
+                $matricula->estudiante->nombre_completo,
+                $matricula->estudiante->edad,
+                $matricula->estudiante->telefono,
+                $acudiente?->nombre,
+                $acudiente?->telefono,
+                Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
+            ]);
+        }
+    }
+
+    /**
+     * El informe completo de la institucion. SOLO ADMINISTRADOR.
+     *
+     * Lleva la encuesta demografica con NOMBRE Y APELLIDO, y eso invierte a
+     * proposito lo que el sistema garantizaba hasta ahora: la encuesta se recogia
+     * agregada y anonima, y `EstadisticasController` explica por que —una
+     * encuesta con nombre en un tablero se convierte en un marcador, y la vez
+     * siguiente la gente contesta pensando en quien va a leerla.
+     *
+     * Se hace porque la institucion lo necesita para reportar a quien la
+     * financia, y se acota todo lo que se puede: la descarga es del
+     * administrador y de nadie mas —la misma puerta que la copia del documento
+     * de identidad—, y la pantalla avisa de lo que contiene antes de entregarlo.
+     * Lo que el sistema NO puede controlar es que despues el archivo se reenvie,
+     * y por eso la decision tenia que ser explicita y de quien manda, no de quien
+     * programa.
+     *
+     * Una fila por persona y promotoria: quien cursa dos sale en dos filas, con
+     * sus datos repetidos. Es la forma correcta para una hoja de calculo —permite
+     * tablas dinamicas— y la unica que puede llevar el nivel y el tiempo, que son
+     * datos DE la promotoria y no de la persona. Quien no tiene ninguna sale en
+     * una sola fila con esas columnas vacias.
+     */
+    public function institucion(): StreamedResponse
+    {
+        return Csv::descargar('institucion-completo', [
+            'Rol',
+            'Nombre completo',
+            'Usuario',
+            'Edad',
+            'Teléfono',
+            'Correo',
+            'Departamento',
+            'Promotoría',
+            'Nivel',
+            'Estado',
+            'Periodos en la promotoría',
+            'Desde',
+            'Género',
+            'Barrio',
+            'Estrato',
+            'Nivel educativo',
+            'Ocupación',
+            'Zona',
+            'Afiliación en salud',
+            'Grupo étnico',
+            'Discapacidad',
+            'Víctima del conflicto',
+            'Autoriza tratamiento de datos',
+            'Fecha de autorización',
+        ], $this->filasDeInstitucion());
+    }
+
+    /**
+     * @return Generator<int, list<string>>
+     */
+    private function filasDeInstitucion(): Generator
+    {
+        $trayectorias = $this->trayectorias();
+        $periodo = Periodo::enCurso();
+
+        $consulta = Perfil::query()
+            ->with([
+                'user',
+                'encuesta',
+                // Solo las del periodo EN CURSO. Una matricula de un periodo que
+                // ya termino sigue guardada como 'activa' —el estado no cambia,
+                // lo que cambia es el calendario—, asi que sin este filtro quien
+                // lleva tres semestres en Violin salia en tres filas identicas.
+                // El pasado no se pierde: lo cuentan «Periodos en la promotoría»
+                // y «Desde», que es justo para lo que estan.
+                'matriculas' => fn ($q) => $q
+                    ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+                    ->when($periodo, fn ($sub) => $sub->where('periodo_id', $periodo->id))
+                    ->when($periodo === null, fn ($sub) => $sub->whereRaw('1 = 0')),
+                'matriculas.promotoria.area',
+                'matriculas.grupo',
+                'matriculas.periodo',
+            ])
+            ->orderBy('rol')
+            ->orderBy('nombre_completo');
+
+        // `lazy` y no `lazyById`, por lo mismo que arriba: va ordenado por rol y
+        // nombre, y paginar por id con otro orden repite filas.
+        foreach ($consulta->lazy(self::POR_TANDA) as $perfil) {
+            $comunes = $this->columnasDePersona($perfil);
+            $encuesta = $this->columnasDeEncuesta($perfil->encuesta);
+
+            if ($perfil->matriculas->isEmpty()) {
+                yield array_map(Csv::celda(...), [
+                    ...$comunes,
+                    '', '', '', '', '', '',
+                    ...$encuesta,
+                ]);
+
+                continue;
+            }
+
+            foreach ($perfil->matriculas as $matricula) {
+                $clave = "{$perfil->id}:{$matricula->promotoria_id}";
+                $trayectoria = $trayectorias[$clave] ?? ['periodos' => 0, 'desde' => ''];
+
+                yield array_map(Csv::celda(...), [
+                    ...$comunes,
+                    $matricula->promotoria->area->nombre,
+                    $matricula->promotoria->nombre,
+                    $matricula->grupo?->nivel_display ?? 'Sin grupo',
+                    Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
+                    $trayectoria['periodos'],
+                    $trayectoria['desde'],
+                    ...$encuesta,
+                ]);
+            }
+        }
+    }
+
+    /** @return list<string|int|null> */
+    private function columnasDePersona(Perfil $perfil): array
+    {
+        return [
+            $perfil->rol === '' ? 'Pendiente de rol' : (Perfil::ROLES[$perfil->rol] ?? $perfil->rol),
+            $perfil->nombre_completo,
+            $perfil->user->username,
+            $perfil->edad,
+            $perfil->telefono,
+            $perfil->user->email,
+        ];
+    }
+
+    /**
+     * Las respuestas de la encuesta, ya traducidas a su etiqueta.
+     *
+     * Se guardan como codigos (`f`, `primaria_inc`) porque asi los compara el
+     * sistema, pero en una hoja de calculo eso no lo lee nadie: quien abre el
+     * informe quiere «Femenino», no «f». Sin encuesta contestada, todas vacias.
+     *
+     * @return list<string|int|null>
+     */
+    private function columnasDeEncuesta(?EncuestaDemografica $encuesta): array
+    {
+        if ($encuesta === null) {
+            return array_fill(0, 12, '');
+        }
+
+        $etiqueta = fn (array $opciones, $valor) => $valor === null || $valor === ''
+            ? ''
+            : ($opciones[$valor] ?? $valor);
+
+        return [
+            $etiqueta(EncuestaDemografica::GENEROS, $encuesta->genero),
+            $encuesta->barrio,
+            $etiqueta(EncuestaDemografica::ESTRATOS, $encuesta->estrato),
+            $etiqueta(EncuestaDemografica::NIVELES_EDUCATIVOS, $encuesta->nivel_educativo),
+            $etiqueta(EncuestaDemografica::OCUPACIONES, $encuesta->ocupacion),
+            $etiqueta(EncuestaDemografica::ZONAS, $encuesta->zona),
+            $etiqueta(EncuestaDemografica::AFILIACIONES_SALUD, $encuesta->afiliacion_salud),
+            $etiqueta(EncuestaDemografica::GRUPOS_ETNICOS, $encuesta->grupo_etnico),
+            $etiqueta(EncuestaDemografica::DISCAPACIDADES, $encuesta->discapacidad),
+            $etiqueta(EncuestaDemografica::VICTIMAS_CONFLICTO, $encuesta->victima_conflicto_armado),
+            $encuesta->autoriza_tratamiento_datos ? 'Sí' : 'No',
+            $encuesta->fecha_autorizacion?->format('d/m/Y'),
+        ];
+    }
+
+    /**
+     * Cuanto lleva cada quien en cada promotoria, en UNA consulta.
+     *
+     * «Tiempo» se mide en PERIODOS cursados y no en meses, y esa es la unidad en
+     * la que funciona la casa: alguien lleva «tres semestres en Guitarra», no
+     * «catorce meses». Cuentan solo los periodos con matricula ACTIVA —lo que
+     * de verdad curso—, asi que una solicitud que nadie confirmo no suma.
+     *
+     * Va agregado y no matricula por matricula porque si no serian dos consultas
+     * por fila del informe, y el informe tiene una fila por persona y promotoria.
+     *
+     * @return array<string, array{periodos: int, desde: string}>
+     */
+    private function trayectorias(): array
+    {
+        $filas = Matricula::query()
+            ->where('matriculas.estado', Matricula::ACTIVA)
+            ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
+            ->groupBy('matriculas.estudiante_id', 'matriculas.promotoria_id')
+            ->selectRaw('
+                matriculas.estudiante_id,
+                matriculas.promotoria_id,
+                COUNT(DISTINCT matriculas.periodo_id) as periodos,
+                MIN(periodos.fecha_inicio) as primera
+            ')
+            ->get();
+
+        $nombres = Periodo::pluck('nombre', 'fecha_inicio');
+        $mapa = [];
+
+        foreach ($filas as $fila) {
+            $mapa["{$fila->estudiante_id}:{$fila->promotoria_id}"] = [
+                'periodos' => (int) $fila->periodos,
+                'desde' => $nombres[$fila->primera] ?? '',
+            ];
+        }
+
+        return $mapa;
+    }
+}

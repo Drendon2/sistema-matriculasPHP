@@ -9,6 +9,7 @@ use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClaseController;
 use App\Http\Controllers\FichaController;
 use App\Http\Controllers\Gestion;
+use App\Http\Controllers\InformeController;
 use App\Http\Controllers\MatricularController;
 use App\Http\Controllers\MiPerfilController;
 use App\Http\Controllers\MisClasesController;
@@ -172,6 +173,24 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
 Route::get('/panel/estudiante/{usuario}', [FichaController::class, 'estudiante'])
     ->middleware(['auth', 'rol:administrador'])
     ->name('detalle-estudiante');
+
+// ---------------------------------------------------------------------------
+// Informes descargables
+// ---------------------------------------------------------------------------
+//
+// Dos alcances distintos, dos puertas distintas. El de estudiantes es operativo
+// —la lista para pasar lista o llamar a una familia— y lo baja el personal, con
+// el propio informe acotado a lo que cada quien puede ver. El de la institucion
+// lleva la encuesta demografica con nombre, asi que es del administrador y de
+// nadie mas: la misma puerta que la copia del documento de identidad.
+
+Route::get('/informes/estudiantes', [InformeController::class, 'estudiantes'])
+    ->middleware(['auth', 'rol:administrador,director,profesor'])
+    ->name('informe-estudiantes');
+
+Route::get('/informes/institucion', [InformeController::class, 'institucion'])
+    ->middleware(['auth', 'rol:administrador'])
+    ->name('informe-institucion');
 
 // ---------------------------------------------------------------------------
 // Archivos servidos de forma controlada (nunca como carpeta publica)
