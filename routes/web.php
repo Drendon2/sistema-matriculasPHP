@@ -38,15 +38,29 @@ use Illuminate\Support\Facades\Route;
 // Publico, sin sesion
 // ---------------------------------------------------------------------------
 
+// Los tres POST de aqui van limitados, y son los unicos del sistema que lo
+// necesitan: son las tres puertas que se pueden empujar sin tener cuenta. Los
+// GET quedan libres — abrir el formulario no cuesta nada y limitarlo solo
+// molestaria a quien recarga.
+//
+// El del login cuenta por usuario+IP a traves del limitador con nombre `entrar`
+// (ver `AppServiceProvider`); los otros dos van por IP, que es lo que
+// corresponde cuando lo que se frena es crear cuentas en masa.
 Route::middleware('guest')->group(function () {
     Route::get('/entrar', [LoginController::class, 'mostrar'])->name('login');
-    Route::post('/entrar', [LoginController::class, 'entrar'])->name('login.entrar');
+    Route::post('/entrar', [LoginController::class, 'entrar'])
+        ->middleware('throttle:entrar')
+        ->name('login.entrar');
 
     Route::get('/registro', [RegistroController::class, 'mostrar'])->name('registro');
-    Route::post('/registro', [RegistroController::class, 'guardar'])->name('registro.guardar');
+    Route::post('/registro', [RegistroController::class, 'guardar'])
+        ->middleware('throttle:5,1')
+        ->name('registro.guardar');
 
     Route::get('/inscripcion', [InscripcionController::class, 'mostrar'])->name('inscripcion');
-    Route::post('/inscripcion', [InscripcionController::class, 'guardar'])->name('inscripcion.guardar');
+    Route::post('/inscripcion', [InscripcionController::class, 'guardar'])
+        ->middleware('throttle:10,1')
+        ->name('inscripcion.guardar');
 });
 
 Route::post('/salir', [LoginController::class, 'salir'])->middleware('auth')->name('logout');

@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,5 +24,42 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        /**
+         * Quedarse sin intentos devuelve al formulario, no a la pagina 429.
+         *
+         * La pagina que trae Laravel dice "Too Many Attempts." en ingles y sin
+         * ninguna salida: quien la ve no sabe si se rompio el sistema, si el
+         * usuario estaba mal o cuanto tiene que esperar. Aqui se vuelve al mismo
+         * formulario con el aviso puesto, que es lo que hace el resto de la
+         * aplicacion con cualquier otro error.
+         *
+         * El mensaje va como `error` de sesion y no pegado al campo `username`:
+         * quedarse sin intentos no es un problema del valor que se escribio —la
+         * regla de `partials/mensajes` es justamente esa—. Y no dice si el
+         * usuario existe, por la misma razon que no lo dice el mensaje de clave
+         * incorrecta.
+         *
+         * Solo aplica a peticiones de formulario. Una peticion que pida JSON
+         * sigue recibiendo su 429 con la cabecera `Retry-After`, que es lo
+         * correcto para algo que no es un navegador.
+         */
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            $segundos = (int) ($e->getHeaders()['Retry-After'] ?? 60);
+            $minutos = (int) ceil($segundos / 60);
+
+            $espera = $segundos <= 60
+                ? "{$segundos} segundos"
+                : $minutos.($minutos === 1 ? ' minuto' : ' minutos');
+
+            return back()
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->with(
+                    'error',
+                    "Demasiados intentos seguidos. Espera {$espera} y vuelve a intentarlo."
+                );
+        });
     })->create();

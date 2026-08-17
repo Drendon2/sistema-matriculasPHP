@@ -84,4 +84,30 @@ class RegistroTest extends TestCase
             ->assertDontSee('<input type="file"', false)
             ->assertSee('Mi perfil');
     }
+
+    /**
+     * El registro admite cinco por minuto desde una direccion.
+     *
+     * Aqui el contador SI va por IP y no por cuenta: lo que se frena es dar de
+     * alta cuentas en masa, y cada una trae un usuario distinto — contar por
+     * usuario no frenaria nada porque nunca se repite.
+     */
+    public function test_el_registro_se_corta_tras_cinco_altas_seguidas(): void
+    {
+        for ($n = 1; $n <= 5; $n++) {
+            $this->post(route('registro.guardar'), [
+                ...$this->datos,
+                'username' => "profe.nuevo{$n}",
+            ])->assertSessionHas('success');
+        }
+
+        $this->post(route('registro.guardar'), [
+            ...$this->datos,
+            'username' => 'profe.nuevo6',
+        ])->assertSessionHas('error');
+
+        // El sexto no llego al controlador: no quedo ni la cuenta ni el perfil.
+        $this->assertSame(5, User::count());
+        $this->assertNull(User::where('username', 'profe.nuevo6')->first());
+    }
 }

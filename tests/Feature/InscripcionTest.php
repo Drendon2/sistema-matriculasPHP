@@ -301,4 +301,30 @@ class InscripcionTest extends TestCase
             ->assertDontSee('<input type="file"', false)
             ->assertSee('Mi perfil');
     }
+
+    /**
+     * La inscripcion admite diez por minuto desde una direccion.
+     *
+     * Mas holgada que el registro porque esta es la puerta que usa el publico de
+     * verdad —una familia inscribiendo a varios hijos, o un grupo en la sala de
+     * computo— y no la de los profesores. Sigue siendo por IP: cada inscripcion
+     * estrena usuario, asi que no hay cuenta previa contra la cual contar.
+     */
+    public function test_la_inscripcion_se_corta_tras_diez_seguidas(): void
+    {
+        for ($n = 1; $n <= 10; $n++) {
+            $this->post(route('inscripcion.guardar'), $this->datos([
+                'username' => "ana.nueva{$n}",
+                'documento_identidad' => "10000000{$n}",
+            ]))->assertSessionHas('success');
+        }
+
+        $this->post(route('inscripcion.guardar'), $this->datos([
+            'username' => 'ana.nueva11',
+            'documento_identidad' => '100000011',
+        ]))->assertSessionHas('error');
+
+        $this->assertSame(10, Matricula::count());
+        $this->assertNull(User::where('username', 'ana.nueva11')->first());
+    }
 }

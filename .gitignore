@@ -38,3 +38,9 @@ Thumbs.db
 # Los respaldos llevan la base entera: nombres, teléfonos, documentos de
 # identidad y las respuestas de las encuestas. Nunca al repositorio.
 /respaldos
+
+# La auditoría de código: es un inventario de los puntos flojos del sistema, con
+# archivo y línea de cada uno. Publicarlo en el repositorio de la aplicación es
+# entregarle a cualquiera el mapa de por dónde entrar, y encima señalando lo que
+# todavía no está arreglado. Se queda en local.
+/reporte-auditoria.md

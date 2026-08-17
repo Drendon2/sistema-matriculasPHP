@@ -130,4 +130,99 @@ class AutenticacionTest extends TestCase
 
         $this->assertGuest();
     }
+
+    // -----------------------------------------------------------------------
+    // Limite de intentos
+    // -----------------------------------------------------------------------
+
+    /**
+     * Al sexto intento en el mismo minuto se corta.
+     *
+     * Cinco fallos y el sexto ya no llega al controlador: sin esto, probar
+     * contrasenas contra una cuenta no tiene ningun freno.
+     */
+    public function test_el_login_se_corta_tras_cinco_intentos_fallidos(): void
+    {
+        $this->crearCuenta('estudiante');
+
+        for ($intento = 1; $intento <= 5; $intento++) {
+            $this->post(route('login.entrar'), [
+                'username' => 'ana',
+                'password' => 'equivocada',
+            ])->assertSessionHasErrors('username');
+        }
+
+        $this->post(route('login.entrar'), [
+            'username' => 'ana',
+            'password' => 'equivocada',
+        ])->assertSessionHas('error');
+
+        $this->assertGuest();
+    }
+
+    /**
+     * Agotar los intentos de una cuenta cierra ESA cuenta, no la direccion.
+     *
+     * Es la prueba de la decision de fondo: el contador va por usuario+IP. Una
+     * escuela entera comparte una sola IP, asi que si el limite fuera por
+     * direccion, bastaria con que alguien machacara una cuenta para dejar sin
+     * entrar a los demas desde la misma sala.
+     */
+    public function test_agotar_una_cuenta_no_bloquea_a_las_demas_desde_la_misma_ip(): void
+    {
+        $this->crearCuenta('estudiante', 'ana');
+        $this->crearCuenta('profesor', 'beto');
+
+        for ($intento = 1; $intento <= 6; $intento++) {
+            $this->post(route('login.entrar'), [
+                'username' => 'ana',
+                'password' => 'equivocada',
+            ]);
+        }
+
+        // Misma IP, otra cuenta, credenciales buenas: entra sin enterarse.
+        $this->post(route('login.entrar'), [
+            'username' => 'beto',
+            'password' => 'secreto123',
+        ])->assertRedirect(route('post-login'));
+
+        $this->assertAuthenticated();
+    }
+
+    /** Escribirlo con otras mayusculas no estrena contador. */
+    public function test_el_contador_no_distingue_mayusculas(): void
+    {
+        $this->crearCuenta('estudiante');
+
+        for ($intento = 1; $intento <= 5; $intento++) {
+            $this->post(route('login.entrar'), [
+                'username' => 'ana',
+                'password' => 'equivocada',
+            ]);
+        }
+
+        $this->post(route('login.entrar'), [
+            'username' => 'ANA',
+            'password' => 'equivocada',
+        ])->assertSessionHas('error');
+    }
+
+    /**
+     * Quedarse sin intentos no dice si la cuenta existe.
+     *
+     * Misma razon que el mensaje de clave incorrecta: un aviso distinto para un
+     * usuario real le confirmaria a un extrano cuales existen.
+     */
+    public function test_el_aviso_de_bloqueo_no_revela_si_la_cuenta_existe(): void
+    {
+        for ($intento = 1; $intento <= 6; $intento++) {
+            $respuesta = $this->post(route('login.entrar'), [
+                'username' => 'fantasma',
+                'password' => 'loquesea',
+            ]);
+        }
+
+        $respuesta->assertSessionHas('error');
+        $respuesta->assertSessionMissing('username');
+    }
 }
