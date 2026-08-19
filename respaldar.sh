@@ -63,6 +63,17 @@ PUERTO="$(leer DB_PORT)"
 : "${SERVIDOR:=127.0.0.1}"
 : "${PUERTO:=3306}"
 
+# En MySQL, «localhost» no es una dirección de red: significa «por el socket».
+# El cliente de MariaDB no siempre lo respeta —resuelve el nombre y sale por TCP
+# a ::1, donde el permiso del usuario, concedido para localhost, ya no aplica— y
+# el volcado muere con un «Access denied» que parece de contraseña y no lo es.
+# Decírselo explícitamente cuesta una línea y evita perder media hora.
+if [ "$SERVIDOR" = "localhost" ]; then
+    CONEXION=(--protocol=socket)
+else
+    CONEXION=(--host="$SERVIDOR" --port="$PUERTO")
+fi
+
 mkdir -p "$DESTINO"
 SQL="$DESTINO/$BD-$SELLO.sql"
 ARCHIVOS="$DESTINO/archivos-$SELLO.tar.gz"
@@ -85,7 +96,7 @@ echo "Respaldando $BD desde $SERVIDOR:$PUERTO"
 # los lee cualquier otro usuario de la máquina con `ps`, y el destino de esto es
 # un hosting compartido, que es justo donde hay procesos de terceros al lado.
 MYSQL_PWD="$CLAVE" "$VOLCADOR" \
-    --host="$SERVIDOR" --port="$PUERTO" \
+    "${CONEXION[@]}" \
     --user="$USUARIO" \
     --single-transaction --triggers --routines --events \
     --default-character-set=utf8mb4 \
