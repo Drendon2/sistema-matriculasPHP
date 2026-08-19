@@ -1,0 +1,127 @@
+# Prueba y despliega.
+#
+# En cada push a `main`: se levantan las 275 pruebas contra MariaDB y, SOLO si
+# pasan todas, se entra por SSH al servidor y se ejecuta `desplegar.sh`.
+#
+# Esa puerta es el motivo de que este archivo exista. Un `git pull` automático
+# sin pruebas publica el error en internet treinta segundos después de haberlo
+# escrito; con la puerta, la suite que ya existe se convierte en el guardián del
+# despliegue.
+#
+# Mientras no existan los secretos de Hostinger, el trabajo de despliegue se
+# salta solo y la ejecución queda en verde: las pruebas siguen sirviendo.
+#
+# Secretos que hay que crear en GitHub (Settings -> Secrets and variables ->
+# Actions):
+#
+#   HOSTINGER_HOST       dominio o IP del servidor
+#   HOSTINGER_PUERTO     puerto SSH (en Hostinger no es el 22)
+#   HOSTINGER_USUARIO    usuario SSH
+#   HOSTINGER_CLAVE_SSH  clave PRIVADA completa, con sus lineas BEGIN y END
+#   HOSTINGER_RUTA       ruta al proyecto en el servidor
+#
+name: Probar y desplegar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+
+  pruebas:
+    name: Pruebas
+    runs-on: ubuntu-latest
+
+    # Las pruebas corren contra MariaDB y no contra SQLite, y no es preferencia:
+    # comprueban garantias del motor —columnas generadas con indice unico,
+    # triggers con SIGNAL, SELECT ... FOR UPDATE— que SQLite no tiene.
+    services:
+      mariadb:
+        image: mariadb:10.5
+        env:
+          MARIADB_ROOT_PASSWORD: raiz
+          MARIADB_DATABASE: test_matriculas
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -praiz"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    steps:
+      - name: Traer el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: gd, exif, pdo_mysql, mbstring, intl, zip
+          coverage: none
+
+      - name: Cachear las dependencias
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Instalar dependencias
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Preparar el entorno
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Los datos de conexion se escriben en el .env y no como variables de
+      # entorno: phpunit.xml ya define DB_CONNECTION y DB_DATABASE, y mezclar
+      # las dos fuentes hace que cual gana dependa de detalles de PHPUnit.
+      - name: Apuntar a la MariaDB del contenedor
+        run: |
+          sed -i 's/^DB_HOST=.*/DB_HOST=127.0.0.1/'   .env
+          sed -i 's/^DB_PORT=.*/DB_PORT=3306/'        .env
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=raiz/' .env
+
+      - name: Pruebas
+        run: php artisan test
+
+  desplegar:
+    name: Desplegar
+    needs: pruebas
+    runs-on: ubuntu-latest
+    # Una rama de trabajo se prueba, pero no se publica.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      # El contexto `secrets` no se puede consultar en el `if` de un trabajo,
+      # asi que la comprobacion se hace aqui: sin servidor configurado, el
+      # despliegue se salta y la ejecucion queda en verde.
+      - name: Comprobar si hay servidor configurado
+        id: config
+        run: |
+          if [ -z "${{ secrets.HOSTINGER_HOST }}" ]; then
+            echo "hay=no" >> "$GITHUB_OUTPUT"
+            echo "Sin secretos de Hostinger todavia: no hay donde desplegar."
+          else
+            echo "hay=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Desplegar por SSH
+        if: steps.config.outputs.hay == 'si'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          port: ${{ secrets.HOSTINGER_PUERTO }}
+          username: ${{ secrets.HOSTINGER_USUARIO }}
+          key: ${{ secrets.HOSTINGER_CLAVE_SSH }}
+          command_timeout: 15m
+          script: |
+            cd ${{ secrets.HOSTINGER_RUTA }}
+            chmod +x desplegar.sh respaldar.sh
+            ./desplegar.sh

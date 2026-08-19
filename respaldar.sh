@@ -16,11 +16,31 @@
 #   ./respaldar.sh              # deja el respaldo en ./respaldos/
 #   ./respaldar.sh /otra/ruta   # o donde se le diga
 #
+# Dos variables de entorno opcionales:
+#
+#   MYSQLDUMP              ruta al ejecutable, si no está en el PATH. En Windows
+#                          casi nunca lo está, y el guion no puede adivinarla.
+#   RESPALDOS_A_CONSERVAR  cuántos respaldos recientes se guardan (10 por
+#                          defecto). Los más viejos se borran al terminar, para
+#                          que la carpeta no crezca sin fin.
+#
 set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DESTINO="${1:-$RAIZ/respaldos}"
 SELLO="$(date +%Y%m%d-%H%M%S)"
+CONSERVAR="${RESPALDOS_A_CONSERVAR:-10}"
+
+# El ejecutable puede venir dado por entorno o estar en el PATH; si no aparece
+# de ninguna de las dos formas, más vale decirlo aquí que fallar a mitad del
+# volcado con un error del sistema que no explica nada.
+VOLCADOR="${MYSQLDUMP:-$(command -v mysqldump || true)}"
+
+if [ -z "$VOLCADOR" ] || [ ! -x "$VOLCADOR" ]; then
+    echo "No encuentro mysqldump." >&2
+    echo "Ponlo en el PATH o indícalo con MYSQLDUMP=/ruta/a/mysqldump" >&2
+    exit 1
+fi
 
 if [ ! -f "$RAIZ/.env" ]; then
     echo "No encuentro el .env: sin él no sé a qué base conectarme." >&2
@@ -60,9 +80,13 @@ echo "Respaldando $BD desde $SERVIDOR:$PUERTO"
 # motor rechaza el volcado por falta de privilegio SUPER, o crea el trigger a
 # nombre de alguien que no existe y falla la primera vez que alguien se
 # matricula. Quitándolo, el trigger queda a nombre de quien restaura.
-mysqldump \
+#
+# La clave va por entorno y NO como `--password=`: los argumentos de un proceso
+# los lee cualquier otro usuario de la máquina con `ps`, y el destino de esto es
+# un hosting compartido, que es justo donde hay procesos de terceros al lado.
+MYSQL_PWD="$CLAVE" "$VOLCADOR" \
     --host="$SERVIDOR" --port="$PUERTO" \
-    --user="$USUARIO" --password="$CLAVE" \
+    --user="$USUARIO" \
     --single-transaction --triggers --routines --events \
     --default-character-set=utf8mb4 \
     "$BD" \
@@ -90,5 +114,30 @@ if [ "$TRIGGERS" -lt 2 ]; then
 fi
 
 echo "  triggers ........ $TRIGGERS incluidos"
+
+# Rotación. Se hace DESPUÉS de comprobar los triggers, a propósito: si el
+# volcado de hoy no sirve, lo último que hay que hacer es borrar los de ayer.
+#
+# Las dos listas se podan por separado porque no siempre van en pareja: en una
+# instalación sin archivos subidos hay .sql y no hay .tar.gz.
+podar() {
+    local patron="$1"
+    local sobrantes
+
+    sobrantes="$(ls -1t "$DESTINO"/$patron 2>/dev/null | tail -n "+$((CONSERVAR + 1))" || true)"
+
+    if [ -n "$sobrantes" ]; then
+        echo "$sobrantes" | while read -r viejo; do
+            rm -f "$viejo"
+            echo "  retirado ........ $(basename "$viejo")"
+        done
+    fi
+}
+
+if [ "$CONSERVAR" -gt 0 ]; then
+    podar "$BD-*.sql"
+    podar "archivos-*.tar.gz"
+fi
+
 echo ""
 echo "Para restaurar:  mysql -u USUARIO -p BASE < $SQL"
