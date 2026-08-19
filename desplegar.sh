@@ -52,7 +52,16 @@ git pull --ff-only origin "$RAMA"
 
 echo ""
 echo "== Dependencias"
-composer install --no-dev --optimize-autoloader --no-interaction
+# --no-scripts NO es una optimizacion: en hosting compartido `proc_open` suele
+# venir deshabilitado, y el script que composer ejecuta al terminar
+# (`@php artisan package:discover`) lo necesita para lanzar php como proceso
+# hijo. Sin la bandera, composer aborta ahi y con el `set -e` se lleva por
+# delante el despliegue entero — con el sitio ya cerrado al publico.
+#
+# El descubrimiento de paquetes se hace igual en la linea siguiente, pero
+# ejecutado directamente: siendo el mismo proceso, no hace falta proc_open.
+composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+php artisan package:discover --ansi
 
 echo ""
 echo "== Migraciones"
