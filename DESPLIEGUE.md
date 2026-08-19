@@ -729,3 +729,114 @@ existiera la carpeta. El log lo dice.
 Correcto: `/registro` crea la cuenta **sin rol**, y hasta que un director o
 administrador se lo asigne desde Gestión → Usuarios, esa persona solo ve la
 pantalla de «cuenta pendiente».
+
+---
+
+# Parte 5 — La instalación real (19/08/2026)
+
+Esta parte no es teoría: describe el despliegue que está en producción, con sus
+rutas concretas y las tres trampas que aparecieron al hacerlo. Sirve para
+entender el montaje sin tener que abrirlo, y para repetirlo si algún día hay que
+rehacerlo.
+
+## Dónde vive
+
+```
+https://escuelas.culturaelsantuario.com
+    │
+    └── public_html/escuelas   ─── enlace simbólico ──►  matriculas-app/public
+                                                              (lo único público)
+
+/home/u821315052/matriculas-app/     la aplicación entera, fuera del docroot
+```
+
+**La carpeta raíz del subdominio es un enlace simbólico a `public/`.** Es lo que
+hace que un `git pull` actualice el sitio sin copiar nada: no hay dos copias que
+sincronizar. Y deja el `.env`, el código y `storage/` fuera del alcance de una
+URL. Comprobado: `/.env` responde 403.
+
+El subdominio `escuelas` ya existía —ahí vivía un Moodle que se retiró— y su
+carpeta estaba vacía. El enlace solo se creó porque estaba vacía.
+
+> **En `culturaelsantuario.com` hay un WordPress vivo y los datos del Moodle
+> retirado.** El despliegue no los toca. Cuidado con cualquier instrucción
+> genérica que diga «vacía `public_html`»: aquí eso tumbaría el sitio de la
+> institución.
+
+## El servidor
+
+| | |
+|---|---|
+| Hostinger, `us-bos-web1849.main-hosting.eu` | usuario `u821315052` |
+| SSH | puerto **65002**, con llave |
+| PHP | 8.2.30, con las seis extensiones |
+| Base de datos | MariaDB **11.8.8** (en local es 10.5; sin diferencias hasta ahora) |
+| Base | `u821315052_escuelas` |
+
+## Las tres trampas del hosting compartido
+
+Ninguna la podían ver las pruebas: la suite corre contra MariaDB en local y en
+un PHP sin restricciones.
+
+**`localhost` significa socket, no una dirección de red.** El cliente de MariaDB
+no lo respeta: resuelve el nombre, sale por TCP a `::1`, y el permiso del
+usuario —concedido para `localhost`— ya no aplica. `mysqldump` moría con un
+`Access denied ... (using password: YES)` que parece un problema de contraseña y
+no lo es: Laravel conectaba perfectamente por PDO al mismo tiempo. Resuelto en
+`respaldar.sh` con `--protocol=socket` cuando el host es `localhost`.
+
+**`proc_open` viene deshabilitado.** Composer lo necesita para su script de
+post-instalación (`@php artisan package:discover`), que lanza php como proceso
+hijo. Sin la bandera `--no-scripts`, composer aborta y —con `set -e`— se lleva
+por delante el despliegue entero, con el sitio ya cerrado al público. Resuelto
+en `desplegar.sh`: `--no-scripts` y `package:discover` ejecutado aparte, en el
+mismo proceso.
+
+**Un espacio en un secreto de GitHub.** `HOSTINGER_PUERTO` se guardó como
+`" 65002"` y la acción de SSH no pudo convertirlo en número: falló al leer sus
+propios parámetros, sin llegar a conectar. Los secretos se escriben a mano, no
+se pegan.
+
+## El huevo y la gallina de los arreglos del despliegue
+
+Un fallo en `respaldar.sh` o en `desplegar.sh` **no se puede arreglar
+desplegando**: el guion que corre es el viejo, y muere antes de traer su propio
+reemplazo. Hay que entrar por SSH y hacer el `git pull` a mano una vez:
+
+```bash
+ssh -p 65002 u821315052@46.202.183.237
+cd ~/matriculas-app && git pull --ff-only origin main
+```
+
+Pasó dos veces el día del despliegue. Conviene recordarlo antes de perder media
+hora mirando registros.
+
+## Lo que sí funcionó a la primera
+
+- Las **22 migraciones** y, sobre todo, los **dos triggers**: el usuario de MySQL
+  de Hostinger tiene permiso `TRIGGER` sobre su propia base.
+- La **trampa de salida** de `desplegar.sh`. En los dos despliegues fallidos el
+  sitio ya estaba cerrado al público y volvió a abrirse solo. No es un detalle:
+  sin ella, cada intento fallido habría dejado la página en mantenimiento hasta
+  que alguien llamara a preguntar.
+- El **respaldo previo**, que dejó su volcado con los dos triggers dentro antes
+  de tocar nada.
+
+## Trabajar a partir de ahora
+
+Escribir, probar en local, `git push origin main`. GitHub corre las 275 pruebas
+y solo despliega si pasan todas.
+
+Dos reglas para que siga funcionando:
+
+- **No editar archivos directamente en el servidor.** El despliegue hace
+  `git pull --ff-only`, que se niega a fusionar si encuentra cambios locales —y
+  hace bien—, pero deja el despliegue bloqueado hasta deshacerlos a mano.
+- **Para cambiar el esquema, migración nueva; nunca editar una existente.**
+
+Y la vía manual, siempre disponible:
+
+```bash
+ssh -p 65002 u821315052@46.202.183.237
+cd ~/matriculas-app && ./desplegar.sh
+```
