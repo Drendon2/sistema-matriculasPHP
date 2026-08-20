@@ -130,6 +130,35 @@
   })();
 </script>
 
+{{--
+  El certificado de matrícula. Solo para quien tiene algo que certificar ahora
+  mismo: sin matrículas activas en el periodo en curso la sección no aparece,
+  porque el documento saldría afirmando que esta persona cursa algo que no cursa.
+--}}
+@if ($certificables)
+<div class="perfil-seccion">
+  <div class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 3v5h5"/>
+        <path d="M9 13h6M9 17h4"/>
+      </svg>
+    </span>
+    <h3>Certificado de matrícula</h3>
+  </div>
+  <p class="campo-info" style="margin-top:0;">
+    Documento en PDF que acredita
+    {{ $certificables === 1
+        ? 'la promotoría que cursas'
+        : 'las '.$certificables.' promotorías que cursas' }}
+    en el periodo en curso, firmado por la dirección. Para certificar una sola
+    promotoría, usa el botón de cada fila en <strong>Mis matrículas</strong>.
+  </p>
+  <a class="btn" href="{{ route('certificado-todo', $perfil) }}">Descargar el certificado</a>
+</div>
+@endif
+
 @if ($datos)
 <div class="perfil-seccion">
   <div class="perfil-seccion-cabecera">

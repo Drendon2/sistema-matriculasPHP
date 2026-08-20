@@ -5,14 +5,14 @@
 @section('content')
 <p class="migas">
   <a href="{{ route('panel') }}">Panel</a><span class="migas-sep">/</span>
-  <a href="{{ route('grupo-clases', $clase->grupo) }}">{{ $clase->grupo->promotoria->nombre }} · {{ $clase->grupo->nivel_display }}</a><span class="migas-sep">/</span>
+  <a href="{{ route('grupo-clases', $clase->grupo) }}">{{ $clase->grupo->promotoria->nombre }} · {{ $clase->grupo->nombre }}</a><span class="migas-sep">/</span>
   <span class="migas-actual">Clase del {{ $clase->fecha_hora->isoFormat('D [de] MMMM') }}</span>
 </p>
 
 <h2>Asistencia</h2>
 <p class="campo-info">
   <span class="tag-dot {{ $clase->grupo->promotoria->area->tag_color }}"></span>{{ $clase->grupo->promotoria->nombre }} ·
-  {{ $clase->grupo->nivel_display }} · {{ $clase->grupo->horario }} · Salón {{ $clase->grupo->salon }}
+  {{ $clase->grupo->rotulo }}
 </p>
 
 {{-- La hora es el dato que el botón existe para capturar: va en monoespaciada, como toda cifra del sistema. --}}

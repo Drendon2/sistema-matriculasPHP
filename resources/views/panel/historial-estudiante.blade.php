@@ -39,11 +39,16 @@
   @include('partials.historial', ['modo' => 'personal', 'historial' => $historial])
 @endif
 
-@if ($yo->rol === 'administrador')
 <p style="margin-top:1.5rem;">
+  @if (\App\Support\Permisos::puedeCertificarTodo($yo, $estudiante))
+  <a class="btn btn-secundario btn-sm" href="{{ route('certificado-todo', $estudiante) }}">
+    Certificado de matrícula
+  </a>
+  @endif
+  @if ($yo->rol === 'administrador')
   <a class="btn btn-secundario btn-sm" href="{{ route('detalle-estudiante', $estudiante) }}">
     Ver ficha completa
   </a>
+  @endif
 </p>
-@endif
 @endsection

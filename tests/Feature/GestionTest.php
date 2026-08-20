@@ -19,6 +19,7 @@ use App\Models\Promotoria;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -417,6 +418,7 @@ class GestionTest extends TestCase
 
         Grupo::create([
             'promotoria_id' => $sinMatriculas->id,
+            'nombre' => 'Lunes',
             'nivel' => 'basico',
             'horario' => 'Lunes',
             'salon' => 'A1',
@@ -1099,6 +1101,7 @@ class GestionTest extends TestCase
         return [
             'grupo' => Grupo::create([
                 'promotoria_id' => $this->violin->id,
+                'nombre' => 'Lunes tarde',
                 'nivel' => 'basico',
                 'horario' => 'Lunes 4-6 p. m.',
                 'salon' => 'Salon 1',
@@ -1106,6 +1109,7 @@ class GestionTest extends TestCase
             ]),
             'otroGrupo' => Grupo::create([
                 'promotoria_id' => $ballet->id,
+                'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
                 'horario' => 'Martes 4-6 p. m.',
                 'salon' => 'Salon 2',
@@ -1125,8 +1129,8 @@ class GestionTest extends TestCase
             ->assertOk()
             // La FILA, no el nombre suelto: «Violin» aparece igual como opcion
             // del propio desplegable de promotorias.
-            ->assertSee('Ballet - Básico')
-            ->assertDontSee('Violin - Básico');
+            ->assertSee('Ballet - Martes tarde')
+            ->assertDontSee('Violin - Lunes tarde');
     }
 
     public function test_los_grupos_se_filtran_por_promotoria(): void
@@ -1136,8 +1140,8 @@ class GestionTest extends TestCase
         $this->actingAs($this->director->user)
             ->get(route('grupo-lista', ['promotoria' => $this->violin->id]))
             ->assertOk()
-            ->assertSee('Violin - Básico')
-            ->assertDontSee('Ballet - Básico');
+            ->assertSee('Violin - Lunes tarde')
+            ->assertDontSee('Ballet - Martes tarde');
     }
 
     public function test_los_grupos_se_filtran_por_profesor(): void
@@ -1147,8 +1151,8 @@ class GestionTest extends TestCase
         $this->actingAs($this->director->user)
             ->get(route('grupo-lista', ['profesor' => $c['otroProfesor']->id]))
             ->assertOk()
-            ->assertSee('Ballet - Básico')
-            ->assertDontSee('Violin - Básico');
+            ->assertSee('Ballet - Martes tarde')
+            ->assertDontSee('Violin - Lunes tarde');
     }
 
     /**
@@ -1165,6 +1169,7 @@ class GestionTest extends TestCase
         $huerfana = Promotoria::create(['nombre' => 'Titeres', 'area_id' => $this->musica->id]);
         Grupo::create([
             'promotoria_id' => $huerfana->id,
+            'nombre' => 'Viernes tarde',
             'nivel' => 'basico',
             'horario' => 'Viernes 4-6 p. m.',
             'salon' => 'Salon 3',
@@ -1174,8 +1179,85 @@ class GestionTest extends TestCase
         $this->actingAs($this->director->user)
             ->get(route('grupo-lista', ['profesor' => \App\Http\Controllers\Gestion\GrupoController::PROFESOR_SIN_ASIGNAR]))
             ->assertOk()
-            ->assertSee('Titeres - Básico')
-            ->assertDontSee('Ballet - Básico');
+            ->assertSee('Titeres - Viernes tarde')
+            ->assertDontSee('Ballet - Martes tarde');
+    }
+
+    /**
+     * Desde Gestion tambien se crean varios grupos del mismo nivel.
+     *
+     * Es el mismo caso que en el Panel, y hace falta probarlo aparte porque son
+     * dos formularios distintos con dos juegos de reglas: la regla vieja —un
+     * nivel por promotoria— estaba escrita en los dos sitios, y quitarla de uno
+     * solo dejaba el otro cerrado.
+     */
+    public function test_gestion_crea_varios_grupos_del_mismo_nivel(): void
+    {
+        $this->actingAs($this->director->user)->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes tarde',
+            'nivel' => 'basico',
+            'horario' => 'Lunes 4-6 p. m.',
+            'salon' => 'Salon 1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->actingAs($this->director->user)->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Jueves tarde',
+            'nivel' => 'basico',
+            'horario' => 'Jueves 4-6 p. m.',
+            'salon' => 'Salon 1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->assertSame(2, $this->violin->grupos()->count());
+        $this->assertSame(
+            ['Jueves tarde', 'Lunes tarde'],
+            $this->violin->grupos()->orderBy('nombre')->pluck('nombre')->all()
+        );
+    }
+
+    public function test_gestion_rechaza_un_nombre_de_grupo_repetido(): void
+    {
+        Grupo::create([
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes tarde',
+            'nivel' => 'basico',
+            'horario' => 'Lunes',
+            'salon' => 'Salon 1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->actingAs($this->director->user)
+            ->post(route('grupo-nuevo'), [
+                'promotoria_id' => $this->violin->id,
+                'nombre' => 'Lunes tarde',
+                'nivel' => 'avanzado',
+                'horario' => 'Jueves',
+                'salon' => 'Salon 2',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHasErrors('nombre');
+
+        $this->assertSame(1, $this->violin->grupos()->count());
+    }
+
+    /**
+     * La garantia de verdad esta en el motor, no en el formulario.
+     *
+     * Se comprueban las dos caras: que el unico por NOMBRE existe —es lo que
+     * impide dos grupos indistinguibles si algo se salta la validacion— y que
+     * el viejo por NIVEL ya no esta, porque mientras siguiera ahi la base
+     * rechazaria el segundo Basico por su cuenta, con la aplicacion diciendo
+     * que si.
+     */
+    public function test_el_esquema_limita_el_nombre_y_ya_no_el_nivel(): void
+    {
+        $indices = collect(DB::select('SHOW INDEX FROM grupos'))->pluck('Key_name')->unique();
+
+        $this->assertTrue($indices->contains('un_nombre_por_promotoria'));
+        $this->assertFalse($indices->contains('un_nivel_por_promotoria'));
     }
 
     /** Los filtros se combinan: departamento Y profesor a la vez. */
@@ -1249,6 +1331,7 @@ class GestionTest extends TestCase
     {
         return Grupo::create([
             'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes 4-6 p. m.',
             'nivel' => 'basico',
             'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 1',

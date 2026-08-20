@@ -21,6 +21,16 @@ use Illuminate\View\View;
  */
 class ConfiguracionController extends Controller
 {
+    /**
+     * El lado mayor de la firma, en pixeles.
+     *
+     * Mas ancha que una foto de perfil y por una razon concreta: una firma es
+     * un trazo apaisado y fino, y reducida a 800 px de ancho los rasgos se
+     * empastan al imprimirse. En el certificado ocupa unos 5 cm, asi que 1000
+     * px dan holgura de sobra sin que el archivo se dispare.
+     */
+    private const LADO_FIRMA = 1000;
+
     public function mostrar(): View
     {
         return view('gestion.configuracion', [
@@ -42,6 +52,9 @@ class ConfiguracionController extends Controller
         $datos = $request->validate([
             'nombre_institucion' => ['required', 'string', 'max:80'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'firmante_nombre' => ['nullable', 'string', 'max:120'],
+            'firmante_cargo' => ['nullable', 'string', 'max:80'],
             'color_acento' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'limite_promotorias_por_periodo' => [
                 'required', 'integer', 'min:1', 'max:'.ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA,
@@ -49,6 +62,10 @@ class ConfiguracionController extends Controller
             'promotorias_visibles_para_estudiantes' => ['nullable', 'boolean'],
         ], [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
+        ], [
+            'firma' => 'firma',
+            'firmante_nombre' => 'nombre de quien firma',
+            'firmante_cargo' => 'cargo de quien firma',
         ]);
 
         // Quitar el logo es una casilla aparte y no "subir vacio": dejar el
@@ -72,7 +89,32 @@ class ConfiguracionController extends Controller
             $configuracion->logo = $ruta;
         }
 
+        // La firma, con la misma pareja de casilla-y-archivo que el logo. Se
+        // guarda en PNG y no en WebP como todo lo demas: el generador de PDF no
+        // entiende WebP, y una firma en WebP saldria como un hueco en el
+        // certificado sin que nada fallara en pantalla.
+        if ($request->boolean('quitar_firma') && $configuracion->firma !== '') {
+            Storage::disk('local')->delete($configuracion->firma);
+            $configuracion->firma = '';
+        }
+
+        if ($request->hasFile('firma')) {
+            $ruta = 'institucion/firma-'.uniqid().'.png';
+            Storage::disk('local')->put($ruta, Imagen::aPng($request->file('firma'), self::LADO_FIRMA));
+
+            if ($configuracion->firma !== '') {
+                Storage::disk('local')->delete($configuracion->firma);
+            }
+
+            $configuracion->firma = $ruta;
+        }
+
         $configuracion->nombre_institucion = $datos['nombre_institucion'];
+        // Los dos textos del firmante se guardan recortados y admiten quedarse
+        // vacios: una institucion puede tener la firma escaneada antes de haber
+        // decidido como se escribe el cargo.
+        $configuracion->firmante_nombre = trim($datos['firmante_nombre'] ?? '');
+        $configuracion->firmante_cargo = trim($datos['firmante_cargo'] ?? '');
         $configuracion->color_acento = strtolower($datos['color_acento']);
         $configuracion->limite_promotorias_por_periodo = $datos['limite_promotorias_por_periodo'];
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');

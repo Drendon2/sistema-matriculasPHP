@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
 
@@ -67,6 +68,59 @@ class Permisos
     public static function dictaLaPromotoria(Perfil $perfil, Promotoria $promotoria): bool
     {
         return $promotoria->profesor_id !== null && $promotoria->profesor_id === $perfil->id;
+    }
+
+    /**
+     * ¿Puede descargar el certificado de ESTA matricula?
+     *
+     * El propio estudiante siempre; direccion sobre cualquiera; quien dicta la
+     * promotoria sobre las suyas. El profesor entra por el VINCULO y no por el
+     * rol, igual que en el resto del proyecto.
+     *
+     * Que el personal pueda bajarlo no es comodidad: media matricula de una casa
+     * de la cultura son menores y adultos mayores que piden la constancia en
+     * ventanilla y no van a entrar al sistema a buscarla.
+     */
+    public static function puedeCertificarMatricula(?Perfil $solicitante, Matricula $matricula): bool
+    {
+        if ($solicitante === null) {
+            return false;
+        }
+
+        if ($solicitante->id === $matricula->estudiante_id) {
+            return true;
+        }
+
+        if (in_array($solicitante->rol, ['administrador', 'director'], true)) {
+            return true;
+        }
+
+        return $solicitante->rol === 'profesor'
+            && $matricula->promotoria !== null
+            && self::dictaLaPromotoria($solicitante, $matricula->promotoria);
+    }
+
+    /**
+     * ¿Puede descargar el certificado que reune TODAS las matriculas vigentes de
+     * un estudiante?
+     *
+     * Regla mas estrecha que la anterior a proposito, y la diferencia es el
+     * profesor: el certificado reunido lista todas las promotorias que esa
+     * persona cursa, y la ficha le esconde deliberadamente las que no dicta
+     * —lo mismo hace el panel de asistencia—. Dejarselo bajar entregaria en un
+     * PDF justo lo que la matriz de visibilidad le niega en pantalla.
+     *
+     * Le queda el certificado de la matricula suya, que es el que le pueden
+     * pedir a el.
+     */
+    public static function puedeCertificarTodo(?Perfil $solicitante, Perfil $estudiante): bool
+    {
+        if ($solicitante === null) {
+            return false;
+        }
+
+        return $solicitante->id === $estudiante->id
+            || in_array($solicitante->rol, ['administrador', 'director'], true);
     }
 
     /**

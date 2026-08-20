@@ -42,6 +42,27 @@ class ArchivoController extends Controller
     }
 
     /**
+     * La firma que sella los certificados.
+     *
+     * Es lo contrario del logo, aunque las dos sean imagenes de la institucion y
+     * vivan en la misma fila: el logo se ensena a todo el mundo y la firma solo
+     * a quien la configura. Una firma escaneada en una URL abierta se la lleva
+     * cualquiera para estampar el papel que quiera, y el certificado dejaria de
+     * valer nada precisamente por lo que se supone que lo hace valer.
+     *
+     * La puerta de rol la pone la ruta; aqui solo queda el caso de que no haya
+     * ninguna cargada.
+     */
+    public function firma(): StreamedResponse
+    {
+        $configuracion = ConfiguracionInstitucion::actual();
+
+        abort_if($configuracion->firma === '', 404, 'La institución no tiene una firma cargada.');
+
+        return $this->entregar($configuracion->firma);
+    }
+
+    /**
      * La foto de perfil de alguien, con la regla de visibilidad del modelo:
      *
      *     nombre, foto ... admin, director, profesor, companeros de la MISMA

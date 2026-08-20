@@ -127,23 +127,26 @@ class PanelGrupoController extends Controller
     private function validar(Request $request, Promotoria $promotoria, ?Grupo $grupo = null): array
     {
         return $request->validate([
-            'nivel' => [
-                'required',
-                Rule::in(array_keys(Grupo::NIVELES)),
-                // Un nivel por promotoria: no hay dos "Básico" de Violín. Se
-                // comprueba aqui ademas de en el indice unico para que el
-                // mensaje llegue al campo y no como un error del motor.
-                Rule::unique('grupos', 'nivel')
+            // Lo unico que no puede repetirse dentro de una promotoria. Se
+            // comprueba aqui ademas de en el indice unico para que el mensaje
+            // llegue al campo y no como un error del motor.
+            'nombre' => [
+                'required', 'string', 'max:60',
+                Rule::unique('grupos', 'nombre')
                     ->where('promotoria_id', $promotoria->id)
                     ->ignore($grupo?->id),
             ],
+            // El nivel SI se repite: una promotoria con mucha gente tiene varios
+            // grupos de Basico, y eso es lo normal, no un error.
+            'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
             'horario' => ['required', 'string', 'max:60'],
             'salon' => ['required', 'string', 'max:40'],
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ], [
-            'nivel.unique' => "{$promotoria->nombre} ya tiene un grupo de ese nivel. "
-                . 'Edita el que existe o elige otro nivel.',
+            'nombre.unique' => "{$promotoria->nombre} ya tiene un grupo llamado así. "
+                . 'Ponle otro nombre para poder distinguirlos.',
         ], [
+            'nombre' => 'nombre',
             'nivel' => 'nivel',
             'horario' => 'horario',
         ]);

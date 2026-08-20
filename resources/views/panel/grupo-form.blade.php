@@ -11,6 +11,17 @@
   @csrf
 
   <div class="field">
+    <label for="nombre">Nombre del grupo</label>
+    <input type="text" name="nombre" id="nombre" maxlength="60" required
+           value="{{ old('nombre', $grupo->nombre) }}" placeholder="Martes tarde">
+    <span class="campo-info" style="margin:0;">
+      Lo que distingue este grupo de los demás de la promotoría. Puedes tener varios grupos
+      del mismo nivel, y el nombre es lo que dice cuál es cuál.
+    </span>
+    @error('nombre')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+  </div>
+
+  <div class="field">
     <label for="nivel">Nivel</label>
     <select name="nivel" id="nivel" required>
       @foreach (\App\Models\Grupo::NIVELES as $valor => $etiqueta)

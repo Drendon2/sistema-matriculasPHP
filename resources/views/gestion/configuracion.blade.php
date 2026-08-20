@@ -7,10 +7,11 @@
 <h2>Institución</h2>
 
 <p class="aviso">
-  Dos grupos de ajustes. La <strong>marca</strong> solo cambia cómo se ve el sistema: el nombre de
+  Tres grupos de ajustes. La <strong>marca</strong> solo cambia cómo se ve el sistema: el nombre de
   la cabecera y los títulos, el logo de las pantallas públicas, y el color de acento del que salen
-  botones, enlaces, foco y mensajes de éxito. Las <strong>reglas de matrícula</strong> sí cambian lo
-  que los estudiantes pueden hacer. Ninguno de los dos toca el catálogo académico.
+  botones, enlaces, foco y mensajes de éxito. La <strong>firma</strong> es la que sella los
+  certificados de matrícula. Las <strong>reglas de matrícula</strong> sí cambian lo que los
+  estudiantes pueden hacer. Ninguno de los tres toca el catálogo académico.
 </p>
 
 <div class="card">
@@ -42,7 +43,7 @@
       <label class="config-logo-boton" for="logo">
         + {{ $institucion->logo ? 'Cambiar el logo' : 'Subir un logo' }}
       </label>
-      <p class="config-logo-nombre" data-nombre-archivo>{{ basename($institucion->logo) }}</p>
+      <p class="config-logo-nombre" data-nombre-archivo="logo">{{ basename($institucion->logo) }}</p>
       @if ($institucion->logo)
       <label class="config-logo-quitar">
         <input type="checkbox" name="quitar_logo" value="1"> Quitar y volver al logo por defecto
@@ -70,6 +71,65 @@
               style="background:{{ $institucion->color_acento_suave }};color:{{ $institucion->color_acento_oscuro }};">Fondo suave</span>
       </div>
       <p class="config-ayuda">Los dos últimos se derivan del acento automáticamente; no se configuran por separado.</p>
+    </div>
+
+    </fieldset>
+
+    <fieldset class="config-seccion">
+    <legend class="config-seccion-titulo">Firma para certificados</legend>
+
+    <p class="config-ayuda" style="margin:0 0 1.2rem;">
+      Un estudiante puede descargar su <strong>certificado de matrícula</strong> en PDF desde
+      «Mi perfil». Lo que se cargue aquí es lo que aparece al pie de ese documento. Sin firma
+      cargada el certificado se sigue generando, pero sale con el espacio de la firma en blanco.
+    </p>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="firma">Firma escaneada</label>
+      <div class="config-logo">
+        @if ($institucion->firma)
+        <img class="config-firma-vista" src="{{ route('firma-institucion') }}" alt="Firma actual">
+        @endif
+        <p class="config-ayuda">
+          {{ $institucion->firma
+              ? 'Firma cargada.'
+              : 'Todavía no hay firma. Escanea la firma sobre papel blanco y súbela.' }}
+        </p>
+      </div>
+      <input class="config-logo-file" type="file" name="firma" id="firma" accept="image/*">
+      <label class="config-logo-boton" for="firma">
+        + {{ $institucion->firma ? 'Cambiar la firma' : 'Subir una firma' }}
+      </label>
+      <p class="config-logo-nombre" data-nombre-archivo="firma">{{ basename($institucion->firma) }}</p>
+      @if ($institucion->firma)
+      <label class="config-logo-quitar">
+        <input type="checkbox" name="quitar_firma" value="1"> Quitar la firma
+      </label>
+      @endif
+      @error('firma')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Un PNG recortado con fondo transparente es lo que mejor queda: se apoya sobre la línea
+        en vez de taparla con un recuadro blanco.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="firmante_nombre">Nombre de quien firma</label>
+      <input type="text" name="firmante_nombre" id="firmante_nombre" maxlength="120"
+             value="{{ old('firmante_nombre', $institucion->firmante_nombre) }}">
+      @error('firmante_nombre')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="firmante_cargo">Cargo</label>
+      <input type="text" name="firmante_cargo" id="firmante_cargo" maxlength="80"
+             value="{{ old('firmante_cargo', $institucion->firmante_cargo) }}"
+             placeholder="Directora">
+      @error('firmante_cargo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Se imprimen bajo la firma, en ese orden. Un garabato escaneado sin nombre ni cargo
+        no identifica a nadie ante quien recibe el certificado.
+      </p>
     </div>
 
     </fieldset>
@@ -191,12 +251,15 @@
   // cuenta el nombre del archivo elegido. Sin esta línea, tras escoger un logo
   // la pantalla se quedaría exactamente igual que antes de escogerlo.
   (function () {
-    var entrada = document.getElementById("logo");
-    var destino = document.querySelector("[data-nombre-archivo]");
-    if (!entrada || !destino) { return; }
-    var original = destino.textContent.trim();
-    entrada.addEventListener("change", function () {
-      destino.textContent = entrada.files.length ? entrada.files[0].name : original;
+    // Cada destino dice de qué input escucha, porque ya son dos —el logo y la
+    // firma— y un querySelector suelto emparejaría los dos con el primero.
+    document.querySelectorAll("[data-nombre-archivo]").forEach(function (destino) {
+      var entrada = document.getElementById(destino.dataset.nombreArchivo);
+      if (!entrada) { return; }
+      var original = destino.textContent.trim();
+      entrada.addEventListener("change", function () {
+        destino.textContent = entrada.files.length ? entrada.files[0].name : original;
+      });
     });
   })();
 </script>

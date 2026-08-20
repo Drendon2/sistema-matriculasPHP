@@ -180,7 +180,7 @@ class MisMatriculasTest extends TestCase
     public function test_retirar_una_pendiente_le_quita_el_grupo(): void
     {
         $grupo = Grupo::create([
-            'promotoria_id' => $this->violin->id, 'nivel' => 'basico',
+            'promotoria_id' => $this->violin->id, 'nombre' => 'Lun 8am', 'nivel' => 'basico',
             'horario' => 'Lun 8am', 'salon' => 'A1', 'cupo_maximo' => 10,
         ]);
 

@@ -38,6 +38,7 @@
         <th>Grupo</th>
         @if ($modo === 'estudiante')<th>Inscripción</th>@endif
         <th>Estado</th>
+        <th></th>
         @if ($modo === 'estudiante')<th></th>@endif
       </tr>
     </thead>
@@ -55,7 +56,7 @@
 
         <td>
           @if ($m->grupo)
-            {{ $m->grupo->nivel_display }} · {{ $m->grupo->horario }}
+            {{ $m->grupo->nombre_con_nivel }} · {{ $m->grupo->horario }}
           @elseif ($m->estado === \App\Models\Matricula::ACTIVA)
             <span class="vacio">Por asignar</span>
           @else
@@ -73,6 +74,22 @@
         --}}
         <td>
           <span class="estado estado-{{ $m->estado_visible }}">{{ $m->estado_visible_display }}</span>
+        </td>
+
+        {{--
+          El certificado, en los dos modos: el estudiante baja el suyo y el
+          personal se lo baja a quien lo pide en ventanilla. Solo aparece cuando
+          hay algo que certificar —matrícula activa o finalizada— y quien mira
+          tiene derecho a ella; una pendiente o una retirada no lo enseñan,
+          porque no hay nada que un papel pueda afirmar de ellas.
+        --}}
+        <td class="historial-certificado">
+          @php($certificable = in_array($m->estado_visible, [\App\Models\Matricula::ACTIVA, \App\Models\Matricula::FINALIZADA], true))
+          @if ($certificable && \App\Support\Permisos::puedeCertificarMatricula($yo, $m))
+            <a class="btn btn-secundario btn-sm" href="{{ route('certificado-matricula', $m) }}">
+              Certificado
+            </a>
+          @endif
         </td>
 
         @if ($modo === 'estudiante')

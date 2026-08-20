@@ -152,7 +152,7 @@
 @foreach ($item['grupos'] as $g)
   <div class="grupo-cabecera">
     <h4 style="margin:1.2rem 0 0.4rem;">
-      {{ $g['grupo']->nivel_display }} · {{ $g['grupo']->horario }} · Salón {{ $g['grupo']->salon }}
+      {{ $g['grupo']->rotulo }}
       ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})
     </h4>
     @if ($item['puede_gestionar'])
@@ -242,7 +242,7 @@
   <select name="grupo_id" style="width:auto;" required>
     <option value="">-- elegir grupo --</option>
     @foreach ($item['grupos'] as $g)
-      <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nivel_display }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
+      <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nombre_con_nivel }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
     @endforeach
   </select>
   <button type="submit" class="btn btn-sm" data-lote-enviar disabled>Asignar marcados</button>
@@ -285,7 +285,7 @@
           <select name="grupo_id" style="width:auto;">
             <option value="">-- elegir grupo --</option>
             @foreach ($item['grupos'] as $g)
-              <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nivel_display }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
+              <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nombre_con_nivel }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
             @endforeach
           </select>
           <button type="submit" class="btn btn-sm">Asignar</button>

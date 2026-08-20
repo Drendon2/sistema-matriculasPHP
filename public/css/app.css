@@ -1016,6 +1016,20 @@
      etiqueta, que es lo que el usuario ve. */
   .config-logo { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.9rem; }
   .config-logo .config-ayuda { margin: 0; }
+  /* La firma se ve apaisada y sobre blanco SIEMPRE, tambien en modo oscuro:
+     un trazo negro sobre el fondo oscuro del tema desaparece, y lo que hay que
+     comprobar aqui es justo si el recorte quedo limpio. El alto fijo y el
+     ancho automatico respetan la proporcion de una firma, que no es cuadrada
+     como el logo. */
+  .config-firma-vista {
+    height: 56px; width: auto; max-width: 260px; object-fit: contain;
+    flex: 0 0 auto; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.35rem;
+  }
+  /* La columna del certificado no estira la tabla: en las filas que no lo
+     ofrecen queda vacia, y sin esto el ancho de la tabla bailaba entre
+     periodos segun hubiera o no un boton. */
+  .historial-certificado { width: 1%; white-space: nowrap; text-align: right; }
   .config-logo-vista {
     width: 64px; height: 64px; object-fit: contain; flex: 0 0 auto;
     background: var(--surface); border: 1px solid var(--border);

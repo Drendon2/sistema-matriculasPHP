@@ -53,7 +53,7 @@
       <optgroup label="{{ $promotoriaNombre }}">
         @foreach ($deLaPromotoria as $g)
           <option value="{{ $g->id }}" @selected($seleccion['grupo']?->id === $g->id)>
-            {{ $g->nivel_display }} · {{ $g->horario }}
+            {{ $g->nombre_con_nivel }} · {{ $g->horario }}
           </option>
         @endforeach
       </optgroup>

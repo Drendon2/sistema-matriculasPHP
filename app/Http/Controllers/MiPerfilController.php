@@ -81,6 +81,10 @@ class MiPerfilController extends Controller
             // listan preguntas sueltas: ahi lo que falta es la encuesta entera.
             'faltanPreguntas' => $encuesta?->preguntas_faltantes ?? [],
             'estadisticas' => $this->estadisticas($perfil),
+            // Cuantas matriculas vigentes hay AHORA que certificar. Cero
+            // —o no ser estudiante— quita la seccion entera: un boton que baja
+            // un papel en blanco es peor que no tener boton.
+            'certificables' => $esEstudiante ? $this->certificables($perfil) : 0,
             'periodo' => $periodo,
             // Las flechas del panel de asistencia. Conservan el resto de la URL
             // vacio a proposito: esta pantalla no tiene otros parametros.
@@ -303,6 +307,28 @@ class MiPerfilController extends Controller
         if ($ruta !== null && $ruta !== '') {
             Storage::disk('local')->delete($ruta);
         }
+    }
+
+    /**
+     * Matriculas del periodo en curso que se pueden certificar.
+     *
+     * Solo las ACTIVAS: una pendiente todavia no la ha confirmado quien dicta, y
+     * el certificado no puede afirmar que esa persona esta en el curso. La
+     * misma regla que aplica el controlador que genera el PDF, aqui solo para
+     * decidir si se pinta el boton.
+     */
+    private function certificables(Perfil $perfil): int
+    {
+        $periodo = Periodo::enCurso();
+
+        if ($periodo === null) {
+            return 0;
+        }
+
+        return Matricula::where('estudiante_id', $perfil->id)
+            ->where('periodo_id', $periodo->id)
+            ->where('estado', Matricula::ACTIVA)
+            ->count();
     }
 
     /**

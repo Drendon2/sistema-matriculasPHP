@@ -252,6 +252,11 @@ class GrupoController extends RecursoController
                 'opciones' => $promotorias,
                 'valor' => $objeto?->promotoria_id ?? $request->query('promotoria_id'),
             ],
+            'nombre' => [
+                'etiqueta' => 'Nombre del grupo', 'tipo' => 'text', 'max' => 60,
+                'ayuda' => 'Lo que distingue este grupo de los demás de la promotoría. '
+                    . 'Por ejemplo, Martes tarde.',
+            ],
             'nivel' => ['etiqueta' => 'Nivel', 'tipo' => 'select', 'opciones' => Grupo::NIVELES],
             'horario' => [
                 'etiqueta' => 'Horario', 'tipo' => 'text', 'max' => 60,
@@ -266,13 +271,16 @@ class GrupoController extends RecursoController
     {
         return [
             'promotoria_id' => ['required', 'exists:promotorias,id'],
-            'nivel' => [
-                'required',
-                Rule::in(array_keys(Grupo::NIVELES)),
-                Rule::unique('grupos', 'nivel')
+            // El NOMBRE es lo unico que no puede repetirse dentro de una
+            // promotoria. El nivel si se repite: una promotoria con mucha gente
+            // tiene varios grupos de Basico, y eso es lo normal.
+            'nombre' => [
+                'required', 'string', 'max:60',
+                Rule::unique('grupos', 'nombre')
                     ->where('promotoria_id', $request->input('promotoria_id'))
                     ->ignore($objeto?->id),
             ],
+            'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
             'horario' => ['required', 'string', 'max:60'],
             'salon' => ['required', 'string', 'max:40'],
             'cupo_maximo' => ['required', 'integer', 'min:0'],

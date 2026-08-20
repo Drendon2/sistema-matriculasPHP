@@ -43,6 +43,9 @@ class ConfiguracionInstitucion extends Model
     protected $fillable = [
         'nombre_institucion',
         'logo',
+        'firma',
+        'firmante_nombre',
+        'firmante_cargo',
         'color_acento',
         'limite_promotorias_por_periodo',
         'promotorias_visibles_para_estudiantes',
@@ -64,6 +67,9 @@ class ConfiguracionInstitucion extends Model
     protected $attributes = [
         'nombre_institucion' => 'Casa de la Cultura',
         'logo' => '',
+        'firma' => '',
+        'firmante_nombre' => '',
+        'firmante_cargo' => '',
         'color_acento' => '#0a7a59',
         'limite_promotorias_por_periodo' => 2,
         'promotorias_visibles_para_estudiantes' => true,

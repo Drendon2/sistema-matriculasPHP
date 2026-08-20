@@ -95,6 +95,7 @@ class InformeController extends Controller
             'Departamento',
             'Promotoría',
             'Grupo',
+            'Nivel',
             'Horario',
             'Salón',
             'Estudiante',
@@ -178,7 +179,7 @@ class InformeController extends Controller
         $partes = ['estudiantes', $promotoria->nombre];
 
         if ($grupo !== null) {
-            $partes[] = $grupo->nivel_display;
+            $partes[] = $grupo->nombre;
         }
 
         return Str::slug(implode(' ', $partes)) ?: 'estudiantes-por-grupo';
@@ -206,7 +207,8 @@ class InformeController extends Controller
             yield array_map(Csv::celda(...), [
                 $matricula->promotoria->area->nombre,
                 $matricula->promotoria->nombre,
-                $matricula->grupo?->nivel_display ?? 'Sin grupo',
+                $matricula->grupo?->nombre ?? 'Sin grupo',
+                $matricula->grupo?->nivel_display,
                 $matricula->grupo?->horario,
                 $matricula->grupo?->salon,
                 $matricula->estudiante->nombre_completo,
@@ -253,6 +255,7 @@ class InformeController extends Controller
             'Correo',
             'Departamento',
             'Promotoría',
+            'Grupo',
             'Nivel',
             'Estado',
             'Periodos en la promotoría',
@@ -325,7 +328,8 @@ class InformeController extends Controller
                     ...$comunes,
                     $matricula->promotoria->area->nombre,
                     $matricula->promotoria->nombre,
-                    $matricula->grupo?->nivel_display ?? 'Sin grupo',
+                    $matricula->grupo?->nombre ?? 'Sin grupo',
+                    $matricula->grupo?->nivel_display,
                     Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
                     $trayectoria['periodos'],
                     $trayectoria['desde'],

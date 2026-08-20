@@ -4,9 +4,9 @@
 
 @section('content')
 <p class="migas">
-  @foreach ($migas as $m)<a href="{{ $m['url'] }}">{{ $m['texto'] }}</a><span class="migas-sep">/</span>@endforeach<span class="migas-actual">{{ $grupo->nivel_display }} · {{ $grupo->horario }}</span>
+  @foreach ($migas as $m)<a href="{{ $m['url'] }}">{{ $m['texto'] }}</a><span class="migas-sep">/</span>@endforeach<span class="migas-actual">{{ $grupo->nombre }} · {{ $grupo->nivel_display }}</span>
 </p>
-<h2>{{ $grupo->nivel_display }} · {{ $grupo->horario }} · Salón {{ $grupo->salon }}</h2>
+<h2>{{ $grupo->rotulo }}</h2>
 <p class="campo-info" style="margin-top:-0.8rem;">
   {{ count($estudiantes) }}/{{ $grupo->cupo_maximo }} cupos ocupados
 </p>

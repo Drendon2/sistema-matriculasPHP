@@ -31,7 +31,7 @@
     <div class="clase-fila">
       <span class="clase-datos">
         <span class="clase-titulo">
-          <span class="tag-dot {{ $f['clase']->grupo->promotoria->area->tag_color }}"></span>{{ $f['clase']->grupo->promotoria->nombre }} · {{ $f['clase']->grupo->nivel_display }}
+          <span class="tag-dot {{ $f['clase']->grupo->promotoria->area->tag_color }}"></span>{{ $f['clase']->grupo->promotoria->nombre }} · {{ $f['clase']->grupo->nombre }}
         </span>
         <span class="clase-cuando">
           {{ $f['clase']->fecha_hora->isoFormat('dddd D [de] MMMM') }} · <span class="clase-hora">{{ $f['clase']->fecha_hora->format('H:i') }}</span>

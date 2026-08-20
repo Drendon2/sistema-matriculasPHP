@@ -105,6 +105,31 @@ CSV y no `.xlsx` a propósito: un `.xlsx` real pediría `phpoffice/phpspreadshee
 compartido. Llevan BOM UTF‑8 y separador `;`, que es lo que hace que Excel en
 español los abra con las tildes bien y en columnas.
 
+## Certificado de matrícula
+
+Un PDF que acredita que alguien está matriculado, para llevar a un colegio o a
+una empresa. En dos formas: el de **una matrícula** —promotoría, área, grupo y
+horario, docente, fecha— con botón en cada fila de «Mis matrículas» y de la
+trayectoria; y el **reunido**, con todas las promotorías vigentes del periodo en
+curso, desde «Mi perfil» y desde la ficha.
+
+Solo se certifican las matrículas **activas** y las **finalizadas** (activas de
+un periodo ya cerrado, que acreditan haber cursado). Una pendiente no: nadie ha
+confirmado todavía que esa persona esté en el curso.
+
+Quién puede bajarlo va por el vínculo, no por el rol: el propio estudiante,
+dirección, y el profesor **solo el de la promotoría que dicta**. El reunido no se
+le ofrece al profesor porque lista promotorías que la ficha le esconde.
+
+La firma que lo sella se carga en **Gestión → Institución**: imagen, nombre y
+cargo de quien firma. Se guarda en PNG y no en WebP como el resto —el generador
+de PDF no entiende WebP— y, a diferencia del logo, **no se sirve en abierto**:
+una firma escaneada en una URL pública se la lleva cualquiera. Sin firma cargada
+el certificado se genera igual, con el espacio en blanco para firmarlo a mano.
+
+Lo genera `dompdf` (`barryvdh/laravel-dompdf`). Necesita `dom`, `mbstring` y
+`gd`, las tres ya habilitadas en el hosting.
+
 ## Estadísticas
 
 Matrícula por departamento y promotoría con permanencia y deserción, mapa de
@@ -176,7 +201,7 @@ otro huso.
 php artisan test
 ```
 
-275 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+302 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.

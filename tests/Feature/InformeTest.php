@@ -144,6 +144,7 @@ class InformeTest extends TestCase
         $ana = $this->crearEstudiante('ana');
         $grupo = Grupo::create([
             'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes 4-6 p. m.',
             'nivel' => 'basico',
             'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 3',
@@ -362,6 +363,7 @@ class InformeTest extends TestCase
     {
         return Grupo::create([
             'promotoria_id' => $promotoria->id,
+            'nombre' => 'Grupo '.(Grupo::count() + 1),
             'nivel' => $nivel,
             'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 1',
@@ -464,7 +466,7 @@ class InformeTest extends TestCase
 
         $this->actingAs($this->profesor->user)
             ->get(route('informe-estudiantes', ['grupo' => $grupo->id]))
-            ->assertDownload('estudiantes-violin-basico-'.now()->format('Y-m-d').'.csv');
+            ->assertDownload('estudiantes-violin-grupo-1-'.now()->format('Y-m-d').'.csv');
     }
 
     /**

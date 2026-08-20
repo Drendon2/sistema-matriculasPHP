@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PostLoginController;
 use App\Http\Controllers\Auth\RegistroController;
 use App\Http\Controllers\ArchivoController;
+use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ClaseController;
 use App\Http\Controllers\FichaController;
@@ -193,10 +194,36 @@ Route::get('/informes/institucion', [InformeController::class, 'institucion'])
     ->name('informe-institucion');
 
 // ---------------------------------------------------------------------------
+// Certificados de matricula
+// ---------------------------------------------------------------------------
+//
+// Sin `rol:` a proposito, y no es un descuido: quien puede bajar cada
+// certificado NO se decide por el rol sino por el vinculo con la matricula —el
+// propio estudiante, direccion, o el profesor que dicta esa promotoria—, y esa
+// regla vive en `Permisos`. Un middleware de rol aqui dejaria fuera al
+// estudiante, que es quien mas lo usa.
+
+Route::get('/certificado/matricula/{matricula}', [CertificadoController::class, 'matricula'])
+    ->middleware('auth')
+    ->name('certificado-matricula');
+
+Route::get('/certificado/estudiante/{estudiante}', [CertificadoController::class, 'todo'])
+    ->middleware('auth')
+    ->name('certificado-todo');
+
+// ---------------------------------------------------------------------------
 // Archivos servidos de forma controlada (nunca como carpeta publica)
 // ---------------------------------------------------------------------------
 
 Route::get('/logo', [ArchivoController::class, 'logo'])->name('logo-institucion');
+
+// La firma NO va abierta como el logo, y esa es toda la diferencia entre las dos
+// imagenes de la institucion. Una firma escaneada colgada en una URL publica se
+// la lleva cualquiera para estampar el papel que quiera; solo la ve el personal,
+// que es quien la configura y quien la reconoce.
+Route::get('/firma', [ArchivoController::class, 'firma'])
+    ->middleware(['auth', 'rol:administrador,director'])
+    ->name('firma-institucion');
 
 Route::get('/foto/{perfil}', [ArchivoController::class, 'foto'])
     ->middleware('auth')

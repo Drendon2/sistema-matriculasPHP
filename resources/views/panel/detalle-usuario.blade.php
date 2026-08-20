@@ -106,6 +106,17 @@
   <a class="btn btn-secundario btn-sm" href="{{ route('historial-estudiante', $objetivo) }}">
     Ver trayectoria completa
   </a>
+  {{--
+    El certificado que reúne todas las promotorías vigentes. No se le ofrece al
+    profesor —ni siquiera al que tiene a este estudiante en clase— porque lista
+    también las promotorías que esta ficha le esconde. El de UNA matrícula, que
+    es el que a él le pueden pedir, está en la trayectoria.
+  --}}
+  @if (\App\Support\Permisos::puedeCertificarTodo($yo, $objetivo))
+  <a class="btn btn-secundario btn-sm" href="{{ route('certificado-todo', $objetivo) }}">
+    Certificado de matrícula
+  </a>
+  @endif
   @if ($yo->rol === 'administrador')
   <a class="btn btn-secundario btn-sm" href="{{ route('detalle-estudiante', $objetivo) }}">
     Ver encuesta y documento
@@ -135,7 +146,7 @@
       <td>{{ $p->area->nombre }}</td>
       <td>
         @forelse ($p->grupos as $g)
-          {{ $g->nivel_display }} · {{ $g->horario }}@if (! $loop->last)<br>@endif
+          {{ $g->nombre_con_nivel }} · {{ $g->horario }}@if (! $loop->last)<br>@endif
         @empty
           <span class="vacio">Sin grupos creados</span>
         @endforelse

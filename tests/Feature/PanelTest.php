@@ -335,6 +335,7 @@ class PanelTest extends TestCase
     {
         $this->actingAs($this->profesor->user)
             ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
                 'horario' => 'Martes 4 p. m.',
                 'salon' => 'A1',
@@ -345,10 +346,16 @@ class PanelTest extends TestCase
         $this->assertSame(1, $this->violin->grupos()->count());
     }
 
-    public function test_no_hay_dos_grupos_del_mismo_nivel(): void
+    /**
+     * Varios grupos del mismo nivel en una promotoria: el caso corriente cuando
+     * atiende a mucha gente. Ocho Basicos de Guitarra a horas distintas no son
+     * un error, son la semana.
+     */
+    public function test_se_crean_varios_grupos_del_mismo_nivel(): void
     {
         Grupo::create([
             'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
             'horario' => 'Lunes',
             'salon' => 'A1',
@@ -357,14 +364,83 @@ class PanelTest extends TestCase
 
         $this->actingAs($this->profesor->user)
             ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
                 'horario' => 'Martes',
                 'salon' => 'A2',
                 'cupo_maximo' => 5,
             ])
-            ->assertSessionHasErrors('nivel');
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, $this->violin->grupos()->count());
+    }
+
+    /** Lo que NO puede repetirse es el nombre: es lo que distingue uno de otro. */
+    public function test_no_hay_dos_grupos_con_el_mismo_nombre(): void
+    {
+        Grupo::create([
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes tarde',
+            'nivel' => 'basico',
+            'horario' => 'Lunes',
+            'salon' => 'A1',
+            'cupo_maximo' => 5,
+        ]);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Lunes tarde',
+                'nivel' => 'intermedio',
+                'horario' => 'Martes',
+                'salon' => 'A2',
+                'cupo_maximo' => 5,
+            ])
+            ->assertSessionHasErrors('nombre');
 
         $this->assertSame(1, $this->violin->grupos()->count());
+    }
+
+    /** Sin nombre no hay grupo: es lo unico que lo identifica. */
+    public function test_un_grupo_sin_nombre_se_rechaza(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nivel' => 'basico',
+                'horario' => 'Martes',
+                'salon' => 'A2',
+                'cupo_maximo' => 5,
+            ])
+            ->assertSessionHasErrors('nombre');
+
+        $this->assertSame(0, $this->violin->grupos()->count());
+    }
+
+    /**
+     * El mismo nombre en OTRA promotoria si vale: «Martes tarde» de Guitarra y
+     * «Martes tarde» de Danza son dos grupos distintos y nadie los confunde,
+     * porque el nombre solo tiene que distinguir dentro de su promotoria.
+     */
+    public function test_el_mismo_nombre_vale_en_otra_promotoria(): void
+    {
+        Grupo::create([
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Martes tarde',
+            'nivel' => 'basico',
+            'horario' => 'Martes',
+            'salon' => 'A1',
+            'cupo_maximo' => 5,
+        ]);
+
+        $otra = Grupo::create([
+            'promotoria_id' => $this->danza->id,
+            'nombre' => 'Martes tarde',
+            'nivel' => 'basico',
+            'horario' => 'Martes',
+            'salon' => 'B1',
+            'cupo_maximo' => 5,
+        ]);
+
+        $this->assertTrue($otra->exists);
     }
 
     /**
@@ -375,6 +451,7 @@ class PanelTest extends TestCase
     {
         $grupo = Grupo::create([
             'promotoria_id' => $this->violin->id,
+            'nombre' => 'Lunes',
             'nivel' => 'basico',
             'horario' => 'Lunes',
             'salon' => 'A1',
@@ -400,6 +477,7 @@ class PanelTest extends TestCase
     {
         return Grupo::create([
             'promotoria_id' => $this->violin->id,
+            'nombre' => 'Grupo '.(Grupo::count() + 1),
             'nivel' => $nivel,
             'horario' => 'Lunes 4 p. m.',
             'salon' => 'A1',

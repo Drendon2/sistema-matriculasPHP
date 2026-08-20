@@ -5,13 +5,13 @@
 @section('content')
 <p class="migas">
   <a href="{{ route('panel') }}">Panel</a><span class="migas-sep">/</span>
-  <span class="migas-actual">{{ $grupo->promotoria->nombre }} · {{ $grupo->nivel_display }}</span>
+  <span class="migas-actual">{{ $grupo->promotoria->nombre }} · {{ $grupo->nombre }}</span>
 </p>
 
 <h2>Clases dictadas</h2>
 <p class="campo-info">
   <span class="tag-dot {{ $grupo->promotoria->area->tag_color }}"></span>{{ $grupo->promotoria->nombre }} ·
-  {{ $grupo->nivel_display }} · {{ $grupo->horario }} · Salón {{ $grupo->salon }}@if ($periodo) · {{ $periodo->nombre }}@endif
+  {{ $grupo->rotulo }}@if ($periodo) · {{ $periodo->nombre }}@endif
 </p>
 
 {{--
