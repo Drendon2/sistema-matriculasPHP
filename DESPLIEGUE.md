@@ -216,7 +216,7 @@ Ya puedes entrar en http://127.0.0.1:8000 con ese usuario y esa contraseña.
 php artisan test
 ```
 
-Son **275 pruebas** y deben pasar todas. Corren contra la base
+Son **331 pruebas** y deben pasar todas. Corren contra la base
 `test_matriculas`, **no contra la de trabajo**: no tocan tus datos.
 
 Hay además dos guiones que comprueban el esquema contra SQL crudo, incluida la
@@ -348,12 +348,20 @@ cuánta gente cabe.
 
 ## 2.9 Los grupos
 
-**Gestión → Grupos → Nuevo**, o desde el Panel de cada promotoría: nivel,
-horario, salón y cupo máximo del grupo.
+**Gestión → Grupos → Nuevo**, o desde el Panel de cada promotoría: nombre,
+nivel, horario, salón y cupo máximo del grupo.
 
-Los grupos son el horario concreto. El estudiante **no elige grupo** al
-matricularse: se matricula en la promotoría y quien la dicta le asigna un grupo
-después.
+Lo que identifica al grupo es su **nombre**, único dentro de la promotoría. Una
+promotoría puede tener varios grupos del mismo nivel —ocho Básicos de Guitarra a
+horas distintas son la semana normal de una casa que atiende a mucha gente—, y
+ahí «Básico» no dice cuál es cuál.
+
+El **horario** se pone marcando días en una rejilla de lunes a sábado, con hora
+de inicio y de fin. Un grupo puede reunirse varios días; uno solo por día. De
+ahí sale la rejilla semanal que cada quien ve en su perfil.
+
+El estudiante **no elige grupo** al matricularse: se matricula en la promotoría y
+quien la dicta le asigna un grupo después.
 
 ## 2.10 Abrir las matrículas
 
@@ -587,7 +595,7 @@ php artisan view:cache
 El repositorio trae un flujo de trabajo, `.github/workflows/desplegar.yml`, que
 en cada `push` a `main`:
 
-1. Levanta MariaDB y corre **las 275 pruebas**.
+1. Levanta MariaDB y corre **las 331 pruebas**.
 2. **Solo si pasan todas**, entra por SSH al servidor y ejecuta `desplegar.sh`.
 
 Esa segunda condición es el motivo de que exista. Un `git pull` automático sin
@@ -824,7 +832,7 @@ hora mirando registros.
 
 ## Trabajar a partir de ahora
 
-Escribir, probar en local, `git push origin main`. GitHub corre las 275 pruebas
+Escribir, probar en local, `git push origin main`. GitHub corre las 331 pruebas
 y solo despliega si pasan todas.
 
 Dos reglas para que siga funcionando:

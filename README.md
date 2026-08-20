@@ -12,10 +12,11 @@ No es una traducción automática de código: son las mismas reglas de negocio y
 mismas pantallas, reimplementadas sobre otra pila. El proyecto Django sigue siendo
 la especificación funcional de referencia.
 
-> **Estado: reconstrucción completa y auditada.** Las tres áreas del sistema
-> —autoservicio del estudiante, panel de quien dicta y gestión de dirección—
-> están terminadas y probadas, con 275 pruebas en verde. Falta el despliegue en
-> el servidor.
+> **Estado: en producción.** Las tres áreas del sistema —autoservicio del
+> estudiante, panel de quien dicta y gestión de dirección— están terminadas,
+> probadas y auditadas, con 331 pruebas en verde. Desplegado en
+> https://escuelas.culturaelsantuario.com, con despliegue automático desde
+> GitHub: cada `push` a `main` corre las pruebas y solo sube si pasan.
 
 ## Stack
 
