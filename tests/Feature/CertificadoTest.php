@@ -325,7 +325,6 @@ class CertificadoTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Martes 4:00 p. m.',
             'nivel' => 'basico',
-            'horario' => 'Martes 4:00 p. m.',
             'salon' => '3',
             'cupo_maximo' => 10,
         ]);

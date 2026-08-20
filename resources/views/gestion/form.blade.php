@@ -16,6 +16,18 @@
   @csrf
 
   @foreach ($campos as $campo => $spec)
+  {{--
+    El horario del grupo no es una columna sino filas aparte, así que trae su
+    propio parcial —el mismo que usa el Panel— en vez de pasar por los tipos de
+    campo de aquí abajo.
+  --}}
+  @if ($spec['tipo'] === 'sesiones')
+    @include('partials.sesiones-form', [
+      'sesiones' => \App\Support\HorarioDeGrupo::paraElFormulario($objeto),
+    ])
+    @continue
+  @endif
+
   @php($valor = old($campo, $spec['valor'] ?? $objeto->{$campo}))
   <div class="field">
     <label for="{{ $campo }}">{{ $spec['etiqueta'] }}</label>

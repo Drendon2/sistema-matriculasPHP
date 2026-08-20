@@ -337,7 +337,7 @@ class PanelTest extends TestCase
             ->post(route('panel-grupo-nuevo', $this->violin), [
                 'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
-                'horario' => 'Martes 4 p. m.',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
                 'salon' => 'A1',
                 'cupo_maximo' => 10,
             ])
@@ -357,7 +357,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
-            'horario' => 'Lunes',
             'salon' => 'A1',
             'cupo_maximo' => 5,
         ]);
@@ -366,7 +365,7 @@ class PanelTest extends TestCase
             ->post(route('panel-grupo-nuevo', $this->violin), [
                 'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
-                'horario' => 'Martes',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
                 'salon' => 'A2',
                 'cupo_maximo' => 5,
             ])
@@ -382,7 +381,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
-            'horario' => 'Lunes',
             'salon' => 'A1',
             'cupo_maximo' => 5,
         ]);
@@ -391,7 +389,7 @@ class PanelTest extends TestCase
             ->post(route('panel-grupo-nuevo', $this->violin), [
                 'nombre' => 'Lunes tarde',
                 'nivel' => 'intermedio',
-                'horario' => 'Martes',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
                 'salon' => 'A2',
                 'cupo_maximo' => 5,
             ])
@@ -406,7 +404,7 @@ class PanelTest extends TestCase
         $this->actingAs($this->profesor->user)
             ->post(route('panel-grupo-nuevo', $this->violin), [
                 'nivel' => 'basico',
-                'horario' => 'Martes',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
                 'salon' => 'A2',
                 'cupo_maximo' => 5,
             ])
@@ -426,7 +424,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Martes tarde',
             'nivel' => 'basico',
-            'horario' => 'Martes',
             'salon' => 'A1',
             'cupo_maximo' => 5,
         ]);
@@ -435,7 +432,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->danza->id,
             'nombre' => 'Martes tarde',
             'nivel' => 'basico',
-            'horario' => 'Martes',
             'salon' => 'B1',
             'cupo_maximo' => 5,
         ]);
@@ -453,7 +449,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes',
             'nivel' => 'basico',
-            'horario' => 'Lunes',
             'salon' => 'A1',
             'cupo_maximo' => 5,
         ]);
@@ -479,7 +474,6 @@ class PanelTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Grupo '.(Grupo::count() + 1),
             'nivel' => $nivel,
-            'horario' => 'Lunes 4 p. m.',
             'salon' => 'A1',
             'cupo_maximo' => $cupo,
         ]);

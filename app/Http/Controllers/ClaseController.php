@@ -91,7 +91,7 @@ class ClaseController extends Controller
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
 
-        $clase->load(['grupo.promotoria.area', 'periodo']);
+        $clase->load(['grupo.promotoria.area', 'grupo.sesiones', 'periodo']);
 
         if (! Permisos::puedeGestionarPromotoria($perfil, $clase->grupo->promotoria)) {
             return redirect()->route('panel')->with('error', 'No tienes acceso a esta promotoría.');

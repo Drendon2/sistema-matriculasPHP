@@ -31,12 +31,7 @@
     @error('nivel')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
 
-  <div class="field">
-    <label for="horario">Horario</label>
-    <input type="text" name="horario" id="horario" maxlength="60" required
-           value="{{ old('horario', $grupo->horario) }}" placeholder="Martes y jueves 4:00–6:00 p. m.">
-    @error('horario')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
-  </div>
+  @include('partials.sesiones-form', ['sesiones' => $sesiones])
 
   <div class="field">
     <label for="salon">Salón</label>

@@ -105,6 +105,26 @@ CSV y no `.xlsx` a propósito: un `.xlsx` real pediría `phpoffice/phpspreadshee
 compartido. Llevan BOM UTF‑8 y separador `;`, que es lo que hace que Excel en
 español los abra con las tildes bien y en columnas.
 
+## Horario de los grupos
+
+El horario de un grupo son **datos y no texto**: una fila por sesión en
+`sesiones_grupo`, con día (1 = lunes … 6 = sábado), hora de inicio y hora de
+fin. Un grupo puede reunirse varios días —«Martes y jueves 4:00 p. m. a 6:00
+p. m.»— con un máximo de una sesión por día.
+
+Se crea marcando días en una rejilla, la misma en el Panel y en Gestión. El
+motor no admite una sesión que termine antes de empezar, ni dos el mismo día,
+ni el domingo.
+
+El texto del horario se **deriva** de las sesiones y no se guarda: cuando
+existían las dos cosas acababan discrepando, y entonces no hay forma de saber
+cuál miente. Los días que comparten hora se enuncian juntos, que es como lo dice
+la gente.
+
+De ahí sale la **rejilla semanal del perfil**: al estudiante los grupos donde
+está repartido, a quien dicta los grupos que da, siempre del periodo en curso.
+Las filas son las franjas que de verdad se usan y no las horas del reloj.
+
 ## Certificado de matrícula
 
 Un PDF que acredita que alguien está matriculado, para llevar a un colegio o a
@@ -201,7 +221,7 @@ otro huso.
 php artisan test
 ```
 
-302 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+331 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.

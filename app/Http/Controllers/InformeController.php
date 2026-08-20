@@ -81,7 +81,10 @@ class InformeController extends Controller
             ->with([
                 'estudiante.datosEstudiante.acudiente',
                 'promotoria.area',
-                'grupo',
+                // Con las sesiones: el horario se deriva de ellas, y sin
+                // traerlas aqui el informe pregunta una vez por fila. Este
+                // informe se recorre con `lazy()` y puede ser de cientos.
+                'grupo.sesiones',
             ])
             ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
@@ -298,7 +301,7 @@ class InformeController extends Controller
                     ->when($periodo, fn ($sub) => $sub->where('periodo_id', $periodo->id))
                     ->when($periodo === null, fn ($sub) => $sub->whereRaw('1 = 0')),
                 'matriculas.promotoria.area',
-                'matriculas.grupo',
+                'matriculas.grupo.sesiones',
                 'matriculas.periodo',
             ])
             ->orderBy('rol')

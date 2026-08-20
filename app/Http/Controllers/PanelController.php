@@ -92,7 +92,7 @@ class PanelController extends Controller
             404
         );
 
-        $promotoria->load(['area', 'profesor', 'grupos', 'cupos']);
+        $promotoria->load(['area', 'profesor', 'grupos.sesiones', 'cupos']);
         $periodo = Periodo::enCurso();
 
         return view('panel.item', [

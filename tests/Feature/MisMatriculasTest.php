@@ -181,7 +181,7 @@ class MisMatriculasTest extends TestCase
     {
         $grupo = Grupo::create([
             'promotoria_id' => $this->violin->id, 'nombre' => 'Lun 8am', 'nivel' => 'basico',
-            'horario' => 'Lun 8am', 'salon' => 'A1', 'cupo_maximo' => 10,
+            'salon' => 'A1', 'cupo_maximo' => 10,
         ]);
 
         $matricula = $this->matricular($this->violin, Matricula::PENDIENTE);

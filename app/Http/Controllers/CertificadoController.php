@@ -44,7 +44,7 @@ class CertificadoController extends Controller
         // asunto de quien pregunta. Misma linea que las fotos.
         abort_unless(Permisos::puedeCertificarMatricula($solicitante, $matricula), 404);
 
-        $matricula->load(['estudiante.datosEstudiante', 'promotoria.area', 'promotoria.profesor', 'grupo', 'periodo']);
+        $matricula->load(['estudiante.datosEstudiante', 'promotoria.area', 'promotoria.profesor', 'grupo.sesiones', 'periodo']);
 
         abort_unless($this->esCertificable($matricula), 404, 'Esta matrícula no se puede certificar.');
 
@@ -89,7 +89,7 @@ class CertificadoController extends Controller
             return $sinNada('No hay ningún periodo en curso, así que no hay matrícula vigente que certificar.');
         }
 
-        $matriculas = Matricula::with(['promotoria.area', 'promotoria.profesor', 'grupo'])
+        $matriculas = Matricula::with(['promotoria.area', 'promotoria.profesor', 'grupo.sesiones'])
             ->where('estudiante_id', $estudiante->id)
             ->where('periodo_id', $periodo->id)
             ->where('estado', Matricula::ACTIVA)

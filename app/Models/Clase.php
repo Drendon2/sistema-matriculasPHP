@@ -261,7 +261,7 @@ class Clase extends Model
         $clases = static::query()
             ->where('periodo_id', $periodo->id)
             ->whereIn('grupo_id', $matriculas->keys())
-            ->with(['grupo.promotoria.area'])
+            ->with(['grupo.promotoria.area', 'grupo.sesiones'])
             ->withCount('confirmaciones')
             ->orderByDesc('fecha_hora')
             ->get();

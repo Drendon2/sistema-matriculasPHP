@@ -1,0 +1,520 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Area;
+use App\Models\DatosEstudiante;
+use App\Models\Grupo;
+use App\Models\Matricula;
+use App\Models\Perfil;
+use App\Models\Periodo;
+use App\Models\Promotoria;
+use App\Models\SesionGrupo;
+use App\Models\User;
+use App\Support\HorarioSemanal;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+/**
+ * El horario de los grupos: dias y horas de verdad, y la rejilla semanal que
+ * sale de ellos.
+ *
+ * Lo que se prueba aqui es que el horario dejo de ser prosa. Antes era un
+ * varchar que cada quien escribia como queria, y con eso no se puede construir
+ * una semana ni detectar un cruce.
+ */
+class HorarioTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Periodo $periodo;
+
+    private Promotoria $violin;
+
+    private Promotoria $danza;
+
+    private Perfil $profesor;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->periodo = Periodo::create([
+            'nombre' => '2026-1',
+            'fecha_inicio' => '2026-01-15',
+            'fecha_fin' => '2026-06-30',
+            'activo' => true,
+            'matriculas_abiertas' => true,
+        ]);
+
+        $musica = Area::create(['nombre' => 'Musica']);
+        $this->profesor = $this->crearPerfil('profe', 'profesor');
+        $this->violin = Promotoria::create([
+            'nombre' => 'Violin', 'area_id' => $musica->id, 'profesor_id' => $this->profesor->id,
+        ]);
+        $this->danza = Promotoria::create(['nombre' => 'Danza', 'area_id' => $musica->id]);
+    }
+
+    private function crearPerfil(string $username, string $rol): Perfil
+    {
+        $user = User::create(['username' => $username, 'password' => 'x', 'activo' => true]);
+
+        $perfil = Perfil::create([
+            'user_id' => $user->id,
+            'rol' => $rol,
+            'nombre_completo' => ucfirst($username),
+            'fecha_nacimiento' => Carbon::today()->subYears(25)->toDateString(),
+            'telefono' => '3000000000',
+        ]);
+
+        if ($rol === 'estudiante') {
+            DatosEstudiante::create([
+                'perfil_id' => $perfil->id,
+                'documento_identidad' => '10'.$perfil->id,
+            ]);
+        }
+
+        return $perfil->refresh();
+    }
+
+    private function crearGrupo(Promotoria $promotoria, string $nombre, array $sesiones): Grupo
+    {
+        $grupo = Grupo::create([
+            'promotoria_id' => $promotoria->id,
+            'nombre' => $nombre,
+            'nivel' => 'basico',
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ]);
+
+        foreach ($sesiones as [$dia, $desde, $hasta]) {
+            SesionGrupo::create([
+                'grupo_id' => $grupo->id,
+                'dia' => $dia,
+                'hora_inicio' => $desde,
+                'hora_fin' => $hasta,
+            ]);
+        }
+
+        return $grupo->refresh();
+    }
+
+    // -----------------------------------------------------------------------
+    // El horario del grupo
+    // -----------------------------------------------------------------------
+
+    public function test_un_grupo_de_un_solo_dia_se_lee_en_doce_horas(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        $this->assertSame('Martes 4:00 p. m. a 6:00 p. m.', $grupo->horario);
+    }
+
+    /** Los dias que comparten hora se juntan: es como lo dice la gente. */
+    public function test_dos_dias_a_la_misma_hora_se_enuncian_juntos(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Martes y jueves', [
+            [2, '16:00', '18:00'],
+            [4, '16:00', '18:00'],
+        ]);
+
+        $this->assertSame('Martes y jueves 4:00 p. m. a 6:00 p. m.', $grupo->horario);
+    }
+
+    public function test_dos_dias_a_horas_distintas_se_enuncian_por_separado(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Semana', [
+            [1, '08:00', '10:00'],
+            [3, '16:00', '18:00'],
+        ]);
+
+        $this->assertSame(
+            'Lunes 8:00 a. m. a 10:00 a. m. · Miércoles 4:00 p. m. a 6:00 p. m.',
+            $grupo->horario
+        );
+    }
+
+    /** El mediodia se dice «12:00 m.» y no «12:00 p. m.». */
+    public function test_el_mediodia_se_escribe_como_se_dice(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Mediodia', [[5, '10:00', '12:00']]);
+
+        $this->assertSame('Viernes 10:00 a. m. a 12:00 m.', $grupo->horario);
+    }
+
+    public function test_las_sesiones_salen_en_orden_de_semana(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Desordenado', [
+            [6, '09:00', '11:00'],
+            [1, '09:00', '11:00'],
+            [4, '09:00', '11:00'],
+        ]);
+
+        $this->assertSame([1, 4, 6], $grupo->sesiones->pluck('dia')->all());
+    }
+
+    // -----------------------------------------------------------------------
+    // Lo que el motor no deja pasar
+    // -----------------------------------------------------------------------
+
+    public function test_una_sesion_que_termina_antes_de_empezar_se_rechaza(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        SesionGrupo::create([
+            'grupo_id' => $grupo->id, 'dia' => 3, 'hora_inicio' => '18:00', 'hora_fin' => '16:00',
+        ]);
+    }
+
+    public function test_un_grupo_no_puede_tener_dos_sesiones_el_mismo_dia(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        SesionGrupo::create([
+            'grupo_id' => $grupo->id, 'dia' => 2, 'hora_inicio' => '19:00', 'hora_fin' => '21:00',
+        ]);
+    }
+
+    /** El domingo no existe: la casa no abre. */
+    public function test_el_dia_siete_se_rechaza(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        SesionGrupo::create([
+            'grupo_id' => $grupo->id, 'dia' => 7, 'hora_inicio' => '09:00', 'hora_fin' => '11:00',
+        ]);
+    }
+
+    /** Al borrar el grupo se van sus sesiones: solas no significan nada. */
+    public function test_borrar_el_grupo_se_lleva_sus_sesiones(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Efimero', [[2, '16:00', '18:00'], [4, '16:00', '18:00']]);
+
+        $this->assertSame(2, DB::table('sesiones_grupo')->where('grupo_id', $grupo->id)->count());
+
+        $grupo->delete();
+
+        $this->assertSame(0, DB::table('sesiones_grupo')->where('grupo_id', $grupo->id)->count());
+    }
+
+    // -----------------------------------------------------------------------
+    // Cruces
+    // -----------------------------------------------------------------------
+
+    public function test_dos_franjas_del_mismo_dia_que_se_pisan_se_detectan(): void
+    {
+        $a = new SesionGrupo(['dia' => 2, 'hora_inicio' => '16:00', 'hora_fin' => '18:00']);
+        $b = new SesionGrupo(['dia' => 2, 'hora_inicio' => '17:00', 'hora_fin' => '19:00']);
+
+        $this->assertTrue($a->seCruzaCon($b));
+        $this->assertTrue($b->seCruzaCon($a));
+    }
+
+    /** Tocarse por un extremo no es cruzarse: caben seguidas en la misma tarde. */
+    public function test_una_clase_que_empieza_cuando_acaba_la_otra_no_se_cruza(): void
+    {
+        $a = new SesionGrupo(['dia' => 2, 'hora_inicio' => '16:00', 'hora_fin' => '18:00']);
+        $b = new SesionGrupo(['dia' => 2, 'hora_inicio' => '18:00', 'hora_fin' => '20:00']);
+
+        $this->assertFalse($a->seCruzaCon($b));
+    }
+
+    public function test_la_misma_hora_en_dias_distintos_no_se_cruza(): void
+    {
+        $a = new SesionGrupo(['dia' => 2, 'hora_inicio' => '16:00', 'hora_fin' => '18:00']);
+        $b = new SesionGrupo(['dia' => 3, 'hora_inicio' => '16:00', 'hora_fin' => '18:00']);
+
+        $this->assertFalse($a->seCruzaCon($b));
+    }
+
+    // -----------------------------------------------------------------------
+    // La rejilla semanal
+    // -----------------------------------------------------------------------
+
+    public function test_el_estudiante_ve_los_grupos_donde_esta_repartido(): void
+    {
+        $estudiante = $this->crearPerfil('ana', 'estudiante');
+        $grupo = $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        $matricula = Matricula::create([
+            'estudiante_id' => $estudiante->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $horario = HorarioSemanal::de($estudiante->refresh(), $this->periodo);
+
+        $this->assertNotNull($horario);
+        $this->assertCount(1, $horario['franjas']);
+        $this->assertSame('4:00 a 6:00 p. m.', $horario['franjas'][0]['etiqueta']);
+        // Martes ocupado, lunes libre.
+        $this->assertCount(1, $horario['franjas'][0]['celdas'][2]);
+        $this->assertSame([], $horario['franjas'][0]['celdas'][1]);
+        $this->assertSame('Violin', $horario['franjas'][0]['celdas'][2][0]['titulo']);
+    }
+
+    /** Sin grupo asignado no hay horario: todavia no tiene dónde estar. */
+    public function test_una_matricula_sin_grupo_no_pinta_horario(): void
+    {
+        $estudiante = $this->crearPerfil('ana', 'estudiante');
+        $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        Matricula::create([
+            'estudiante_id' => $estudiante->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+
+        $this->assertNull(HorarioSemanal::de($estudiante->refresh(), $this->periodo));
+    }
+
+    /** Quien dicta ve los grupos de SUS promotorias, y solo esos. */
+    public function test_quien_dicta_ve_sus_grupos_y_no_los_ajenos(): void
+    {
+        $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+        $this->crearGrupo($this->danza, 'Jueves tarde', [[4, '16:00', '18:00']]);
+
+        $horario = HorarioSemanal::de($this->profesor, $this->periodo);
+
+        $this->assertNotNull($horario);
+        $this->assertCount(1, $horario['franjas']);
+        $this->assertCount(1, $horario['franjas'][0]['celdas'][2]);
+        // El jueves es de Danza, que dicta otra persona.
+        $this->assertSame([], $horario['franjas'][0]['celdas'][4]);
+    }
+
+    /** Un grupo de dos dias ocupa dos sitios en la semana. */
+    public function test_un_grupo_de_dos_dias_ocupa_los_dos(): void
+    {
+        $this->crearGrupo($this->violin, 'Martes y jueves', [
+            [2, '16:00', '18:00'],
+            [4, '16:00', '18:00'],
+        ]);
+
+        $horario = HorarioSemanal::de($this->profesor, $this->periodo);
+
+        $this->assertCount(1, $horario['franjas']);
+        $this->assertCount(1, $horario['franjas'][0]['celdas'][2]);
+        $this->assertCount(1, $horario['franjas'][0]['celdas'][4]);
+    }
+
+    /**
+     * Dos clases a la misma hora el mismo dia se ENSEÑAN las dos. Para quien
+     * dicta eso es un problema suyo que conviene ver, no esconder.
+     */
+    public function test_dos_grupos_a_la_misma_hora_se_ven_los_dos(): void
+    {
+        $otra = Promotoria::create([
+            'nombre' => 'Guitarra',
+            'area_id' => $this->violin->area_id,
+            'profesor_id' => $this->profesor->id,
+        ]);
+
+        $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+        $this->crearGrupo($otra, 'Martes tarde tambien', [[2, '16:00', '18:00']]);
+
+        $horario = HorarioSemanal::de($this->profesor, $this->periodo);
+
+        $this->assertCount(1, $horario['franjas']);
+        $this->assertCount(2, $horario['franjas'][0]['celdas'][2]);
+    }
+
+    public function test_las_franjas_salen_ordenadas_por_hora(): void
+    {
+        $this->crearGrupo($this->violin, 'Tarde', [[2, '16:00', '18:00']]);
+        $this->crearGrupo($this->violin, 'Manana', [[3, '08:00', '10:00']]);
+
+        $horario = HorarioSemanal::de($this->profesor, $this->periodo);
+
+        $this->assertSame('8:00 a 10:00 a. m.', $horario['franjas'][0]['etiqueta']);
+        $this->assertSame('4:00 a 6:00 p. m.', $horario['franjas'][1]['etiqueta']);
+    }
+
+    public function test_sin_periodo_en_curso_no_hay_horario(): void
+    {
+        $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        $this->assertNull(HorarioSemanal::de($this->profesor, null));
+    }
+
+    // -----------------------------------------------------------------------
+    // En pantalla
+    // -----------------------------------------------------------------------
+
+    public function test_el_perfil_del_estudiante_pinta_su_horario(): void
+    {
+        $estudiante = $this->crearPerfil('ana', 'estudiante');
+        $grupo = $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        $matricula = Matricula::create([
+            'estudiante_id' => $estudiante->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $this->actingAs($estudiante->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('Mi horario', false)
+            ->assertSee('Sáb', false)
+            ->assertSee('4:00 a 6:00 p. m.', false);
+    }
+
+    public function test_el_perfil_de_quien_dicta_pinta_su_horario(): void
+    {
+        $this->crearGrupo($this->violin, 'Martes tarde', [[2, '16:00', '18:00']]);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('Mi horario de clases', false);
+    }
+
+    /** Sin nada que hacer esta semana, la seccion no aparece. */
+    public function test_sin_grupos_el_perfil_no_pinta_rejilla(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertDontSee('Mi horario', false);
+    }
+
+    // -----------------------------------------------------------------------
+    // Los formularios
+    // -----------------------------------------------------------------------
+
+    public function test_se_crea_un_grupo_de_dos_dias_desde_el_panel(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Martes y jueves',
+                'nivel' => 'basico',
+                'sesiones' => [
+                    2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'],
+                    4 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'],
+                ],
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHas('success');
+
+        $grupo = Grupo::where('nombre', 'Martes y jueves')->first();
+
+        $this->assertSame(2, $grupo->sesiones()->count());
+        $this->assertSame('Martes y jueves 4:00 p. m. a 6:00 p. m.', $grupo->horario);
+    }
+
+    public function test_un_grupo_sin_ningun_dia_marcado_se_rechaza(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Sin horario',
+                'nivel' => 'basico',
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHasErrors('sesiones');
+
+        $this->assertSame(0, Grupo::where('nombre', 'Sin horario')->count());
+    }
+
+    public function test_una_hora_de_fin_anterior_a_la_de_inicio_se_rechaza(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Al reves',
+                'nivel' => 'basico',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '18:00', 'hasta' => '16:00']],
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHasErrors('sesiones.2.hasta');
+
+        // Y no queda un grupo a medias: el horario se comprueba antes de crear.
+        $this->assertSame(0, Grupo::where('nombre', 'Al reves')->count());
+    }
+
+    public function test_un_dia_marcado_sin_hora_se_rechaza(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'A medias',
+                'nivel' => 'basico',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '', 'hasta' => '']],
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHasErrors('sesiones.2.desde');
+    }
+
+    /** Editar el horario quita los dias que se desmarcan. */
+    public function test_al_editar_se_quitan_los_dias_desmarcados(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'Martes y jueves', [
+            [2, '16:00', '18:00'],
+            [4, '16:00', '18:00'],
+        ]);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-editar', $grupo), [
+                'nombre' => 'Solo martes',
+                'nivel' => 'basico',
+                'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame([2], $grupo->refresh()->sesiones->pluck('dia')->all());
+    }
+
+    /** El formulario de Gestion sigue las mismas reglas que el del Panel. */
+    public function test_gestion_crea_un_grupo_con_horario(): void
+    {
+        $director = $this->crearPerfil('dire', 'director');
+
+        $this->actingAs($director->user)->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Sabado manana',
+            'nivel' => 'basico',
+            'sesiones' => [6 => ['activo' => 1, 'desde' => '09:00', 'hasta' => '11:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $grupo = Grupo::where('nombre', 'Sabado manana')->first();
+
+        $this->assertNotNull($grupo);
+        $this->assertSame('Sábado 9:00 a. m. a 11:00 a. m.', $grupo->horario);
+    }
+
+    public function test_gestion_rechaza_un_grupo_sin_horario(): void
+    {
+        $director = $this->crearPerfil('dire', 'director');
+
+        $this->actingAs($director->user)->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Sin horas',
+            'nivel' => 'basico',
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHasErrors('sesiones');
+
+        $this->assertSame(0, Grupo::where('nombre', 'Sin horas')->count());
+    }
+}

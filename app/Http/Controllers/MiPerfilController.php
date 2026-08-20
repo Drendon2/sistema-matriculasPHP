@@ -10,6 +10,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
@@ -85,6 +86,11 @@ class MiPerfilController extends Controller
             // —o no ser estudiante— quita la seccion entera: un boton que baja
             // un papel en blanco es peor que no tener boton.
             'certificables' => $esEstudiante ? $this->certificables($perfil) : 0,
+            // La rejilla semanal va SIEMPRE del periodo en curso, aunque las
+            // flechas del panel de asistencia esten mirando otro: un horario
+            // dice donde estar esta semana, y el de hace dos semestres no le
+            // sirve a nadie para nada.
+            'horario' => HorarioSemanal::de($perfil, Periodo::enCurso()),
             'periodo' => $periodo,
             // Las flechas del panel de asistencia. Conservan el resto de la URL
             // vacio a proposito: esta pantalla no tiene otros parametros.

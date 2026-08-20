@@ -113,8 +113,14 @@ abstract class RecursoController extends Controller
     public function guardar(Request $request): RedirectResponse
     {
         $modelo = $this->modelo();
-        $objeto = new $modelo($request->validate($this->reglas($request, null)));
+        $datos = $request->validate($this->reglas($request, null));
+        // Todo lo que pueda rechazar el formulario se comprueba ANTES de
+        // escribir: si esto lanza, no queda un registro a medias en la base.
+        $extra = $this->validarExtra($request, null);
+
+        $objeto = new $modelo($datos);
         $objeto->save();
+        $this->despuesDeGuardar($objeto, $extra);
 
         return redirect($this->urlExito($objeto))->with('success', $this->textos()['creado']);
     }
@@ -137,10 +143,40 @@ abstract class RecursoController extends Controller
     public function actualizar(Request $request, string $id): RedirectResponse
     {
         $objeto = $this->buscar($id);
-        $objeto->fill($request->validate($this->reglas($request, $objeto)));
+        $datos = $request->validate($this->reglas($request, $objeto));
+        $extra = $this->validarExtra($request, $objeto);
+
+        $objeto->fill($datos);
         $objeto->save();
+        $this->despuesDeGuardar($objeto, $extra);
 
         return redirect($this->urlExito($objeto))->with('success', $this->textos()['actualizado']);
+    }
+
+    /**
+     * Comprueba lo que no cabe en `reglas()` y devuelve lo que haga falta para
+     * guardarlo despues.
+     *
+     * Corre ANTES de escribir nada y puede lanzar `ValidationException`: es lo
+     * que permite que un horario mal puesto rebote el formulario sin dejar
+     * creado un grupo sin horas.
+     */
+    protected function validarExtra(Request $request, ?Model $objeto): mixed
+    {
+        return null;
+    }
+
+    /**
+     * Guarda lo que va ADEMAS de las columnas del propio registro.
+     *
+     * Vacio para tres de los cuatro catalogos, que son columnas y nada mas. El
+     * grupo lo usa para su horario, que vive en filas aparte. Corre con el
+     * objeto ya guardado, que es cuando tiene id al que colgar esas filas, y
+     * recibe lo que `validarExtra()` ya dio por bueno.
+     */
+    protected function despuesDeGuardar(Model $objeto, mixed $extra): void
+    {
+        //
     }
 
     /**

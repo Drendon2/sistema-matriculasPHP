@@ -33,7 +33,6 @@ class Grupo extends Model
         'promotoria_id',
         'nombre',
         'nivel',
-        'horario',
         'salon',
         'cupo_maximo',
     ];
@@ -60,6 +59,19 @@ class Grupo extends Model
         return $this->hasMany(Clase::class);
     }
 
+    /**
+     * Los encuentros semanales, en orden de semana.
+     *
+     * Ordenadas aqui y no en cada consulta: un horario que salga «jueves,
+     * lunes» no esta mal por poco, esta mal.
+     */
+    public function sesiones(): HasMany
+    {
+        return $this->hasMany(SesionGrupo::class, 'grupo_id')
+            ->orderBy('dia')
+            ->orderBy('hora_inicio');
+    }
+
     public function getNivelDisplayAttribute(): string
     {
         return self::NIVELES[$this->nivel] ?? $this->nivel;
@@ -75,6 +87,53 @@ class Grupo extends Model
      * El salon va al final y solo si lo hay: es lo unico que puede faltar en la
      * practica, y una linea que termine en un separador suelto se ve rota.
      */
+    /**
+     * El horario como texto, armado desde las sesiones.
+     *
+     * Se DERIVA y no se guarda: cuando existian las dos cosas —la columna de
+     * texto y las horas— acababan discrepando al primer descuido, y entonces no
+     * hay forma de saber cual de las dos miente.
+     *
+     * Los dias que comparten hora se juntan («Martes y jueves 4:00 p. m. a 6:00
+     * p. m.») porque es como lo dice la gente, y repetir la hora en cada dia
+     * hace una linea que nadie lee entera.
+     */
+    public function getHorarioAttribute(): string
+    {
+        $sesiones = $this->sesiones;
+
+        if ($sesiones->isEmpty()) {
+            return '';
+        }
+
+        return $sesiones
+            ->groupBy(fn (SesionGrupo $s) => $s->hora_inicio.'-'.$s->hora_fin)
+            ->map(function ($delMismoHorario) {
+                $dias = $delMismoHorario->map(fn (SesionGrupo $s) => $s->dia_display)->all();
+                $primera = $delMismoHorario->first();
+
+                return $this->enumerar($dias)
+                    ." {$primera->inicio_display} a {$primera->fin_display}";
+            })
+            ->implode(' · ');
+    }
+
+    /** «Lunes», «Lunes y jueves», «Lunes, martes y jueves». */
+    private function enumerar(array $dias): string
+    {
+        if (count($dias) === 1) {
+            return $dias[0];
+        }
+
+        $ultimo = array_pop($dias);
+
+        // Los dias que no van primero se escriben en minuscula: «Martes y
+        // jueves», no «Martes y Jueves».
+        $previos = implode(', ', $dias);
+
+        return $previos.' y '.mb_strtolower($ultimo);
+    }
+
     public function getRotuloAttribute(): string
     {
         $partes = [$this->nombre_con_nivel, $this->horario];

@@ -420,7 +420,6 @@ class GestionTest extends TestCase
             'promotoria_id' => $sinMatriculas->id,
             'nombre' => 'Lunes',
             'nivel' => 'basico',
-            'horario' => 'Lunes',
             'salon' => 'A1',
             'cupo_maximo' => 5,
         ]);
@@ -1103,7 +1102,6 @@ class GestionTest extends TestCase
                 'promotoria_id' => $this->violin->id,
                 'nombre' => 'Lunes tarde',
                 'nivel' => 'basico',
-                'horario' => 'Lunes 4-6 p. m.',
                 'salon' => 'Salon 1',
                 'cupo_maximo' => 10,
             ]),
@@ -1111,7 +1109,6 @@ class GestionTest extends TestCase
                 'promotoria_id' => $ballet->id,
                 'nombre' => 'Martes tarde',
                 'nivel' => 'basico',
-                'horario' => 'Martes 4-6 p. m.',
                 'salon' => 'Salon 2',
                 'cupo_maximo' => 10,
             ]),
@@ -1171,7 +1168,6 @@ class GestionTest extends TestCase
             'promotoria_id' => $huerfana->id,
             'nombre' => 'Viernes tarde',
             'nivel' => 'basico',
-            'horario' => 'Viernes 4-6 p. m.',
             'salon' => 'Salon 3',
             'cupo_maximo' => 10,
         ]);
@@ -1197,7 +1193,7 @@ class GestionTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
-            'horario' => 'Lunes 4-6 p. m.',
+            'sesiones' => [1 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
             'salon' => 'Salon 1',
             'cupo_maximo' => 10,
         ]);
@@ -1206,7 +1202,7 @@ class GestionTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Jueves tarde',
             'nivel' => 'basico',
-            'horario' => 'Jueves 4-6 p. m.',
+            'sesiones' => [4 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
             'salon' => 'Salon 1',
             'cupo_maximo' => 10,
         ]);
@@ -1224,7 +1220,6 @@ class GestionTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
-            'horario' => 'Lunes',
             'salon' => 'Salon 1',
             'cupo_maximo' => 10,
         ]);
@@ -1234,7 +1229,7 @@ class GestionTest extends TestCase
                 'promotoria_id' => $this->violin->id,
                 'nombre' => 'Lunes tarde',
                 'nivel' => 'avanzado',
-                'horario' => 'Jueves',
+                'sesiones' => [4 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
                 'salon' => 'Salon 2',
                 'cupo_maximo' => 10,
             ])
@@ -1333,7 +1328,6 @@ class GestionTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes 4-6 p. m.',
             'nivel' => 'basico',
-            'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 1',
             'cupo_maximo' => 20,
         ]);

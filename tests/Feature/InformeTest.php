@@ -146,7 +146,6 @@ class InformeTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes 4-6 p. m.',
             'nivel' => 'basico',
-            'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 3',
             'cupo_maximo' => 10,
         ]);
@@ -365,7 +364,6 @@ class InformeTest extends TestCase
             'promotoria_id' => $promotoria->id,
             'nombre' => 'Grupo '.(Grupo::count() + 1),
             'nivel' => $nivel,
-            'horario' => 'Lunes 4-6 p. m.',
             'salon' => 'Salon 1',
             'cupo_maximo' => 10,
         ]);

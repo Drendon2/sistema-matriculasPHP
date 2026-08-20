@@ -6,6 +6,7 @@ use App\Models\Grupo;
 use App\Models\Perfil;
 use App\Models\Promotoria;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\HorarioDeGrupo;
 use App\Support\Permisos;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,7 @@ class PanelGrupoController extends Controller
             'titulo' => "Nuevo grupo — {$promotoria->nombre}",
             'promotoria' => $promotoria,
             'grupo' => new Grupo(),
+            'sesiones' => HorarioDeGrupo::paraElFormulario(null),
             'accion' => route('panel-grupo-nuevo', $promotoria),
         ]);
     }
@@ -49,10 +51,15 @@ class PanelGrupoController extends Controller
         }
 
         $datos = $this->validar($request, $promotoria);
+        // El horario se lee ANTES de crear nada: si esta mal, el formulario
+        // rebota sin haber dejado un grupo a medias en la base.
+        $sesiones = HorarioDeGrupo::leer($request);
 
         $grupo = new Grupo($datos);
         $grupo->promotoria_id = $promotoria->id;
         $grupo->save();
+
+        HorarioDeGrupo::guardar($grupo, $sesiones);
 
         return $this->alPanel('Grupo creado.', exito: true);
     }
@@ -70,6 +77,7 @@ class PanelGrupoController extends Controller
             'titulo' => "Editar grupo — {$grupo}",
             'promotoria' => $grupo->promotoria,
             'grupo' => $grupo,
+            'sesiones' => HorarioDeGrupo::paraElFormulario($grupo),
             'accion' => route('panel-grupo-editar', $grupo),
         ]);
     }
@@ -83,8 +91,13 @@ class PanelGrupoController extends Controller
             return $this->alPanel('No tienes acceso a esta promotoría.');
         }
 
-        $grupo->fill($this->validar($request, $grupo->promotoria, $grupo));
+        $datos = $this->validar($request, $grupo->promotoria, $grupo);
+        $sesiones = HorarioDeGrupo::leer($request);
+
+        $grupo->fill($datos);
         $grupo->save();
+
+        HorarioDeGrupo::guardar($grupo, $sesiones);
 
         return $this->alPanel('Grupo actualizado.', exito: true);
     }
@@ -139,7 +152,6 @@ class PanelGrupoController extends Controller
             // El nivel SI se repite: una promotoria con mucha gente tiene varios
             // grupos de Basico, y eso es lo normal, no un error.
             'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
-            'horario' => ['required', 'string', 'max:60'],
             'salon' => ['required', 'string', 'max:40'],
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ], [
@@ -148,7 +160,6 @@ class PanelGrupoController extends Controller
         ], [
             'nombre' => 'nombre',
             'nivel' => 'nivel',
-            'horario' => 'horario',
         ]);
     }
 

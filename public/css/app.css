@@ -1016,6 +1016,57 @@
      etiqueta, que es lo que el usuario ve. */
   .config-logo { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.9rem; }
   .config-logo .config-ayuda { margin: 0; }
+  /* --- Rejilla del horario semanal (perfil) --------------------------------
+     El contenedor se arrastra en horizontal y la tabla NO se encoge: una semana
+     de seis dias en un movil o se arrastra o se aprieta hasta no leerse, y
+     apretada deja de servir para lo unico que sirve un horario, que es mirarlo
+     de un vistazo. */
+  .horario-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .horario-rejilla { width: 100%; min-width: 520px; border-collapse: collapse; }
+  .horario-rejilla th, .horario-rejilla td {
+    border: 1px solid var(--border); padding: 0.45rem 0.5rem;
+    vertical-align: top; text-align: left;
+  }
+  .horario-rejilla thead th {
+    background: var(--surface-alt, var(--surface)); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft);
+    text-align: center;
+  }
+  /* La columna de horas no crece: es la unica de ancho previsible y dejarla
+     estirarse le roba el sitio a los dias, que es donde esta el contenido. */
+  /* `text-transform: none` no es decorativo: los `th` del proyecto van en
+     mayusculas, y «9:00 A. M. A 11:00 A. M.» grita una hora que solo hay que
+     leer de reojo. */
+  .horario-hora {
+    width: 1%; white-space: nowrap; font-size: 0.72rem; text-transform: none;
+    letter-spacing: 0; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); text-align: right;
+  }
+  .horario-clase {
+    font-size: 0.82rem; line-height: 1.3; font-weight: 600;
+    padding: 0.2rem 0; 
+  }
+  .horario-clase + .horario-clase { border-top: 1px dashed var(--border); margin-top: 0.3rem; }
+  .horario-detalle {
+    display: block; font-weight: 400; font-size: 0.75rem; color: var(--ink-soft);
+  }
+
+  /* --- Rejilla de dias del formulario de grupo ------------------------------ */
+  .sesiones-rejilla { width: 100%; border-collapse: collapse; }
+  .sesiones-rejilla td { padding: 0.3rem 0.4rem 0.3rem 0; vertical-align: middle; }
+  .sesiones-rejilla td:first-child { padding-left: 0; }
+  .sesiones-dia { width: 40%; }
+  .sesiones-check { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+  .sesiones-check input { width: auto; margin: 0; }
+  /* La etiqueta de «Desde»/«Hasta» solo la ve quien navega con lector de
+     pantalla: en pantalla el orden de las dos casillas ya lo dice, y repetirlo
+     seis veces convierte la rejilla en un muro de texto. */
+  .sesiones-etiqueta {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .sesiones-rejilla input[type="time"] { width: 100%; min-width: 7.5rem; }
+
   /* La firma se ve apaisada y sobre blanco SIEMPRE, tambien en modo oscuro:
      un trazo negro sobre el fondo oscuro del tema desaparece, y lo que hay que
      comprobar aqui es justo si el recorte quedo limpio. El alto fijo y el

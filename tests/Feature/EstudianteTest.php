@@ -77,7 +77,6 @@ class EstudianteTest extends TestCase
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes 4 p. m.',
             'nivel' => 'basico',
-            'horario' => 'Lunes 4 p. m.',
             'salon' => 'A1',
             'cupo_maximo' => 10,
         ]);
@@ -213,7 +212,6 @@ class EstudianteTest extends TestCase
             'promotoria_id' => $this->danza->id,
             'nombre' => 'Viernes',
             'nivel' => 'basico',
-            'horario' => 'Viernes',
             'salon' => 'B2',
             'cupo_maximo' => 5,
         ]);

@@ -463,7 +463,7 @@ class Matricula extends Model
 
         $matriculas = static::query()
             ->where('estudiante_id', $perfil->id)
-            ->with(['periodo', 'promotoria.area', 'promotoria.profesor', 'grupo'])
+            ->with(['periodo', 'promotoria.area', 'promotoria.profesor', 'grupo.sesiones'])
             ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
             ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')

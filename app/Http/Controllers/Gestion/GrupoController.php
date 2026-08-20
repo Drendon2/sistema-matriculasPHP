@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gestion;
 
 use App\Models\Area;
 use App\Models\Grupo;
+use App\Support\HorarioDeGrupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
@@ -173,7 +174,7 @@ class GrupoController extends RecursoController
     /** El listado de quien esta en un grupo. Solo lectura. */
     public function estudiantes(Grupo $grupo): View
     {
-        $grupo->load('promotoria.area');
+        $grupo->load(['promotoria.area', 'sesiones']);
 
         $matriculas = Matricula::query()
             ->where('grupo_id', $grupo->id)
@@ -258,10 +259,9 @@ class GrupoController extends RecursoController
                     . 'Por ejemplo, Martes tarde.',
             ],
             'nivel' => ['etiqueta' => 'Nivel', 'tipo' => 'select', 'opciones' => Grupo::NIVELES],
-            'horario' => [
-                'etiqueta' => 'Horario', 'tipo' => 'text', 'max' => 60,
-                'ayuda' => 'Por ejemplo, Martes y jueves 4:00–6:00 p. m.',
-            ],
+            // El horario no es una columna sino filas aparte, asi que se pinta
+            // con su propio parcial en vez de con el formulario declarativo.
+            'sesiones' => ['etiqueta' => 'Horario', 'tipo' => 'sesiones'],
             'salon' => ['etiqueta' => 'Salón', 'tipo' => 'text', 'max' => 40],
             'cupo_maximo' => ['etiqueta' => 'Cupo máximo', 'tipo' => 'number', 'min' => 0],
         ];
@@ -281,10 +281,26 @@ class GrupoController extends RecursoController
                     ->ignore($objeto?->id),
             ],
             'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
-            'horario' => ['required', 'string', 'max:60'],
             'salon' => ['required', 'string', 'max:40'],
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ];
+    }
+
+    /**
+     * El horario no es una columna del grupo sino filas de `sesiones_grupo`, y
+     * por eso va por estos dos ganchos en vez de por `reglas()`.
+     *
+     * Se comprueba antes de escribir y se guarda despues, que es el orden que
+     * evita dejar un grupo creado sin horas cuando el horario esta mal.
+     */
+    protected function validarExtra(Request $request, ?Model $objeto): mixed
+    {
+        return HorarioDeGrupo::leer($request);
+    }
+
+    protected function despuesDeGuardar(Model $objeto, mixed $extra): void
+    {
+        HorarioDeGrupo::guardar($objeto, $extra);
     }
 
     protected function urlExito(Model $objeto): string

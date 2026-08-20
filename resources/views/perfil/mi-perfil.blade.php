@@ -95,6 +95,19 @@
   @endif
 </div>
 {{--
+  El horario de la semana. Solo aparece si esta persona tiene dónde estar: al
+  estudiante sin grupo asignado todavía, y a quien no dicta nada, una rejilla
+  vacía no le dice nada que no sepa.
+--}}
+@if ($horario)
+  @include('partials.horario-semanal', [
+    'horario' => $horario,
+    'titulo' => $perfil->rol === 'estudiante' ? 'Mi horario' : 'Mi horario de clases',
+    'periodo' => \App\Models\Periodo::enCurso(),
+  ])
+@endif
+
+{{--
   Solo si hay algo que contar. Un panel de ceros no informa de nada y ademas
   miente por omisión: sin clases todavía no se distingue «no he faltado nunca» de
   «no ha empezado el periodo».
