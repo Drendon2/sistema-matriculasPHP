@@ -1008,6 +1008,52 @@ class GestionTest extends TestCase
             ->assertSee('Musica');
     }
 
+    /**
+     * La encuesta se agrega en memoria, no con nueve GROUP BY.
+     *
+     * La tabla se lee entera de todas formas —hace falta para contar las
+     * incompletas, que no tiene una version buena en SQL—, asi que agregarla
+     * ademas en el motor eran diez pasadas por la misma tabla para pintar una
+     * pantalla.
+     *
+     * Aqui no sirve la prueba de «que no crezca» que usan el catalogo y los
+     * cupos: estas nueve consultas eran una cifra fija, no una por fila. Lo que
+     * se comprueba es que ya no se emitan.
+     */
+    public function test_las_estadisticas_no_agrupan_la_encuesta_en_sql(): void
+    {
+        EncuestaDemografica::create([
+            'perfil_id' => $this->estudiante->id,
+            'genero' => 'f',
+            'barrio' => 'El Centro',
+            'estrato' => 2,
+            'nivel_educativo' => 'secundaria_com',
+            'ocupacion' => 'estudiante',
+            'autoriza_tratamiento_datos' => true,
+        ]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk();
+
+        $consultas = collect(DB::getQueryLog())
+            ->pluck('query')
+            ->map(fn ($sql) => strtolower((string) $sql));
+
+        DB::disableQueryLog();
+
+        foreach (array_keys(EncuestaDemografica::OPCIONES) as $campo) {
+            $this->assertFalse(
+                $consultas->contains(fn (string $sql) => str_contains($sql, "group by `{$campo}`")),
+                "La pantalla sigue agrupando en SQL por `{$campo}`, y la tabla de "
+                .'encuestas ya estaba entera en memoria.'
+            );
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Satisfaccion: agregada para todos, con nombre solo para administracion
     // -----------------------------------------------------------------------

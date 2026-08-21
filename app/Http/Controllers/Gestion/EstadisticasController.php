@@ -16,6 +16,7 @@ use App\Models\Promotoria;
 use App\Support\Grafica;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -112,45 +113,45 @@ class EstadisticasController extends Controller
             'generoTorta' => Grafica::torta(
                 // Sin `$totalEncuestas`: la torta pone su propio sector gris y
                 // contaria dos veces esa fila.
-                Grafica::porOpcion($this->conteo('genero'), EncuestaDemografica::GENEROS),
+                Grafica::porOpcion($this->conteo($encuestas, 'genero'), EncuestaDemografica::GENEROS),
                 $totalEncuestas
             ),
             'zonaTorta' => Grafica::torta(
-                Grafica::porOpcion($this->conteo('zona'), EncuestaDemografica::ZONAS),
+                Grafica::porOpcion($this->conteo($encuestas, 'zona'), EncuestaDemografica::ZONAS),
                 $totalEncuestas
             ),
             'estratoStats' => Grafica::porOpcion(
-                $this->conteo('estrato'),
+                $this->conteo($encuestas, 'estrato'),
                 array_map(fn ($e) => "Estrato {$e}", EncuestaDemografica::ESTRATOS),
                 $totalEncuestas
             ),
             'nivelEducativoStats' => Grafica::porOpcion(
-                $this->conteo('nivel_educativo'),
+                $this->conteo($encuestas, 'nivel_educativo'),
                 EncuestaDemografica::NIVELES_EDUCATIVOS,
                 $totalEncuestas
             ),
             'ocupacionStats' => Grafica::porOpcion(
-                $this->conteo('ocupacion'),
+                $this->conteo($encuestas, 'ocupacion'),
                 EncuestaDemografica::OCUPACIONES,
                 $totalEncuestas
             ),
             'afiliacionSaludStats' => Grafica::porOpcion(
-                $this->conteo('afiliacion_salud'),
+                $this->conteo($encuestas, 'afiliacion_salud'),
                 EncuestaDemografica::AFILIACIONES_SALUD,
                 $totalEncuestas
             ),
             'grupoEtnicoStats' => Grafica::porOpcion(
-                $this->conteo('grupo_etnico'),
+                $this->conteo($encuestas, 'grupo_etnico'),
                 EncuestaDemografica::GRUPOS_ETNICOS,
                 $totalEncuestas
             ),
             'discapacidadStats' => Grafica::porOpcion(
-                $this->conteo('discapacidad'),
+                $this->conteo($encuestas, 'discapacidad'),
                 EncuestaDemografica::DISCAPACIDADES,
                 $totalEncuestas
             ),
             'victimaConflictoStats' => Grafica::porOpcion(
-                $this->conteo('victima_conflicto_armado'),
+                $this->conteo($encuestas, 'victima_conflicto_armado'),
                 EncuestaDemografica::VICTIMAS_CONFLICTO,
                 $totalEncuestas
             ),
@@ -526,15 +527,28 @@ class EstadisticasController extends Controller
     /**
      * Cuantas encuestas hay por cada valor de un campo.
      *
+     * Cuenta sobre la coleccion que ya esta en memoria, no con un GROUP BY.
+     *
+     * Antes era una consulta por campo, y son nueve: la tabla entera se leia ya
+     * de todas formas —`$encuestas` hace falta para contar las incompletas, que
+     * no se puede resolver en SQL— y encima se recorria otras nueve veces en el
+     * motor. Diez pasadas por la misma tabla para pintar una pantalla.
+     *
+     * La alternativa contraria tambien valia: dejar los GROUP BY y contar las
+     * incompletas en SQL. Se eligio esta porque la de las incompletas es la que
+     * no tiene una version buena en SQL (`estrato` es entero y los demas texto,
+     * asi que un filtro de «vacio» que sirva para los dos sale peor que
+     * recorrer una tabla de una fila por persona), y hacer las dos cosas a la
+     * vez es justo lo que estaba mal.
+     *
+     * De paso desaparece un `selectRaw` con el nombre de columna interpolado.
+     *
+     * @param  \Illuminate\Support\Collection<int, EncuestaDemografica>  $encuestas
      * @return array<int|string, int>
      */
-    private function conteo(string $campo): array
+    private function conteo(Collection $encuestas, string $campo): array
     {
-        return EncuestaDemografica::groupBy($campo)
-            ->selectRaw("{$campo} as valor, COUNT(*) as total")
-            ->pluck('total', 'valor')
-            ->map(fn ($t) => (int) $t)
-            ->all();
+        return $encuestas->countBy($campo)->all();
     }
 
     /**
