@@ -1,6 +1,6 @@
 # Prueba y despliega.
 #
-# En cada push a `main`: se levantan las 275 pruebas contra MariaDB y, SOLO si
+# En cada push a `main`: se levantan las 331 pruebas contra MariaDB y, SOLO si
 # pasan todas, se entra por SSH al servidor y se ejecuta `desplegar.sh`.
 #
 # Esa puerta es el motivo de que este archivo exista. Un `git pull` automático
@@ -56,10 +56,10 @@ jobs:
       - name: Traer el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar PHP 8.2
+      - name: Preparar PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: '8.4'
           extensions: gd, exif, pdo_mysql, mbstring, intl, zip
           coverage: none
 

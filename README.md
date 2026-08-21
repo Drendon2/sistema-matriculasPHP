@@ -22,8 +22,8 @@ la especificación funcional de referencia.
 
 | Capa | |
 |---|---|
-| Lenguaje | PHP 8.2 |
-| Framework | Laravel 12 (la última rama compatible con PHP 8.2) |
+| Lenguaje | PHP 8.4 |
+| Framework | Laravel 12 |
 | Base de datos | MariaDB 10.5 |
 | Plantillas | Blade |
 | Autenticación | Sesiones nativas de Laravel, por `username` |
@@ -190,7 +190,7 @@ expire (`SESSION_LIFETIME`, 120 minutos por defecto).
 
 ## Puesta en marcha local
 
-Requisitos: PHP 8.2 (con `gd`, `exif`, `pdo_mysql`, `mbstring`, `intl`, `zip`),
+Requisitos: PHP 8.4 (con `gd`, `exif`, `pdo_mysql`, `mbstring`, `intl`, `zip`),
 Composer y MariaDB 10.5.
 
 ```bash

@@ -37,7 +37,7 @@ Ninguna de estas es teórica: las cinco han costado tiempo o datos.
 
 | Programa | Versión | Para qué |
 |---|---|---|
-| PHP | 8.2 o superior | Ejecuta la aplicación |
+| PHP | 8.4 o superior | Ejecuta la aplicación |
 | Composer | 2.x | Instala las librerías de PHP |
 | MariaDB | 10.5 o superior | La base de datos |
 | Git | cualquiera | Descargar y actualizar el código |
@@ -386,12 +386,12 @@ rechaza los envíos, aunque alguien llegue a la URL directamente.
 
 # Parte 3 — Desplegar en el hosting
 
-Escrito para Hostinger (PHP 8.2, LiteSpeed, MariaDB), pero sirve para cualquier
+Escrito para Hostinger (PHP 8.4, LiteSpeed, MariaDB), pero sirve para cualquier
 hosting compartido equivalente.
 
 ## 3.0 Antes de tocar nada, comprueba tres cosas
 
-1. **La versión de PHP del plan es 8.2 o superior**, y tiene activas `gd`,
+1. **La versión de PHP del plan es 8.4 o superior**, y tiene activas `gd`,
    `exif`, `pdo_mysql`, `mbstring`, `intl` y `zip`. En hPanel se cambia y se
    revisa desde la configuración de PHP.
 2. **Hay acceso SSH**. Sin SSH no se pueden correr `composer`, `artisan` ni las
