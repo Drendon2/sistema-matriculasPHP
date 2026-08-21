@@ -77,6 +77,71 @@ class AutenticacionTest extends TestCase
         $this->assertGuest();
     }
 
+    /**
+     * Desactivar echa tambien a quien YA estaba dentro.
+     *
+     * Comprobar `activo` solo al entrar cierra la puerta pero no vacia la sala:
+     * sin esto, la persona conservaba acceso completo hasta que caducara la
+     * sesion —dos horas, y renovandose con cada clic—. El original no tiene el
+     * problema porque Django mira `is_active` en cada peticion.
+     *
+     * La pantalla elegida es /mi-perfil a proposito: esta solo tras `auth`, sin
+     * rol, que es justo el hueco por el que se colaria si la comprobacion
+     * viviera dentro de `RequiereRol`.
+     */
+    public function test_desactivar_una_cuenta_echa_a_quien_ya_estaba_dentro(): void
+    {
+        $user = $this->crearCuenta('profesor', 'beto');
+
+        // Con la sesion abierta, su pantalla responde.
+        $this->actingAs($user)
+            ->get(route('mi-perfil'))
+            ->assertOk();
+
+        // Direccion la desactiva mientras la persona sigue navegando.
+        $user->update(['activo' => false]);
+
+        // La siguiente peticion de esa misma sesion ya no pasa.
+        $this->actingAs($user->fresh())
+            ->get(route('mi-perfil'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+    }
+
+    /** Y tampoco alcanza las pantallas que si piden rol. */
+    public function test_la_cuenta_desactivada_tampoco_alcanza_una_pantalla_con_rol(): void
+    {
+        $user = $this->crearCuenta('profesor', 'beto', activo: false);
+
+        $this->actingAs($user)
+            ->get(route('panel'))
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
+    }
+
+    /**
+     * Volver a activarla devuelve el acceso.
+     *
+     * La otra mitad del interruptor: si expulsar dejara algo pegado a la cuenta
+     * —y no a la sesion—, reactivar no bastaria para volver a entrar.
+     */
+    public function test_reactivar_la_cuenta_devuelve_el_acceso(): void
+    {
+        $user = $this->crearCuenta('profesor', 'beto', activo: false);
+
+        $this->actingAs($user)
+            ->get(route('panel'))
+            ->assertRedirect(route('login'));
+
+        $user->update(['activo' => true]);
+
+        $this->actingAs($user->fresh())
+            ->get(route('panel'))
+            ->assertOk();
+    }
+
     public function test_el_estudiante_aterriza_en_el_catalogo(): void
     {
         $user = $this->crearCuenta('estudiante');

@@ -19,6 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'rol' => \App\Http\Middleware\RequiereRol::class,
         ]);
 
+        // Desactivar una cuenta tiene que echar tambien a quien ya esta dentro,
+        // que es lo que hace el original. Va en el grupo entero y no pegado a
+        // 'rol' porque /post-login y /mi-perfil no llevan rol.
+        $middleware->web(append: [
+            \App\Http\Middleware\CuentaActiva::class,
+        ]);
+
         // Sin sesion, todo lleva al login (Laravel apunta por defecto a una
         // ruta 'login' que aqui si existe, pero se deja explicito).
         $middleware->redirectGuestsTo(fn () => route('login'));
