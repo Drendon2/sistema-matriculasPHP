@@ -30,11 +30,17 @@ class CuposController extends Controller
             return view('gestion.cupos', ['periodo' => null, 'periodos' => $periodos, 'filas' => []]);
         }
 
-        $filas = $this->promotorias()
+        $promotorias = $this->promotorias();
+        $ocupados = Promotoria::ocupadosEnLote($periodo, $promotorias);
+
+        $filas = $promotorias
             ->map(fn (Promotoria $p) => [
                 'promotoria' => $p,
+                // `cupoEn` no consulta: aprovecha la relacion que trae el
+                // `with('cupos')` de abajo. `ocupadosEn` si consultaba, una vez
+                // por fila, y por eso sale del bucle.
                 'cupo' => $p->cupoEn($periodo),
-                'ocupados' => $p->ocupadosEn($periodo),
+                'ocupados' => (int) ($ocupados[$p->id] ?? 0),
             ])
             ->all();
 
@@ -91,7 +97,19 @@ class CuposController extends Controller
         $guardados = 0;
         $quitados = 0;
 
-        DB::transaction(function () use ($periodo, $promotorias, $nuevos, &$avisos, &$guardados, &$quitados) {
+        // Las matriculas ya ocupando sitio se cuentan ANTES de abrir la
+        // transaccion, y de una sola vez.
+        //
+        // Antes iba dentro del bucle, o sea un COUNT por promotoria con la
+        // transaccion abierta. Solo servian para redactar un aviso de texto,
+        // pero alargaban la transaccion y con ella el rato que las filas de
+        // `cupos_promotoria` quedan bloqueadas — y esto es la pantalla de
+        // «abrir matriculas», que se usa el dia que mas gente esta empujando
+        // contra esas mismas filas y contra el trigger de cupos. Dentro de la
+        // transaccion solo tienen que quedar escrituras.
+        $ocupados = Promotoria::ocupadosEnLote($periodo, $promotorias);
+
+        DB::transaction(function () use ($periodo, $promotorias, $nuevos, &$guardados, &$quitados) {
             foreach ($promotorias as $promotoria) {
                 $cupo = $nuevos[$promotoria->id];
 
@@ -111,14 +129,26 @@ class CuposController extends Controller
                 );
 
                 $guardados++;
-                $ocupados = $promotoria->ocupadosEn($periodo);
-
-                if ($cupo < $ocupados) {
-                    $avisos[] = "{$promotoria}: cupo {$cupo} por debajo de las {$ocupados} "
-                        . 'matrículas ya ocupando sitio.';
-                }
             }
         });
+
+        // El aviso se compone despues, con los numeros ya en memoria. Es texto
+        // para quien acaba de guardar, no una condicion de la escritura: el
+        // mensaje lo dice expresamente, «no se retiro a nadie».
+        foreach ($promotorias as $promotoria) {
+            $cupo = $nuevos[$promotoria->id];
+
+            if ($cupo === null) {
+                continue;
+            }
+
+            $yaOcupados = (int) ($ocupados[$promotoria->id] ?? 0);
+
+            if ($cupo < $yaOcupados) {
+                $avisos[] = "{$promotoria}: cupo {$cupo} por debajo de las {$yaOcupados} "
+                    . 'matrículas ya ocupando sitio.';
+            }
+        }
 
         $respuesta = redirect()->route('gestion-cupos-periodo', $periodo)->with(
             'success',

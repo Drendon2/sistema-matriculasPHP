@@ -338,6 +338,102 @@ class GestionTest extends TestCase
         $this->assertNull($this->violin->cupoEn($this->periodo));
     }
 
+    /**
+     * Bajar el cupo por debajo de lo ya ocupado avisa, pero guarda igual.
+     *
+     * El aviso se compone FUERA de la transaccion, con los ocupados leidos antes
+     * de abrirla: es texto para quien acaba de guardar, no una condicion de la
+     * escritura —el propio mensaje lo dice, «no se retiro a nadie»—. Esta prueba
+     * fija esa doble condicion: que el aviso salga y que el cupo se guarde.
+     */
+    public function test_bajar_el_cupo_por_debajo_de_lo_ocupado_avisa_pero_guarda(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $respuesta = $this->actingAs($this->director->user)
+            ->post(route('gestion-cupos-periodo', $this->periodo), [
+                "cupo_{$this->violin->id}" => '0',
+            ]);
+
+        $respuesta->assertSessionHas('success');
+        $respuesta->assertSessionHas('error', fn (string $aviso) => str_contains($aviso, 'por debajo de las 1 matrículas ya ocupando sitio')
+            && str_contains($aviso, 'No se retiró a nadie'));
+
+        $this->assertSame(0, $this->violin->cupoEn($this->periodo));
+    }
+
+    /**
+     * Ni la pantalla de cupos ni el guardado consultan una vez por promotoria.
+     *
+     * El guardado es el que mas importa: ese COUNT por fila corria con la
+     * transaccion ABIERTA, alargando el rato que las filas de
+     * `cupos_promotoria` quedan bloqueadas — y esto es «abrir matriculas», que
+     * se usa el dia que mas gente esta empujando contra esas mismas filas.
+     *
+     * Como en el catalogo, no se fija un numero: se compara el mismo catalogo
+     * con 1 promotoria y con 16, y lo que tiene que quedar plano es la cifra.
+     */
+    public function test_los_cupos_no_consultan_una_vez_por_promotoria(): void
+    {
+        $this->consultasDeCupos();
+
+        $verUna = $this->consultasDeCupos();
+        $guardarUna = $this->consultasDeCupos(guardando: true);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $promotoria = Promotoria::create(['nombre' => "Taller {$i}", 'area_id' => $this->musica->id]);
+            $this->matricular($this->crearEstudiante("alumno{$i}"), $promotoria, Matricula::ACTIVA);
+        }
+
+        $verDieciseis = $this->consultasDeCupos();
+        $guardarDieciseis = $this->consultasDeCupos(guardando: true);
+
+        $this->assertSame(
+            $verUna,
+            $verDieciseis,
+            "Ver los cupos costo {$verUna} lecturas con 1 promotoria y {$verDieciseis} con 16."
+        );
+
+        $this->assertSame(
+            $guardarUna,
+            $guardarDieciseis,
+            "Guardar costo {$guardarUna} lecturas con 1 promotoria y {$guardarDieciseis} con 16."
+        );
+    }
+
+    /**
+     * Cuantas LECTURAS cuesta abrir la pantalla de cupos, o guardarla.
+     *
+     * Se cuentan solo los SELECT, no todas las consultas, y no es para maquillar
+     * la cifra: las escrituras de esta pantalla SI crecen con las filas —guardar
+     * dieciseis cupos son dieciseis escrituras, y no hay otra forma—, asi que
+     * meterlas en el mismo saco haria imposible ver lo unico que aqui esta mal,
+     * que es leer una vez por promotoria.
+     */
+    private function consultasDeCupos(bool $guardando = false): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        if ($guardando) {
+            $this->actingAs($this->director->user)
+                ->post(route('gestion-cupos-periodo', $this->periodo), [])
+                ->assertRedirect();
+        } else {
+            $this->actingAs($this->director->user)
+                ->get(route('gestion-cupos-periodo', $this->periodo))
+                ->assertOk();
+        }
+
+        $lecturas = collect(DB::getQueryLog())
+            ->filter(fn (array $registro) => str_starts_with(strtolower(ltrim((string) $registro['query'])), 'select'))
+            ->count();
+
+        DB::disableQueryLog();
+
+        return $lecturas;
+    }
+
     /** Un periodo que ya paso es historico: sus cupos no se editan. */
     public function test_no_se_editan_los_cupos_de_un_periodo_cerrado(): void
     {

@@ -61,26 +61,15 @@ class CatalogoController extends Controller
 
             $catalogo = Promotoria::with(['area', 'profesor', 'cupos'])->get();
 
-            // Los ocupados de TODAS las promotorias en una sola consulta
-            // agrupada, en vez de un COUNT por fila.
+            // Los ocupados de TODAS las promotorias en una sola consulta, en vez
+            // de un COUNT por fila.
             //
             // `ocupadosEn()` siempre consulta —a diferencia de `cupoEn()`, que a
             // su lado si aprovecha la relacion que trae el `with('cupos')`—, asi
             // que el bucle costaba tantas consultas como promotorias haya. Y es
             // la pantalla a la que cae todo estudiante al iniciar sesion, en los
             // dias de matricula, que es justo cuando mas gente entra a la vez.
-            //
-            // Mismo remedio y misma forma que en `PanelController::index`, que
-            // ya habia resuelto esto para las pendientes del panel. Las tres
-            // condiciones son las de `ocupadosEn()` y tienen que seguir siendolo:
-            // las retiradas liberan cupo, una cancelacion en tramite no.
-            $ocupadosPorPromotoria = Matricula::query()
-                ->whereIn('promotoria_id', $catalogo->pluck('id'))
-                ->where('periodo_id', $periodo->id)
-                ->where('estado', '!=', Matricula::RETIRADA)
-                ->groupBy('promotoria_id')
-                ->selectRaw('promotoria_id, COUNT(*) as total')
-                ->pluck('total', 'promotoria_id');
+            $ocupadosPorPromotoria = Promotoria::ocupadosEnLote($periodo, $catalogo);
 
             foreach ($catalogo as $promotoria) {
                 $matricula = $misMatriculas->get($promotoria->id);

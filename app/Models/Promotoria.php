@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * Una promotoria (ej. Violin). La dicta una sola persona, o nadie todavia.
@@ -89,6 +90,42 @@ class Promotoria extends Model
             ->where('estado', '!=', Matricula::RETIRADA)
             ->when($excluirMatriculaId !== null, fn ($q) => $q->where('id', '!=', $excluirMatriculaId))
             ->count();
+    }
+
+    /**
+     * Lo mismo que `ocupadosEn()`, pero para VARIAS promotorias de una vez.
+     *
+     * Existe porque `ocupadosEn()` siempre consulta, asi que llamarla dentro de
+     * un bucle cuesta tantas consultas como filas haya. Las pantallas que
+     * pintan un listado entero —el catalogo del estudiante y el reparto de
+     * cupos— usan esta.
+     *
+     * Vive aqui pegada a `ocupadosEn()` a proposito: las condiciones de las dos
+     * tienen que ser LAS MISMAS —las retiradas liberan cupo, una cancelacion en
+     * tramite no— y separarlas por archivos es como se acaban desincronizando.
+     * Si alguna vez cambia una, tiene que cambiar la otra tres lineas mas
+     * arriba, a la vista.
+     *
+     * Devuelve un mapa `promotoria_id => total`. Las promotorias sin ninguna
+     * matricula NO aparecen: un GROUP BY solo devuelve las que tienen alguna,
+     * asi que quien lea el mapa debe tratar la ausencia como cero.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>  $promotorias
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function ocupadosEnLote(?Periodo $periodo, Collection $promotorias): Collection
+    {
+        if ($periodo === null || $promotorias->isEmpty()) {
+            return collect();
+        }
+
+        return Matricula::query()
+            ->whereIn('promotoria_id', $promotorias->pluck('id'))
+            ->where('periodo_id', $periodo->id)
+            ->where('estado', '!=', Matricula::RETIRADA)
+            ->groupBy('promotoria_id')
+            ->selectRaw('promotoria_id, COUNT(*) as total')
+            ->pluck('total', 'promotoria_id');
     }
 
     /** Cupos libres en el periodo, o null si no hay tope definido. */
