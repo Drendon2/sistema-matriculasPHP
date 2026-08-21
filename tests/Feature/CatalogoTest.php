@@ -14,6 +14,7 @@ use App\Models\Promotoria;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -305,5 +306,78 @@ class CatalogoTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('promotorias-disponibles'))
             ->assertDontSee('Renovar mi matrícula', false);
+    }
+
+    /**
+     * El catalogo NO hace una consulta por promotoria.
+     *
+     * Es la pantalla a la que cae todo estudiante al iniciar sesion, y en los
+     * dias de matricula es cuando mas gente entra a la vez. Antes, los ocupados
+     * de cada fila salian de un COUNT propio, asi que abrirla costaba tantas
+     * consultas como promotorias hubiera en el catalogo.
+     *
+     * La prueba no fija un numero —eso se rompe cada vez que alguien toca algo
+     * de la pantalla y no dice nada— sino que compara el MISMO catalogo con tres
+     * promotorias y con dieciocho. Lo que tiene que quedar plano es la
+     * diferencia: si vuelve a haber un COUNT por fila, crece con las filas y
+     * esto se pone rojo.
+     */
+    public function test_el_catalogo_no_consulta_una_vez_por_promotoria(): void
+    {
+        // Una peticion de calentamiento antes de medir: la primera de todas crea
+        // la fila de configuracion de la institucion, y esas consultas de una
+        // sola vez ensucian la comparacion.
+        $this->consultasDelCatalogo();
+
+        $conTres = $this->consultasDelCatalogo();
+
+        $area = Area::create(['nombre' => 'Artes']);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $promotoria = Promotoria::create(['nombre' => "Taller {$i}", 'area_id' => $area->id]);
+
+            // Con matriculas de verdad: si el mapa agrupado se quedara vacio, la
+            // prueba pasaria sin haber ejercitado el camino que importa.
+            CupoPromotoria::create([
+                'promotoria_id' => $promotoria->id,
+                'periodo_id' => $this->periodo->id,
+                'cupo_maximo' => 10,
+            ]);
+
+            [, $otroPerfil] = $this->crearEstudiante("alumno{$i}", "9{$i}00");
+
+            Matricula::create([
+                'estudiante_id' => $otroPerfil->id,
+                'promotoria_id' => $promotoria->id,
+                'periodo_id' => $this->periodo->id,
+                'estado' => Matricula::ACTIVA,
+            ]);
+        }
+
+        $conDieciocho = $this->consultasDelCatalogo();
+
+        $this->assertSame(
+            $conTres,
+            $conDieciocho,
+            "Abrir el catalogo costo {$conTres} consultas con 3 promotorias y "
+            ."{$conDieciocho} con 18: hay una consulta por fila."
+        );
+    }
+
+    /** Cuantas consultas cuesta abrir el catalogo una vez. */
+    private function consultasDelCatalogo(): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($this->user)
+            ->get(route('promotorias-disponibles'))
+            ->assertOk();
+
+        $consultas = count(DB::getQueryLog());
+
+        DB::disableQueryLog();
+
+        return $consultas;
     }
 }
