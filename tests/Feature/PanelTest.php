@@ -546,7 +546,13 @@ class PanelTest extends TestCase
                 'grupo_id' => $grupo->id,
                 'matricula_ids' => array_map(fn (Matricula $m) => $m->id, $matriculas),
             ])
-            ->assertSessionHas('error');
+            // Se comprueba el TEXTO y no solo que haya error: el mensaje dice
+            // cuantos cabian, que es lo unico que permite reintentar sin ir
+            // probando. Antes esta prueba solo miraba que la clave existiera, y
+            // habria dejado pasar cualquier cambio de redaccion.
+            ->assertSessionHas('error', fn (string $aviso) => str_contains($aviso, 'No caben 3 en')
+                && str_contains($aviso, 'solo quedaban 2 cupos')
+                && str_contains($aviso, 'No se asignó a nadie'));
 
         foreach ($matriculas as $matricula) {
             $this->assertNull($matricula->fresh()->grupo_id);

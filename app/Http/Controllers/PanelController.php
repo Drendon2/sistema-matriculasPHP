@@ -561,10 +561,8 @@ class PanelController extends Controller
             return $this->volver('No marcaste a ningún estudiante.');
         }
 
-        $cabian = null;
-
         try {
-            DB::transaction(function () use ($matriculas, $grupo, &$cabian) {
+            DB::transaction(function () use ($matriculas, $grupo) {
                 $asignadas = 0;
 
                 foreach ($matriculas as $matricula) {
@@ -576,24 +574,23 @@ class PanelController extends Controller
                         // ya se guardaron en este mismo bucle.
                         $matricula->validar();
                     } catch (ValidationException $e) {
-                        $cabian = $asignadas;
-
-                        // Deshace el lote entero. La excepcion es solo el
-                        // vehiculo del rollback; se atrapa justo afuera.
-                        throw new LoteNoCabe();
+                        // Deshace el lote entero. La excepcion es el vehiculo
+                        // del rollback y ademas se lleva el motivo REAL: antes
+                        // se descartaba y la respuesta afirmaba siempre falta de
+                        // cupo, hubiera sido eso o no (ver `LoteNoCabe`).
+                        throw new LoteNoCabe(
+                            cabian: $asignadas,
+                            motivo: $e->errors(),
+                            culpable: $matricula->estudiante?->nombre_completo,
+                        );
                     }
 
                     $matricula->save();
                     $asignadas++;
                 }
             });
-        } catch (LoteNoCabe) {
-            $cupos = $cabian === 1 ? 'cupo' : 'cupos';
-
-            return $this->volver(
-                "No caben {$matriculas->count()} en {$grupo}: solo quedaban {$cabian} {$cupos}. "
-                . 'No se asignó a nadie — manda menos estudiantes o amplíale el cupo al grupo.'
-            );
+        } catch (LoteNoCabe $e) {
+            return $this->volver($e->explicacion($matriculas->count(), (string) $grupo));
         }
 
         $cuantos = $matriculas->count();
