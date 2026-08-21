@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DocumentoRequerido;
+use App\Rules\ImagenProcesable;
 use App\Support\Imagen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,8 +52,8 @@ class ConfiguracionController extends Controller
 
         $datos = $request->validate([
             'nombre_institucion' => ['required', 'string', 'max:80'],
-            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
+            'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firmante_nombre' => ['nullable', 'string', 'max:120'],
             'firmante_cargo' => ['nullable', 'string', 'max:80'],
             'color_acento' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],

@@ -10,6 +10,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Rules\ImagenProcesable;
 use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\ResumenAsistencia;
@@ -136,7 +137,7 @@ class MiPerfilController extends Controller
     private function guardarFoto(Request $request, Perfil $perfil): RedirectResponse
     {
         $request->validate([
-            'foto_perfil' => ['required', 'image', 'mimes:'.implode(',', self::IMAGENES), 'max:8192'],
+            'foto_perfil' => ['required', 'image', 'mimes:'.implode(',', self::IMAGENES), 'max:8192', new ImagenProcesable],
         ], [], ['foto_perfil' => 'foto de perfil']);
 
         // Se convierte a WebP, se endereza y se acota antes de tocar el disco

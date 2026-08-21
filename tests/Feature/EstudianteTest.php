@@ -802,6 +802,60 @@ class EstudianteTest extends TestCase
     }
 
     /**
+     * Una imagen que GD no sabe abrir sale como error del formulario, no como
+     * un 500.
+     *
+     * `image` y `mimes:` miran la cabecera, no que el archivo se pueda decodificar
+     * entero: un JPEG cortado a media subida o un WebP animado las pasan las dos.
+     * Antes reventaba despues, dentro de `Imagen::aWebp`, y en produccion con
+     * APP_DEBUG=false la persona veia una pagina de error sin ninguna pista de
+     * que el problema fuera su foto.
+     *
+     * El archivo de la prueba es un PNG DE VERDAD cortado a la mitad de la
+     * cabecera, que es el caso literal del hallazgo. Importa que sea autentico:
+     * un monton de bytes inventados lo rechaza `image` antes de llegar a la
+     * regla, y entonces la prueba pasaria sin haber probado nada.
+     */
+    public function test_una_imagen_que_no_se_puede_decodificar_da_error_de_formulario(): void
+    {
+        Storage::fake('local');
+
+        $anterior = $this->ana->fresh()->foto_perfil;
+
+        $this->actingAs($this->ana->user)
+            ->post(route('mi-perfil.guardar'), [
+                'accion' => 'foto',
+                'foto_perfil' => $this->imagenRota(),
+            ])
+            ->assertSessionHasErrors('foto_perfil');
+
+        // Y no dejo nada a medias: ni archivo en disco ni ruta en el perfil.
+        $this->assertSame($anterior, $this->ana->fresh()->foto_perfil);
+    }
+
+    /**
+     * Un PNG autentico cortado justo despues de su cabecera.
+     *
+     * Los 33 primeros bytes son la firma del formato y el bloque IHDR completo:
+     * suficiente para que la deteccion por cabecera lo de por PNG —y por tanto
+     * para que pase `image` y `mimes:`— y muy insuficiente para que GD lo abra,
+     * porque no queda ni un byte de los datos de la imagen.
+     */
+    private function imagenRota(): UploadedFile
+    {
+        $lienzo = imagecreatetruecolor(120, 80);
+        ob_start();
+        imagepng($lienzo);
+        $png = (string) ob_get_clean();
+        imagedestroy($lienzo);
+
+        $ruta = tempnam(sys_get_temp_dir(), 'rota').'.png';
+        file_put_contents($ruta, substr($png, 0, 33));
+
+        return new UploadedFile($ruta, 'rota.png', 'image/png', null, true);
+    }
+
+    /**
      * La opcion de genero se llama «No binario», nunca «Otro».
      *
      * Es una divergencia deliberada del original Django, pedida por direccion, y

@@ -12,6 +12,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
+use App\Rules\ImagenProcesable;
 use App\Support\Imagen;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
@@ -359,7 +360,7 @@ class UsuarioController extends Controller
             // comparten el de su acudiente. Un indice unico convertiria ese caso
             // corriente en un error que la familia no sabria resolver.
             'correo' => ['nullable', 'email', 'max:255'],
-            'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:8192'],
+            'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:8192', new ImagenProcesable],
             'documento_identidad' => [
                 $esEstudiante ? 'required' : 'nullable', 'string', 'max:15',
                 Rule::unique('datos_estudiante', 'documento_identidad')
