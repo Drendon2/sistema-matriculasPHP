@@ -1591,4 +1591,32 @@ class GestionTest extends TestCase
             ->assertOk()
             ->assertSee('2025-2');
     }
+
+    /**
+     * «Sigue» y «Deja» del arbol de departamentos.
+     *
+     * No habia nada que mirara esos dos numeros: la pantalla se probaba con
+     * `assertOk` y con la satisfaccion, pero la consulta que los calcula podia
+     * cambiar de sentido sin que la suite se enterara. Lo que fija es la parte
+     * menos obvia: una CANCELACION SOLICITADA cuenta como que SIGUE, porque
+     * hasta que alguien la resuelva la persona esta matriculada.
+     */
+    public function test_el_arbol_cuenta_las_cancelaciones_pendientes_como_que_siguen(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $this->matricular($this->crearEstudiante('beto'), $this->violin, Matricula::CANCELACION_SOLICITADA);
+        $this->matricular($this->crearEstudiante('caro'), $this->violin, Matricula::RETIRADA);
+        // Pendiente: no entra en el arbol ni por un lado ni por el otro.
+        $this->matricular($this->crearEstudiante('dani'), $this->violin, Matricula::PENDIENTE);
+
+        $arbol = $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->viewData('arbolDepartamentos');
+
+        $this->assertCount(1, $arbol);
+        $this->assertSame('Musica', $arbol[0]['nombre']);
+        $this->assertSame(2, $arbol[0]['total'], 'Sigue: la activa y la que pidio cancelacion.');
+        $this->assertSame(1, $arbol[0]['retirados'], 'Deja: solo la retirada.');
+    }
 }

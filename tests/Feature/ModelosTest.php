@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Models\Area;
 use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
+use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
+use App\Support\ResumenAsistencia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -378,5 +380,48 @@ class ModelosTest extends TestCase
         $this->assertSame('#075941', $configuracion->color_acento_oscuro);
         $this->assertSame('#dbf2eb', $configuracion->color_acento_suave);
         $this->assertGreaterThan(4.5, $configuracion->contraste_texto_boton);
+    }
+
+    /**
+     * `validar()` es publica, y esta era la unica rama que daba por hecho que
+     * la fila existe.
+     *
+     * No se llega por los controladores —la FK es RESTRICT y los dos que
+     * asignan grupo lo buscan antes acotado a la promotoria—, asi que la unica
+     * forma de ejercitarla es la que usaria un llamante futuro: pasarle un id
+     * que no esta. Sin la comprobacion esto no falla con un mensaje de
+     * validacion, revienta con un Error fatal.
+     */
+    public function test_un_grupo_que_no_existe_da_mensaje_y_no_error_fatal(): void
+    {
+        $matricula = new Matricula([
+            'estudiante_id' => $this->estudiante()->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'grupo_id' => 999999,
+        ]);
+
+        try {
+            $matricula->validar();
+            $this->fail('Se esperaba una ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                ['El grupo elegido ya no existe.'],
+                $e->errors()['grupo'],
+            );
+        }
+    }
+
+    /**
+     * `ResumenAsistencia::conteos()` mete el nombre de columna dentro del SQL
+     * sin escapar, asi que lo que no este en la lista blanca no debe llegar.
+     */
+    public function test_la_asistencia_no_se_agrupa_por_una_columna_cualquiera(): void
+    {
+        $metodo = new \ReflectionMethod(ResumenAsistencia::class, 'conteos');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $metodo->invoke(null, new Grupo, $this->periodo, 'id) UNION SELECT 1 --');
     }
 }

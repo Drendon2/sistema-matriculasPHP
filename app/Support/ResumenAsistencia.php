@@ -9,6 +9,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use Illuminate\Support\Carbon;
+use InvalidArgumentException;
 
 /**
  * Las cifras de asistencia que alimentan las fichas y el calendario.
@@ -31,6 +32,14 @@ class ResumenAsistencia
      * reves.
      */
     private const PRIORIDAD_DIA = ['falto', 'excusa', 'sin_marcar', 'asistio'];
+
+    /**
+     * Las unicas columnas por las que `conteos()` puede agrupar.
+     *
+     * Existe porque ese metodo mete el nombre dentro del SQL sin escapar. Ver
+     * su docblock.
+     */
+    private const COLUMNAS_AGRUPABLES = ['clase_id', 'matricula_id'];
 
     private const ETIQUETA_DIA = [
         'asistio' => 'Asistió',
@@ -148,10 +157,22 @@ class ResumenAsistencia
     /**
      * Conteo de asistencias del grupo agrupado por la columna que se pida.
      *
+     * El nombre de la columna se compone dentro de un `selectRaw` y de un
+     * `groupBy`, donde el escapado de consultas no llega: lo que entre por
+     * `$columna` acaba en el SQL tal cual. Hoy no hay inyeccion —el metodo es
+     * privado y sus dos llamantes pasan literales escritos aqui al lado—, pero
+     * la firma es `string` y nada impedia que un llamante futuro le pasara algo
+     * de la peticion, que es justo como nace este tipo de fallo. La lista
+     * blanca cierra la puerta de una vez.
+     *
      * @return array<int, array<string, int>>
      */
     private static function conteos(Grupo $grupo, Periodo $periodo, string $columna): array
     {
+        if (! in_array($columna, self::COLUMNAS_AGRUPABLES, true)) {
+            throw new InvalidArgumentException("No se puede agrupar la asistencia por «{$columna}».");
+        }
+
         $filas = Asistencia::query()
             ->join('clases', 'clases.id', '=', 'asistencias.clase_id')
             ->where('clases.grupo_id', $grupo->id)

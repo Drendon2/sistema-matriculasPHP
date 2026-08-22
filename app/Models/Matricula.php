@@ -358,6 +358,19 @@ class Matricula extends Model
         if ($this->grupo_id !== null) {
             $grupo = $this->grupo ?? Grupo::find($this->grupo_id);
 
+            // La FK de `grupo_id` es RESTRICT y los dos controladores que
+            // asignan grupo lo buscan antes acotado a la promotoria, asi que
+            // por ahi no llega un id muerto. Pero `validar()` es publica y esta
+            // era la unica rama que daba por hecho que la fila existe: sin
+            // esto, un id que no esta revienta con un Error fatal en vez de
+            // devolver el mensaje al formulario, que es justo lo que este
+            // metodo promete en su docblock.
+            if ($grupo === null) {
+                throw ValidationException::withMessages([
+                    'grupo' => 'El grupo elegido ya no existe.',
+                ]);
+            }
+
             if ($grupo->promotoria_id !== $this->promotoria_id) {
                 throw ValidationException::withMessages([
                     'grupo' => 'El grupo elegido no pertenece a esta promotoría.',

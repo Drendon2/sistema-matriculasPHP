@@ -420,7 +420,10 @@ class EstadisticasController extends Controller
             return [];
         }
 
-        $inscritos = implode("','", Matricula::ESTADOS_INSCRITO);
+        // Un `?` por estado en vez de coserlos dentro del SQL. Hoy la constante
+        // es la unica fuente y no habia inyeccion posible, pero un IN ligado no
+        // cuesta nada y deja de depender de que nadie toque la constante.
+        $huecos = implode(', ', array_fill(0, count(Matricula::ESTADOS_INSCRITO), '?'));
 
         $filas = Matricula::query()
             ->where('matriculas.periodo_id', $periodo->id)
@@ -433,9 +436,9 @@ class EstadisticasController extends Controller
                 promotorias.nombre as promotoria,
                 areas.id as area_id,
                 areas.nombre as area,
-                SUM(matriculas.estado IN ('{$inscritos}')) as continuan,
+                SUM(matriculas.estado IN ({$huecos})) as continuan,
                 SUM(matriculas.estado = ?) as retirados
-            ", [Matricula::RETIRADA])
+            ", [...Matricula::ESTADOS_INSCRITO, Matricula::RETIRADA])
             ->orderBy('areas.nombre')
             ->orderByDesc('continuan')
             ->get();
