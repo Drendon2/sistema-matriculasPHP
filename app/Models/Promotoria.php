@@ -25,19 +25,22 @@ class Promotoria extends Model
     /** Varias clases, pero sin llegar al final del periodo. */
     public const CURSO = 'curso';
 
-    /** Clases durante todo el periodo. Es lo que habia antes de que hubiera tipos. */
+    /**
+     * Clases durante todo el periodo.
+     *
+     * Es lo que habia antes de que hubiera tipos, y el UNICO que consume plaza
+     * del limite de matriculas. Lo que se esta contando con ese limite es el
+     * compromiso de un periodo entero: cuantas cosas puede sostener alguien de
+     * enero a junio sin abandonarlas a mitad. Nada de lo demas es eso.
+     */
     public const PROGRAMA = 'programa';
 
     /**
-     * No consume plaza del limite de matriculas.
+     * Actividad alineada con la matricula que el estudiante ya tiene.
      *
-     * Es el UNICO tipo que cambia una regla de negocio, y no es un descuido:
-     * una banda sinfonica o un coro institucional es una actividad alineada con
-     * la matricula que el estudiante ya tiene, no una matricula mas que compita
-     * con ella. Quien ya llego a su tope puede entrar igual.
-     *
-     * Sigue respetando el cupo de su propio salon: eso lo decide el trigger de
-     * `matriculas`, que mira la promotoria y no la carga del estudiante.
+     * Una banda sinfonica o un coro institucional no compite con sus clases:
+     * sale de ellas. Por eso no consume plaza, igual que el taller y el curso,
+     * aunque el motivo sea otro —esos no la consumen porque no duran el periodo.
      */
     public const PROYECCION = 'proyeccion';
 
@@ -58,10 +61,10 @@ class Promotoria extends Model
 
     /** Una linea por tipo, para que quien crea una no tenga que adivinar. */
     public const DESCRIPCION_TIPO = [
-        self::TALLER => 'Una sola clase. Se inscriben y van una vez.',
-        self::CURSO => 'Varias clases, sin llegar al final del periodo.',
-        self::PROGRAMA => 'Clases durante todo el periodo.',
-        self::PROYECCION => 'No ocupa plaza del límite de matrículas.',
+        self::TALLER => 'Una sola clase. No ocupa plaza del límite.',
+        self::CURSO => 'Varias clases, sin llegar al final del periodo. No ocupa plaza.',
+        self::PROGRAMA => 'Clases durante todo el periodo. Ocupa una plaza del límite.',
+        self::PROYECCION => 'Actividad alineada con lo que ya cursa. No ocupa plaza.',
     ];
 
     protected $table = 'promotorias';
@@ -87,14 +90,60 @@ class Promotoria extends Model
     ];
 
     /**
+     * Cambiar el tipo reencuadra las matriculas que ya existen.
+     *
+     * El tipo vive en `promotorias` y no en la matricula justamente para esto:
+     * el CONTEO se corrige solo, porque `promotoriasOcupadas()` lo pregunta por
+     * `join`. Pero la RANURA si esta escrita en cada matricula, y sin esto se
+     * quedaria como estaba: un programa convertido en taller seguiria ocupando
+     * un numero de ranura que ya no le toca.
+     *
+     * Se descubrio con una prueba, no leyendo el codigo: el comentario de al
+     * lado prometia que cambiar el tipo reencuadra, y a medias no lo hacia.
+     *
+     * Al pasar a un tipo que SI cuenta puede no quedar ranura libre, y entonces
+     * se queda sin ella. Es deliberado y es la misma politica que ya tenia bajar
+     * el limite: lo que ya existe no se rompe, solo se impide pedir mas.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $promotoria) {
+            if (! $promotoria->wasChanged('tipo')) {
+                return;
+            }
+
+            // `lazy()` y no `lazyById()`: es una trampa que ya costo una vez —
+            // `lazyById` pagina preguntando por el id mayor que el ultimo, y las
+            // tandas se solapan si la consulta lleva orden propio.
+            $promotoria->matriculas()
+                ->where('estado', '!=', Matricula::RETIRADA)
+                ->lazy()
+                ->each(function (Matricula $matricula) use ($promotoria) {
+                    // La relacion, puesta a mano: si se dejara cargar sola
+                    // vendria de la base con el tipo VIEJO en el mismo request.
+                    $matricula->setRelation('promotoria', $promotoria);
+                    $matricula->save();
+                });
+        });
+    }
+
+    /**
      * Si esta promotoria se salta el limite de matriculas del estudiante.
      *
-     * Se pregunta asi y no comparando el tipo a mano en cada sitio, para que el
-     * dia que haya otro tipo exento haya UN lugar donde decirlo.
+     * Se pregunta en positivo por el UNICO que si lo consume, y no enumerando
+     * los tres que no: un tipo nuevo nace exento salvo que alguien decida lo
+     * contrario, que es el lado seguro por el que equivocarse — un tipo que
+     * deberia contar y no cuenta se ve en la primera matricula, mientras que uno
+     * que cuenta sin deber hacerlo bloquea a gente en silencio.
+     *
+     * Una promotoria exenta no gasta plaza NI ranura, asi que no tiene tope: se
+     * pueden acumular las que haya. Cada una sigue respetando el cupo de su
+     * propio salon, que lo decide el trigger de `matriculas` mirando la
+     * promotoria y no la carga del estudiante.
      */
     public function exentaDelLimite(): bool
     {
-        return $this->tipo === self::PROYECCION;
+        return $this->tipo !== self::PROGRAMA;
     }
 
     /** El nombre del tipo tal como se pinta. */

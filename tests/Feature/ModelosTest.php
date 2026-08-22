@@ -470,87 +470,120 @@ class ModelosTest extends TestCase
         $this->assertSame(3, Matricula::where('estudiante_id', $ana->id)->count());
     }
 
-    /** Una proyeccion gasta ranura aunque no gaste plaza: si no, chocarian. */
-    public function test_la_proyeccion_toma_una_ranura_propia(): void
+    /**
+     * Ni taller, ni curso, ni proyeccion: NINGUNO consume plaza.
+     *
+     * Lo que cuenta el limite es el compromiso de un periodo entero, y solo un
+     * programa es eso. Los otros tres se exceptuan por motivos distintos —el
+     * taller y el curso porque no duran, la proyeccion porque sale de las clases
+     * que ya tiene— pero el efecto es el mismo.
+     */
+    public function test_ningun_tipo_salvo_programa_consume_plaza(): void
     {
-        $banda = Promotoria::create([
-            'nombre' => 'Banda sinfónica',
-            'area_id' => $this->violin->area_id,
-            'tipo' => Promotoria::PROYECCION,
-        ]);
-
+        $area = $this->violin->area_id;
         $ana = $this->estudiante();
+
+        // El tope de programas, lleno.
         $this->matricular($ana, $this->violin);
         $this->matricular($ana, $this->danza);
-        $proyeccion = $this->matricular($ana, $banda);
 
-        $this->assertSame(3, $proyeccion->ranura);
-        $this->assertSame(
-            [1, 2, 3],
-            Matricula::where('estudiante_id', $ana->id)->pluck('ranura')->map(fn ($r) => (int) $r)->sort()->values()->all(),
-        );
-    }
+        foreach ([Promotoria::TALLER, Promotoria::CURSO, Promotoria::PROYECCION] as $tipo) {
+            $promotoria = Promotoria::create([
+                'nombre' => 'Actividad '.$tipo,
+                'area_id' => $area,
+                'tipo' => $tipo,
+            ]);
 
-    /** Las proyecciones tienen su propio tope, y ese si se llena. */
-    public function test_las_proyecciones_tienen_su_propio_tope(): void
-    {
-        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 1]);
+            $matricula = $this->matricular($ana, $promotoria);
 
-        $area = $this->violin->area_id;
-        $banda = Promotoria::create(['nombre' => 'Banda', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
-        $coro = Promotoria::create(['nombre' => 'Coro', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
+            $this->assertTrue($matricula->exists, "Un {$tipo} deberia entrar con el tope lleno.");
+            $this->assertNull($matricula->ranura, "Un {$tipo} no deberia tomar ranura.");
+        }
 
-        $ana = $this->estudiante();
-        $this->matricular($ana, $banda);
-
-        $this->expectException(ValidationException::class);
-        $this->matricular($ana, $coro);
+        $this->assertSame(2, Matricula::promotoriasOcupadas($ana->id, $this->periodo->id));
     }
 
     /**
-     * Y el mensaje dice CUAL tope se lleno.
+     * Sin tope: se pueden acumular las que haya.
      *
-     * Con el texto generico, a quien le dijeron que los coros no cuentan leeria
-     * «ya tienes 2 promotorías» al intentar entrar en uno, y no entenderia nada.
+     * Es lo que compra soltar la ranura. Con ella, el techo del esquema
+     * —RANURA_MAXIMA_ABSOLUTA— habria limitado por la puerta de atras a algo que
+     * no deberia tener limite ninguno.
      */
-    public function test_el_mensaje_del_tope_de_proyecciones_habla_de_proyecciones(): void
+    public function test_no_hay_tope_para_lo_que_no_consume_plaza(): void
     {
-        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 1]);
-
         $area = $this->violin->area_id;
-        $banda = Promotoria::create(['nombre' => 'Banda', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
-        $coro = Promotoria::create(['nombre' => 'Coro', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
-
         $ana = $this->estudiante();
-        $this->matricular($ana, $banda);
+
+        $this->matricular($ana, $this->violin);
+        $this->matricular($ana, $this->danza);
+
+        // Mas de las que caben en las ranuras del esquema, a proposito.
+        $cuantas = ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA + 3;
+
+        for ($i = 1; $i <= $cuantas; $i++) {
+            $taller = Promotoria::create([
+                'nombre' => "Taller {$i}",
+                'area_id' => $area,
+                'tipo' => Promotoria::TALLER,
+            ]);
+
+            $this->matricular($ana, $taller);
+        }
+
+        $this->assertSame(
+            $cuantas + 2,
+            Matricula::where('estudiante_id', $ana->id)->count(),
+        );
+        $this->assertSame(2, Matricula::promotoriasOcupadas($ana->id, $this->periodo->id));
+    }
+
+    /**
+     * El mensaje del tope nombra lo que NO cuenta.
+     *
+     * Sin esa frase, quien tiene dos programas y ve «ya tienes ese cupo
+     * ocupado» no sabe que si puede apuntarse a un taller.
+     */
+    public function test_el_mensaje_del_tope_aclara_que_no_cuenta(): void
+    {
+        $ana = $this->estudiante();
+        $this->matricular($ana, $this->violin);
+        $this->matricular($ana, $this->danza);
 
         try {
-            $this->matricular($ana, $coro);
+            $this->matricular($ana, $this->teatro);
             $this->fail('Se esperaba una ValidationException.');
         } catch (ValidationException $e) {
-            $mensaje = $e->errors()['promotoria'][0];
-            $this->assertStringContainsString('grupo de proyección', $mensaje);
-            $this->assertStringNotContainsString('promotorías', $mensaje);
+            $this->assertStringContainsString('no cuentan para ese límite', $e->errors()['promotoria'][0]);
         }
     }
 
-    /** Un tope de cero cierra la puerta, y lo dice sin hablar de cantidades. */
-    public function test_sin_proyecciones_admitidas_no_se_entra(): void
+    /**
+     * Cambiarle el tipo a una promotoria reencuadra sus matriculas.
+     *
+     * El tipo vive en `promotorias` justamente para esto: si un programa pasa a
+     * taller, sus matriculas dejan de gastar plaza sin reescribirlas una a una.
+     * La ranura, en cambio, si esta en la matricula, y hay que soltarla.
+     */
+    public function test_pasar_un_programa_a_taller_libera_la_plaza(): void
     {
-        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 0]);
+        $ana = $this->estudiante();
+        $this->matricular($ana, $this->violin);
+        $segunda = $this->matricular($ana, $this->danza);
 
-        $banda = Promotoria::create([
-            'nombre' => 'Banda',
-            'area_id' => $this->violin->area_id,
-            'tipo' => Promotoria::PROYECCION,
-        ]);
+        $this->assertSame(2, Matricula::promotoriasOcupadas($ana->id, $this->periodo->id));
 
-        try {
-            $this->matricular($this->estudiante(), $banda);
-            $this->fail('Se esperaba una ValidationException.');
-        } catch (ValidationException $e) {
-            $this->assertStringContainsString('no admite inscripciones', $e->errors()['promotoria'][0]);
-        }
+        $this->danza->update(['tipo' => Promotoria::TALLER]);
+
+        $this->assertSame(1, Matricula::promotoriasOcupadas($ana->id, $this->periodo->id));
+
+        // Y la ranura se suelta SOLA, sin que nadie guarde la matricula: el
+        // conteo se corrige por `join`, pero la ranura esta escrita en la fila.
+        $this->assertNull($segunda->fresh()->ranura);
+
+        // Y con la plaza libre, cabe una tercera de las que si cuentan.
+        $tercera = $this->matricular($ana, $this->teatro);
+        $this->assertTrue($tercera->exists);
     }
 
     /** Una proyeccion NO afloja el tope de las promotorias normales. */

@@ -943,7 +943,6 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa de la Cultura El Santuario',
                 'color_acento' => '#0a7a59',
                 'limite_promotorias_por_periodo' => 3,
-                'limite_proyecciones_por_periodo' => 2,
                 'promotorias_visibles_para_estudiantes' => 1,
             ])
             ->assertSessionHas('success');
@@ -965,7 +964,6 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa',
                 'color_acento' => '#ffee00',
                 'limite_promotorias_por_periodo' => 2,
-                'limite_proyecciones_por_periodo' => 2,
             ])
             ->assertSessionHas('success')
             ->assertSessionHas('error');
@@ -1640,8 +1638,9 @@ class GestionTest extends TestCase
             $this->assertStringContainsString(Promotoria::ETIQUETA_TIPO[$tipo], $html);
         }
 
-        // La unica diferencia con consecuencias tiene que leerse ANTES de elegir.
-        $this->assertStringContainsString('No ocupa plaza del límite de matrículas.', $html);
+        // Que consume plaza y que no tiene que leerse ANTES de elegir.
+        $this->assertStringContainsString('Ocupa una plaza del límite.', $html);
+        $this->assertStringContainsString('No ocupa plaza del límite.', $html);
     }
 
     public function test_se_crea_una_promotoria_marcada_como_proyeccion(): void
@@ -1694,52 +1693,5 @@ class GestionTest extends TestCase
         $this->assertStringContainsString('Grupo de proyección', $html);
         // «Violin» es un programa y no lleva chip.
         $this->assertStringNotContainsString('<span class="tipo-chip">Programa</span>', $html);
-    }
-
-    // -----------------------------------------------------------------------
-    // El tope de proyecciones, en Institucion
-    // -----------------------------------------------------------------------
-
-    public function test_se_guarda_el_tope_de_proyecciones(): void
-    {
-        $this->actingAs($this->admin->user)
-            ->post(route('gestion-configuracion'), $this->datosDeInstitucion([
-                'limite_proyecciones_por_periodo' => 3,
-            ]))
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame(3, ConfiguracionInstitucion::actual()->fresh()->limite_proyecciones_por_periodo);
-    }
-
-    /**
-     * Los dos topes juntos no pueden pasar de las ranuras que admite el esquema.
-     *
-     * Sin esto, la aplicacion aceptaria una configuracion con la que hay
-     * matriculas que ella misma admite y la base rechaza — la peor forma de
-     * fallar, porque el error sale lejos de donde se causo.
-     */
-    public function test_los_dos_topes_juntos_no_pasan_del_techo(): void
-    {
-        $techo = ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA;
-
-        $this->actingAs($this->admin->user)
-            ->post(route('gestion-configuracion'), $this->datosDeInstitucion([
-                'limite_promotorias_por_periodo' => $techo,
-                'limite_proyecciones_por_periodo' => 1,
-            ]))
-            ->assertSessionHasErrors('limite_proyecciones_por_periodo');
-    }
-
-    /** @return array<string, mixed> */
-    private function datosDeInstitucion(array $extra = []): array
-    {
-        $actual = ConfiguracionInstitucion::actual();
-
-        return array_merge([
-            'nombre_institucion' => $actual->nombre_institucion,
-            'color_acento' => $actual->color_acento,
-            'limite_promotorias_por_periodo' => $actual->limite_promotorias_por_periodo,
-            'limite_proyecciones_por_periodo' => $actual->limite_proyecciones_por_periodo,
-        ], $extra);
     }
 }

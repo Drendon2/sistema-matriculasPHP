@@ -154,24 +154,6 @@
     </div>
 
     <div class="config-campo">
-      <label class="config-etiqueta" for="limite_proyecciones_por_periodo">
-        Grupos de proyección, además de lo anterior
-      </label>
-      <input type="number" name="limite_proyecciones_por_periodo" id="limite_proyecciones_por_periodo"
-             min="0" max="{{ \App\Models\ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA - 1 }}" step="1" required
-             value="{{ old('limite_proyecciones_por_periodo', $institucion->limite_proyecciones_por_periodo) }}">
-      @error('limite_proyecciones_por_periodo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
-      <p class="config-ayuda">
-        Una promotoría marcada como <strong>grupo de proyección</strong> no ocupa plaza del
-        límite de arriba: quien ya lo tenga lleno puede entrar igual, porque es una
-        actividad alineada con la matrícula que ya tiene. Este número dice cuántas de
-        esas admite además. Déjalo en 0 si tu institución no ofrece ninguna.
-        Los dos límites juntos no pueden pasar de
-        {{ \App\Models\ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA }}.
-      </p>
-    </div>
-
-    <div class="config-campo">
       <label class="config-interruptor">
         <input type="checkbox" name="promotorias_visibles_para_estudiantes" value="1"
                @checked(old('promotorias_visibles_para_estudiantes', $institucion->promotorias_visibles_para_estudiantes))>
