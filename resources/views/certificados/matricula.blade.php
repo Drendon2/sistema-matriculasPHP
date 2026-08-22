@@ -235,7 +235,7 @@
 </table>
 
 <div class="pie">
-  Documento generado por el sistema de matrículas de {{ $institucion->nombre_institucion }}
+  Documento generado por {{ $institucion->nombre_institucion }}
   el {{ $expedido->format('d/m/Y \a \l\a\s H:i') }}.
 </div>
 

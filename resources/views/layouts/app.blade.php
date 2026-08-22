@@ -11,7 +11,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>@yield('title', 'Matrículas') — {{ $configuracion->nombre_institucion }}</title>
+<title>@hasSection('title')@yield('title') — @endif{{ $configuracion->nombre_institucion }}</title>
 <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 {{--
   Marca configurable: sobreescribe SOLO el acento y sus dos tonos derivados.
@@ -30,7 +30,7 @@
   <div class="marca-header">
     <img src="{{ $configuracion->logo ? route('logo-institucion') : asset('img/logo.webp') }}"
          alt="" width="30" height="30">
-    <h1>Matrículas {{ $configuracion->nombre_institucion }}</h1>
+    <h1>{{ $configuracion->nombre_institucion }}</h1>
   </div>
   <nav>
     @auth
