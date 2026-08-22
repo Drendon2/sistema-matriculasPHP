@@ -28,8 +28,11 @@ class InscripcionTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Promotoria $violin;
+
     private Promotoria $danza;
+
     private Promotoria $teatro;
 
     protected function setUp(): void

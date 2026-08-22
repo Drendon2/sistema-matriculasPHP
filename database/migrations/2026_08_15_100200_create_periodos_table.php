@@ -50,16 +50,16 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE periodos
             ADD COLUMN activo_marca TINYINT
                 GENERATED ALWAYS AS (IF(activo = 1, 1, NULL)) VIRTUAL
-        ");
+        ');
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE periodos
             ADD UNIQUE INDEX un_solo_periodo_activo (activo_marca)
-        ");
+        ');
     }
 
     public function down(): void

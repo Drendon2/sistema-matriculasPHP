@@ -57,7 +57,7 @@ class MisMatriculasController extends Controller
         if ($periodo === null || $matricula->periodo_id !== $periodo->id) {
             return $this->volver(
                 "{$matricula->periodo} ya terminó: sus matrículas quedan como historial y no se "
-                . 'pueden retirar. Solo puedes retirarte de una matrícula del periodo en curso.'
+                .'pueden retirar. Solo puedes retirarte de una matrícula del periodo en curso.'
             );
         }
 
@@ -72,7 +72,7 @@ class MisMatriculasController extends Controller
 
             return $this->volver(
                 "Retiraste tu solicitud a {$matricula->promotoria}. Como todavía no estaba "
-                . 'confirmada, no hace falta que nadie la apruebe.',
+                .'confirmada, no hace falta que nadie la apruebe.',
                 exito: true
             );
         }
@@ -90,10 +90,10 @@ class MisMatriculasController extends Controller
             return $this->volver(
                 $matricula->cancelacion_es_rechazable
                     ? "Tu solicitud para cancelar {$matricula->promotoria} quedó registrada. "
-                        . 'Como eres menor de edad, la dirección hablará con tu acudiente antes '
-                        . 'de resolverla; mientras tanto sigues inscrito.'
+                        .'Como eres menor de edad, la dirección hablará con tu acudiente antes '
+                        .'de resolverla; mientras tanto sigues inscrito.'
                     : "Tu solicitud para cancelar {$matricula->promotoria} quedó registrada. "
-                        . 'Sigues inscrito hasta que la dirección la tramite.',
+                        .'Sigues inscrito hasta que la dirección la tramite.',
                 exito: true
             );
         }

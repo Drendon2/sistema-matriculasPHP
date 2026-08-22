@@ -35,7 +35,7 @@ class PanelGrupoController extends Controller
         return view('panel.grupo-form', [
             'titulo' => "Nuevo grupo — {$promotoria->nombre}",
             'promotoria' => $promotoria,
-            'grupo' => new Grupo(),
+            'grupo' => new Grupo,
             'sesiones' => HorarioDeGrupo::paraElFormulario(null),
             'accion' => route('panel-grupo-nuevo', $promotoria),
         ]);
@@ -156,7 +156,7 @@ class PanelGrupoController extends Controller
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ], [
             'nombre.unique' => "{$promotoria->nombre} ya tiene un grupo llamado así. "
-                . 'Ponle otro nombre para poder distinguirlos.',
+                .'Ponle otro nombre para poder distinguirlos.',
         ], [
             'nombre' => 'nombre',
             'nivel' => 'nivel',

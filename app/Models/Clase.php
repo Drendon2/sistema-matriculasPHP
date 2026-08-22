@@ -32,6 +32,7 @@ class Clase extends Model
      * pedir mas gente de la que hay, asi que basta uno.
      */
     public const CONFIRMACIONES_REQUERIDAS = 3;
+
     public const GRUPO_PEQUENO = 2;
 
     /**

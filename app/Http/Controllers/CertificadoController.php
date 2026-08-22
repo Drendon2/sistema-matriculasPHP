@@ -10,6 +10,7 @@ use App\Support\Imagen;
 use App\Support\Permisos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
@@ -100,7 +101,7 @@ class CertificadoController extends Controller
         if ($matriculas->isEmpty()) {
             return $sinNada(
                 "{$estudiante->nombre_completo} no tiene matrículas activas en {$periodo->nombre}: "
-                . 'una solicitud pendiente de confirmar no se puede certificar.'
+                .'una solicitud pendiente de confirmar no se puede certificar.'
             );
         }
 
@@ -130,7 +131,7 @@ class CertificadoController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Matricula>  $matriculas
+     * @param  Collection<int, Matricula>  $matriculas
      */
     private function generar(
         string $titulo,
@@ -218,7 +219,7 @@ class CertificadoController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Matricula>  $matriculas
+     * @param  Collection<int, Matricula>  $matriculas
      */
     private function nombreDeArchivo(Perfil $estudiante, $matriculas): string
     {

@@ -19,6 +19,7 @@ use App\Models\Promotoria;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -179,7 +180,7 @@ class Simular extends Command
             $inicio = $actual->fecha_inicio->copy()->subMonths(6 * $atras);
 
             $periodos[] = Periodo::create([
-                'nombre' => $inicio->year . '-' . ($inicio->month <= 6 ? 1 : 2) . self::SUFIJO_CATALOGO,
+                'nombre' => $inicio->year.'-'.($inicio->month <= 6 ? 1 : 2).self::SUFIJO_CATALOGO,
                 'fecha_inicio' => $inicio,
                 'fecha_fin' => $inicio->copy()->addMonths(5),
                 'activo' => false,
@@ -275,13 +276,13 @@ class Simular extends Command
         $n = 0;
 
         foreach ($disciplinas as $area => $nombres) {
-            $departamento = Area::create(['nombre' => $area . self::SUFIJO_CATALOGO]);
+            $departamento = Area::create(['nombre' => $area.self::SUFIJO_CATALOGO]);
 
             foreach ($nombres as $nombre) {
                 $ultima = $n === count($disciplinas, COUNT_RECURSIVE) - count($disciplinas) - 1;
 
                 $promotorias[] = Promotoria::create([
-                    'nombre' => $nombre . self::SUFIJO_CATALOGO,
+                    'nombre' => $nombre.self::SUFIJO_CATALOGO,
                     'area_id' => $departamento->id,
                     'profesor_id' => $ultima ? null : $quienesDictan[$n % count($quienesDictan)]->id,
                 ]);
@@ -351,7 +352,7 @@ class Simular extends Command
 
             if ($menor) {
                 $acudiente = Acudiente::create([
-                    'nombre' => $this->nombre() . self::SUFIJO_CATALOGO,
+                    'nombre' => $this->nombre().self::SUFIJO_CATALOGO,
                     'telefono' => $this->telefono(),
                 ]);
             }
@@ -688,7 +689,7 @@ class Simular extends Command
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Matricula>  $inscritos
+     * @param  Collection<int, Matricula>  $inscritos
      */
     private function unaClase(Grupo $grupo, Periodo $periodo, $inscritos, Carbon $fecha, string $escenario): void
     {
@@ -903,13 +904,13 @@ class Simular extends Command
 
         $this->newLine();
         $this->line('<comment>Dónde mirar:</comment>');
-        $this->line("  Panel .............. entra como <info>sim.prof001</info>");
-        $this->line("  Gestión ............ entra como <info>sim.dir1</info>");
-        $this->line("  Estadísticas ....... entra como <info>sim.admin1</info>");
-        $this->line("  Cancelaciones ...... hay ".Matricula::where('estado', Matricula::CANCELACION_SOLICITADA)->count().' por resolver');
-        $this->line("  Renovación ......... entra como <info>sim.est001</info> (cursó ".$anteriores[0]->nombre.')');
-        $this->line("  Cuenta sin rol ..... entra como <info>sim.pend1</info>");
-        $this->line("  Cuenta desactivada . <info>sim.inactivo</info> (no debe poder entrar)");
+        $this->line('  Panel .............. entra como <info>sim.prof001</info>');
+        $this->line('  Gestión ............ entra como <info>sim.dir1</info>');
+        $this->line('  Estadísticas ....... entra como <info>sim.admin1</info>');
+        $this->line('  Cancelaciones ...... hay '.Matricula::where('estado', Matricula::CANCELACION_SOLICITADA)->count().' por resolver');
+        $this->line('  Renovación ......... entra como <info>sim.est001</info> (cursó '.$anteriores[0]->nombre.')');
+        $this->line('  Cuenta sin rol ..... entra como <info>sim.pend1</info>');
+        $this->line('  Cuenta desactivada . <info>sim.inactivo</info> (no debe poder entrar)');
         $this->newLine();
         $this->line('Para dejarlo todo como estaba: <info>php artisan simular --limpiar</info>');
     }

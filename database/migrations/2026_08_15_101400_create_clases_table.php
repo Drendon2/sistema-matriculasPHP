@@ -42,7 +42,7 @@ return new class extends Migration
             // la clase se dio igual, y perder el registro entero por eso seria
             // peor que perder el nombre.
             $table->foreignId('registrada_por_id')->nullable()
-                  ->constrained('perfiles')->nullOnDelete();
+                ->constrained('perfiles')->nullOnDelete();
             $table->unsignedTinyInteger('confirmaciones_requeridas')->default(3);
             $table->timestamps();
 

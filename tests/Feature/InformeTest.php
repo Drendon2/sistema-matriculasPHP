@@ -27,10 +27,15 @@ class InformeTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Promotoria $violin;
+
     private Promotoria $danza;
+
     private Perfil $profesor;
+
     private Perfil $director;
+
     private Perfil $admin;
 
     protected function setUp(): void

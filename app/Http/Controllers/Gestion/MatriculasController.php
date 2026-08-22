@@ -50,9 +50,9 @@ class MatriculasController extends Controller
         return $this->volver(
             $abrir
                 ? "Matrículas de {$periodo} ABIERTAS. Los estudiantes nuevos ya pueden "
-                    . 'inscribirse y los antiguos renovar.'
+                    .'inscribirse y los antiguos renovar.'
                 : "Matrículas de {$periodo} CERRADAS. Las matrículas ya registradas no se "
-                    . 'tocan; solo deja de entrar gente nueva.',
+                    .'tocan; solo deja de entrar gente nueva.',
             exito: true
         );
     }
@@ -69,7 +69,7 @@ class MatriculasController extends Controller
         return $this->volver(
             $anterior !== null && $anterior->id !== $elegido->id
                 ? "{$elegido} es ahora el periodo en curso. {$anterior} dejó de estarlo y sus "
-                    . 'matrículas quedaron cerradas.'
+                    .'matrículas quedaron cerradas.'
                 : "{$elegido} es ahora el periodo en curso.",
             exito: true
         );

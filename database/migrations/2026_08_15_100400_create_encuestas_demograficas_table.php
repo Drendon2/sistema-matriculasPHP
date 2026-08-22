@@ -64,11 +64,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE encuestas_demograficas
             ADD CONSTRAINT estrato_valido
             CHECK (estrato BETWEEN 1 AND 6)
-        ");
+        ');
     }
 
     public function down(): void

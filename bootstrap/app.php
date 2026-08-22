@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\CuentaActiva;
+use App\Http\Middleware\RequiereRol;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,14 +18,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // El equivalente del decorador `@requiere_rol(...)` del original.
         // Se usa como 'rol:estudiante' o 'rol:administrador,director'.
         $middleware->alias([
-            'rol' => \App\Http\Middleware\RequiereRol::class,
+            'rol' => RequiereRol::class,
         ]);
 
         // Desactivar una cuenta tiene que echar tambien a quien ya esta dentro,
         // que es lo que hace el original. Va en el grupo entero y no pegado a
         // 'rol' porque /post-login y /mi-perfil no llevan rol.
         $middleware->web(append: [
-            \App\Http\Middleware\CuentaActiva::class,
+            CuentaActiva::class,
         ]);
 
         // Sin sesion, todo lleva al login (Laravel apunta por defecto a una

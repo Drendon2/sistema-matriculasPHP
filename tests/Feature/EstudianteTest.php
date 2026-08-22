@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Area;
 use App\Models\Asistencia;
 use App\Models\Clase;
-use App\Models\ConfirmacionClase;
 use App\Models\DatosEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
@@ -34,11 +33,17 @@ class EstudianteTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Periodo $anterior;
+
     private Promotoria $violin;
+
     private Promotoria $danza;
+
     private Perfil $profesor;
+
     private Perfil $ana;
+
     private Grupo $grupo;
 
     protected function setUp(): void
@@ -572,7 +577,7 @@ class EstudianteTest extends TestCase
         $matricula = $this->inscribir($this->ana, $this->violin, $this->grupo);
         $clase = Clase::abrir($this->grupo, $this->periodo, $this->profesor);
 
-        \App\Models\Asistencia::create([
+        Asistencia::create([
             'clase_id' => $clase->id,
             'matricula_id' => $matricula->id,
             'estado' => 'asistio',

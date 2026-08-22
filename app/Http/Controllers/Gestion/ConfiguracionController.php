@@ -132,8 +132,8 @@ class ConfiguracionController extends Controller
             $respuesta->with(
                 'error',
                 'Ojo: el texto blanco sobre ese color de acento queda en '
-                . number_format($razon, 1) . ':1 de contraste, por debajo del mínimo de 4.5:1. '
-                . 'Los botones serán difíciles de leer; considera un tono más oscuro.'
+                .number_format($razon, 1).':1 de contraste, por debajo del mínimo de 4.5:1. '
+                .'Los botones serán difíciles de leer; considera un tono más oscuro.'
             );
         }
 

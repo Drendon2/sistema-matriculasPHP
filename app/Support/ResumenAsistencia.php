@@ -266,7 +266,7 @@ class ResumenAsistencia
                 ['etiqueta' => 'Sin marcar', 'valor' => $cuenta['sin_marcar']],
                 [
                     'etiqueta' => 'Asistencia',
-                    'valor' => $marcadas ? round($cuenta['asistio'] / $marcadas * 100) . '%' : '—',
+                    'valor' => $marcadas ? round($cuenta['asistio'] / $marcadas * 100).'%' : '—',
                     'nota' => 'de las clases con marca',
                 ],
                 ['etiqueta' => 'Racha', 'valor' => $racha ?: '—', 'nota' => 'seguidas asistiendo'],
@@ -331,7 +331,7 @@ class ResumenAsistencia
                 ['etiqueta' => 'Sin verificar', 'valor' => $clases->count() - $verificadas],
                 [
                     'etiqueta' => 'Verificación',
-                    'valor' => round($verificadas / $clases->count() * 100) . '%',
+                    'valor' => round($verificadas / $clases->count() * 100).'%',
                     'nota' => 'confirmadas por sus estudiantes',
                 ],
                 ['etiqueta' => 'Grupos', 'valor' => $clases->pluck('grupo_id')->unique()->count()],
@@ -344,8 +344,8 @@ class ResumenAsistencia
             'celdas' => self::celdas(
                 $dias,
                 $periodo,
-                fn (int $cuantas) => 'cal-n' . min($cuantas, 3),
-                fn (int $cuantas) => $cuantas . ($cuantas === 1 ? ' clase' : ' clases')
+                fn (int $cuantas) => 'cal-n'.min($cuantas, 3),
+                fn (int $cuantas) => $cuantas.($cuantas === 1 ? ' clase' : ' clases')
             ),
             'leyenda' => [
                 ['clase' => 'cal-n1', 'etiqueta' => '1 clase', 'valor' => null],

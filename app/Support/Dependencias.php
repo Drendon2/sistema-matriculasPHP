@@ -60,7 +60,7 @@ class Dependencias
     ];
 
     /**
-     * @return array{bloqueos: string, arrastre: string}  frases ya armadas, vacias si no hay nada
+     * @return array{bloqueos: string, arrastre: string} frases ya armadas, vacias si no hay nada
      */
     public static function de(Model $objeto): array
     {
@@ -88,7 +88,7 @@ class Dependencias
 
     /**
      * @param  array<string, array{0: string, 1: string}>  $relaciones
-     * @return list<string>  ["1 grupo", "19 matrículas"]
+     * @return list<string> ["1 grupo", "19 matrículas"]
      */
     private static function contar(Model $objeto, array $relaciones): array
     {

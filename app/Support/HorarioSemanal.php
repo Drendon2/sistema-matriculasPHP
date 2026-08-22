@@ -8,6 +8,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\SesionGrupo;
+use Illuminate\Support\Collection;
 
 /**
  * La rejilla semanal de una persona: donde tiene que estar cada dia.
@@ -73,7 +74,7 @@ class HorarioSemanal
      * `ESTADOS_INSCRITO` y no solo 'activa': quien pidio cancelar sigue yendo a
      * clase mientras direccion resuelve, y su horario no ha cambiado todavia.
      *
-     * @return \Illuminate\Support\Collection<int, Grupo>
+     * @return Collection<int, Grupo>
      */
     private static function gruposDelEstudiante(Perfil $perfil, Periodo $periodo)
     {
@@ -93,7 +94,7 @@ class HorarioSemanal
      * Sale del VINCULO y no del rol: un director que ademas dicta tiene su
      * horario como cualquiera, y quien no dicta nada no tiene ninguno.
      *
-     * @return \Illuminate\Support\Collection<int, Grupo>
+     * @return Collection<int, Grupo>
      */
     private static function gruposDeQuienDicta(Perfil $perfil)
     {

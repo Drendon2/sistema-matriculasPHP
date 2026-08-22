@@ -39,7 +39,7 @@ class Area extends Model
             return 'tag-0';
         }
 
-        return 'tag-' . ($this->id % self::NUM_COLORES_ETIQUETA);
+        return 'tag-'.($this->id % self::NUM_COLORES_ETIQUETA);
     }
 
     public function __toString(): string

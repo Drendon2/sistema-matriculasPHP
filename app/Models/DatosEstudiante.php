@@ -76,7 +76,7 @@ class DatosEstudiante extends Model
         if ($acudiente === null || trim((string) $acudiente->telefono) === '') {
             throw ValidationException::withMessages([
                 'acudiente_telefono' => 'El acudiente de un menor de edad debe tener teléfono: '
-                    . 'es el número al que llamaría la institución.',
+                    .'es el número al que llamaría la institución.',
             ]);
         }
     }

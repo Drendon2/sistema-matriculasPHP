@@ -183,7 +183,7 @@ class EstadisticasController extends Controller
      * atribuir a un profesor concreto — es como valoro su paso por la casa ese
      * semestre. Atribuirla exigiria cambiar el modelo.
      *
-     * @return array<string, mixed>|null  null si todavia no hay ninguna respuesta
+     * @return array<string, mixed>|null null si todavia no hay ninguna respuesta
      */
     private function satisfaccion(bool $veNombres): ?array
     {
@@ -253,7 +253,7 @@ class EstadisticasController extends Controller
      * cada fila lleva cuantas respuestas la sostienen, porque una media de 2,0
      * sacada de una sola respuesta no es un problema todavia.
      *
-     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @param  Collection<int, EncuestaSatisfaccion>  $respuestas
      * @return list<array<string, mixed>>
      */
     private function mediasPorPromotoria($respuestas): array
@@ -280,7 +280,7 @@ class EstadisticasController extends Controller
     /**
      * Reparto de una pregunta de si/no.
      *
-     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @param  Collection<int, EncuestaSatisfaccion>  $respuestas
      * @return array{si: int, no: int, pct_si: int, pct_no: int}
      */
     private function siONo($respuestas, string $campo): array
@@ -298,7 +298,7 @@ class EstadisticasController extends Controller
      * Se incluye el telefono porque sin el la lista no sirve para lo unico que
      * justifica levantar el anonimato: hablar con esa persona.
      *
-     * @param  \Illuminate\Support\Collection<int, EncuestaSatisfaccion>  $respuestas
+     * @param  Collection<int, EncuestaSatisfaccion>  $respuestas
      * @return list<array<string, mixed>>
      */
     private function seguimiento($respuestas): array
@@ -543,7 +543,7 @@ class EstadisticasController extends Controller
      *
      * De paso desaparece un `selectRaw` con el nombre de columna interpolado.
      *
-     * @param  \Illuminate\Support\Collection<int, EncuestaDemografica>  $encuestas
+     * @param  Collection<int, EncuestaDemografica>  $encuestas
      * @return array<int|string, int>
      */
     private function conteo(Collection $encuestas, string $campo): array

@@ -131,7 +131,7 @@ class UsuarioController extends Controller
         return view('gestion.usuario-form', [
             'titulo' => 'Nuevo usuario',
             'esCreacion' => true,
-            'perfil' => new Perfil(),
+            'perfil' => new Perfil,
             'accion' => route('usuario-nuevo'),
             'datos' => null,
             'acudiente' => null,
@@ -396,7 +396,7 @@ class UsuarioController extends Controller
         ?Acudiente $acudiente,
     ): void {
         if (! empty($datos['acudiente_nombre'])) {
-            $acudiente ??= new Acudiente();
+            $acudiente ??= new Acudiente;
             $acudiente->nombre = $datos['acudiente_nombre'];
             $acudiente->telefono = $datos['acudiente_telefono'] ?? '';
             $acudiente->save();

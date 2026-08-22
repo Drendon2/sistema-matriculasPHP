@@ -2,15 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Gestion\GrupoController;
+use App\Models\Acudiente;
 use App\Models\Area;
 use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\ConfirmacionClase;
-use App\Models\CupoPromotoria;
 use App\Models\DatosEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
+use App\Models\EncuestaSatisfaccion;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
@@ -36,11 +38,17 @@ class GestionTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Area $musica;
+
     private Promotoria $violin;
+
     private Perfil $director;
+
     private Perfil $admin;
+
     private Perfil $profesor;
+
     private Perfil $estudiante;
 
     protected function setUp(): void
@@ -1074,7 +1082,7 @@ class GestionTest extends TestCase
             ]
         );
 
-        \App\Models\EncuestaSatisfaccion::create([
+        EncuestaSatisfaccion::create([
             'perfil_id' => $perfil->id,
             'periodo_id' => $anterior->id,
             'satisfaccion_general' => $general,
@@ -1146,7 +1154,7 @@ class GestionTest extends TestCase
     {
         $menor = $this->crearEstudiante('nino', Carbon::today()->subYears(11)->toDateString());
 
-        $acudiente = \App\Models\Acudiente::create([
+        $acudiente = Acudiente::create([
             'nombre' => 'Lucía Ortiz',
             'telefono' => '3111111111',
         ]);
@@ -1315,7 +1323,7 @@ class GestionTest extends TestCase
         ]);
 
         $this->actingAs($this->director->user)
-            ->get(route('grupo-lista', ['profesor' => \App\Http\Controllers\Gestion\GrupoController::PROFESOR_SIN_ASIGNAR]))
+            ->get(route('grupo-lista', ['profesor' => GrupoController::PROFESOR_SIN_ASIGNAR]))
             ->assertOk()
             ->assertSee('Titeres - Viernes tarde')
             ->assertDontSee('Ballet - Martes tarde');

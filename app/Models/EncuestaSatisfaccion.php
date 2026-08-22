@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 /**
  * Encuesta que llena un estudiante ANTIGUO al renovar, sobre el periodo cursado.
@@ -83,7 +84,7 @@ class EncuestaSatisfaccion extends Model
      * Lo usan los dos sitios donde se pide la encuesta —la renovacion y el
      * retiro—, para que no puedan discrepar sobre que hay que preguntar.
      *
-     * @return \Illuminate\Support\Collection<int, Matricula>
+     * @return Collection<int, Matricula>
      */
     public static function pendientesDe(Perfil $perfil, ?Periodo $periodo)
     {

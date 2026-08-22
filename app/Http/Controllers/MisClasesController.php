@@ -47,7 +47,7 @@ class MisClasesController extends Controller
         if ($fila === null) {
             return $this->volver(
                 'Esa clase no es de ninguno de tus grupos, o es anterior a tu matrícula, '
-                . 'así que no la puedes confirmar.'
+                .'así que no la puedes confirmar.'
             );
         }
 
@@ -57,8 +57,8 @@ class MisClasesController extends Controller
         if (! $fila['abierta']) {
             return $this->volver(
                 'El plazo para confirmar esa clase ya venció: solo se puede hasta '
-                . Clase::VENTANA_CONFIRMACION_HORAS . ' horas después, y esa terminó el '
-                . $this->textoPlazo($fila['limite']) . '.'
+                .Clase::VENTANA_CONFIRMACION_HORAS.' horas después, y esa terminó el '
+                .$this->textoPlazo($fila['limite']).'.'
             );
         }
 
@@ -75,7 +75,7 @@ class MisClasesController extends Controller
 
         return $this->volver(
             "Confirmaste la clase de {$fila['clase']->grupo->promotoria->nombre} del "
-            . $fila['clase']->fecha_hora->format('d/m/Y') . '.',
+            .$fila['clase']->fecha_hora->format('d/m/Y').'.',
             exito: true
         );
     }
@@ -100,7 +100,7 @@ class MisClasesController extends Controller
         if (! $fila['abierta']) {
             return $this->volver(
                 'Ya no puedes cambiar esa clase: el plazo terminó el '
-                . $this->textoPlazo($fila['limite']) . '.'
+                .$this->textoPlazo($fila['limite']).'.'
             );
         }
 

@@ -110,8 +110,8 @@ class Promotoria extends Model
      * matricula NO aparecen: un GROUP BY solo devuelve las que tienen alguna,
      * asi que quien lea el mapa debe tratar la ausencia como cero.
      *
-     * @param  \Illuminate\Support\Collection<int, self>  $promotorias
-     * @return \Illuminate\Support\Collection<int, int>
+     * @param  Collection<int, self>  $promotorias
+     * @return Collection<int, int>
      */
     public static function ocupadosEnLote(?Periodo $periodo, Collection $promotorias): Collection
     {

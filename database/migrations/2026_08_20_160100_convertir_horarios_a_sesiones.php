@@ -87,8 +87,8 @@ return new class extends Migration
         foreach (DB::table('sesiones_grupo')->orderBy('dia')->get() as $sesion) {
             DB::table('grupos')->where('id', $sesion->grupo_id)->update([
                 'horario' => ucfirst($dias[$sesion->dia] ?? '').' '
-                    . substr((string) $sesion->hora_inicio, 0, 5).'-'
-                    . substr((string) $sesion->hora_fin, 0, 5),
+                    .substr((string) $sesion->hora_inicio, 0, 5).'-'
+                    .substr((string) $sesion->hora_fin, 0, 5),
             ]);
         }
     }

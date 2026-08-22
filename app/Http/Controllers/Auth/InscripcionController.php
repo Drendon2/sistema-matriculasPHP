@@ -294,7 +294,7 @@ class InscripcionController extends Controller
     {
         if (ErrorDeBaseDeDatos::esCupoAgotado($e)) {
             return 'Una de las promotorías que elegiste se llenó mientras enviabas el '
-                . 'formulario. No se creó la cuenta: vuelve a intentarlo eligiendo otra.';
+                .'formulario. No se creó la cuenta: vuelve a intentarlo eligiendo otra.';
         }
 
         return 'Ya existe una cuenta con ese usuario, o un estudiante con ese documento de identidad.';
@@ -307,11 +307,11 @@ class InscripcionController extends Controller
         $varias = count($elegidas) > 1;
 
         return 'Tu cuenta quedó creada y '
-            . ($varias ? 'tus inscripciones a' : 'tu inscripción a')
-            . " {$nombres} "
-            . ($varias ? 'están' : 'está')
-            . ' pendiente' . ($varias ? 's' : '')
-            . ' de confirmación del profesor. '
-            . 'Inicia sesión y ve a "Mi perfil" para subir tu foto y tu documento.';
+            .($varias ? 'tus inscripciones a' : 'tu inscripción a')
+            ." {$nombres} "
+            .($varias ? 'están' : 'está')
+            .' pendiente'.($varias ? 's' : '')
+            .' de confirmación del profesor. '
+            .'Inicia sesión y ve a "Mi perfil" para subir tu foto y tu documento.';
     }
 }

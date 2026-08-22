@@ -22,8 +22,11 @@ use Illuminate\Validation\ValidationException;
 class Matricula extends Model
 {
     public const PENDIENTE = 'pendiente';
+
     public const ACTIVA = 'activa';
+
     public const CANCELACION_SOLICITADA = 'cancelacion_solicitada';
+
     public const RETIRADA = 'retirada';
 
     /**
@@ -322,8 +325,8 @@ class Matricula extends Model
 
                 throw ValidationException::withMessages([
                     'promotoria' => "Un estudiante puede estar en un máximo de {$limite} {$palabra} "
-                        . 'por periodo, y este ya tiene ese cupo ocupado. Retira una matrícula '
-                        . 'antes de agregar otra.',
+                        .'por periodo, y este ya tiene ese cupo ocupado. Retira una matrícula '
+                        .'antes de agregar otra.',
                 ]);
             }
         }
@@ -345,7 +348,7 @@ class Matricula extends Model
                 if ($ocupados >= $maximo) {
                     throw ValidationException::withMessages([
                         'promotoria' => "{$promotoria} no tiene cupos disponibles para {$periodo}: "
-                            . "{$ocupados} de {$maximo} ocupados, contando las solicitudes pendientes.",
+                            ."{$ocupados} de {$maximo} ocupados, contando las solicitudes pendientes.",
                     ]);
                 }
             }

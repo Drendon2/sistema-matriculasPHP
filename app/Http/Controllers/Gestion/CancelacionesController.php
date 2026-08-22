@@ -52,7 +52,7 @@ class CancelacionesController extends Controller
             if (! $matricula->cancelacion_es_rechazable) {
                 return $this->volver(
                     "{$nombre} es mayor de edad, así que su decisión de salir no se rechaza: "
-                    . 'esta cancelación solo se puede aprobar.'
+                    .'esta cancelación solo se puede aprobar.'
                 );
             }
 

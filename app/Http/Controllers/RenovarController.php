@@ -13,6 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -82,7 +83,7 @@ class RenovarController extends Controller
 
         if ($total > $contexto['cuposLibres']) {
             $errores[] = "Solo te quedan {$contexto['cuposLibres']} cupo(s) libre(s) en este periodo "
-                . "y elegiste {$total}.";
+                ."y elegiste {$total}.";
         }
 
         if (count($idsNuevas) !== $nuevas->count()) {
@@ -96,7 +97,7 @@ class RenovarController extends Controller
                 $encuestas = $this->validarEncuestas($request, $contexto['porValorar']);
             } catch (ValidationException $e) {
                 $errores[] = 'Revisa las respuestas de la encuesta: hay que contestarla '
-                    . 'para cada promotoría que cursaste.';
+                    .'para cada promotoría que cursaste.';
             }
         }
 
@@ -141,7 +142,7 @@ class RenovarController extends Controller
                 'error',
                 ErrorDeBaseDeDatos::esCupoAgotado($e)
                     ? 'Una de las promotorías se llenó mientras enviabas la renovación. '
-                        . 'No se registró: vuelve a intentarlo.'
+                        .'No se registró: vuelve a intentarlo.'
                     : 'No se pudo completar la renovación. Revisa tus matrículas y vuelve a intentarlo.'
             );
         }
@@ -149,21 +150,21 @@ class RenovarController extends Controller
         $partes = [];
 
         if ($seleccionadas !== []) {
-            $partes[] = 'renovaste ' . implode(', ', array_map(
+            $partes[] = 'renovaste '.implode(', ', array_map(
                 fn (Matricula $m) => (string) $m->promotoria,
                 $seleccionadas
             ));
         }
 
         if ($nuevas->isNotEmpty()) {
-            $partes[] = 'entraste como nuevo a ' . $nuevas
+            $partes[] = 'entraste como nuevo a '.$nuevas
                 ->map(fn (Promotoria $p) => (string) $p)
                 ->implode(', ');
         }
 
         return redirect()->route('mis-matriculas')->with(
             'success',
-            'Listo: ' . implode(' y ', $partes) . '. Queda pendiente de confirmación del profesor.'
+            'Listo: '.implode(' y ', $partes).'. Queda pendiente de confirmación del profesor.'
         );
     }
 
@@ -201,7 +202,7 @@ class RenovarController extends Controller
             return redirect()->route('promotorias-disponibles')->with(
                 'error',
                 'No tienes matrículas por renovar: o eres estudiante nuevo, o ya renovaste '
-                . 'todo lo que cursaste el periodo anterior.'
+                .'todo lo que cursaste el periodo anterior.'
             );
         }
 
@@ -272,8 +273,8 @@ class RenovarController extends Controller
      * pagina puede haber dos tandas y los nombres chocarian. Se valida todo
      * junto: si falta media encuesta, no se guarda ninguna.
      *
-     * @param  \Illuminate\Support\Collection<int, Matricula>  $porValorar
-     * @return array<int, array<string, mixed>>  matricula_id => respuestas
+     * @param  Collection<int, Matricula>  $porValorar
+     * @return array<int, array<string, mixed>> matricula_id => respuestas
      */
     private function validarEncuestas(Request $request, $porValorar): array
     {

@@ -12,6 +12,7 @@ use App\Models\Promotoria;
 use App\Models\SesionGrupo;
 use App\Models\User;
 use App\Support\HorarioSemanal;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -163,7 +164,7 @@ class HorarioTest extends TestCase
     {
         $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         SesionGrupo::create([
             'grupo_id' => $grupo->id, 'dia' => 3, 'hora_inicio' => '18:00', 'hora_fin' => '16:00',
@@ -174,7 +175,7 @@ class HorarioTest extends TestCase
     {
         $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         SesionGrupo::create([
             'grupo_id' => $grupo->id, 'dia' => 2, 'hora_inicio' => '19:00', 'hora_fin' => '21:00',
@@ -186,7 +187,7 @@ class HorarioTest extends TestCase
     {
         $grupo = $this->crearGrupo($this->violin, 'Normal', [[2, '16:00', '18:00']]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         SesionGrupo::create([
             'grupo_id' => $grupo->id, 'dia' => 7, 'hora_inicio' => '09:00', 'hora_fin' => '11:00',

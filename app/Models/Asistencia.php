@@ -22,7 +22,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Asistencia extends Model
 {
     public const ASISTIO = 'asistio';
+
     public const FALTO = 'falto';
+
     public const EXCUSA = 'excusa';
 
     public const ESTADOS = [

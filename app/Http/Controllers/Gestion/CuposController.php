@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CupoPromotoria;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -146,28 +147,28 @@ class CuposController extends Controller
 
             if ($cupo < $yaOcupados) {
                 $avisos[] = "{$promotoria}: cupo {$cupo} por debajo de las {$yaOcupados} "
-                    . 'matrículas ya ocupando sitio.';
+                    .'matrículas ya ocupando sitio.';
             }
         }
 
         $respuesta = redirect()->route('gestion-cupos-periodo', $periodo)->with(
             'success',
             "Cupos de {$periodo} guardados: {$guardados} con tope"
-            . ($quitados ? ", {$quitados} sin tope" : '') . '.'
+            .($quitados ? ", {$quitados} sin tope" : '').'.'
         );
 
         if ($avisos !== []) {
             $respuesta->with(
                 'error',
                 implode(' ', $avisos)
-                . ' No se retiró a nadie, pero no entrarán estudiantes nuevos.'
+                .' No se retiró a nadie, pero no entrarán estudiantes nuevos.'
             );
         }
 
         return $respuesta;
     }
 
-    /** @return \Illuminate\Database\Eloquent\Collection<int, Promotoria> */
+    /** @return Collection<int, Promotoria> */
     private function promotorias()
     {
         return Promotoria::with(['area', 'profesor', 'cupos'])

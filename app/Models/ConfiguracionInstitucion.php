@@ -97,7 +97,7 @@ class ConfiguracionInstitucion extends Model
         try {
             return static::firstOrCreate(['id' => 1]);
         } catch (Throwable) {
-            return new static();
+            return new static;
         }
     }
 

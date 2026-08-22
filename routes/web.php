@@ -1,12 +1,12 @@
 <?php
 
+use App\Http\Controllers\ArchivoController;
 use App\Http\Controllers\Auth\InscripcionController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PostLoginController;
 use App\Http\Controllers\Auth\RegistroController;
-use App\Http\Controllers\ArchivoController;
-use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\ClaseController;
 use App\Http\Controllers\FichaController;
 use App\Http\Controllers\Gestion;

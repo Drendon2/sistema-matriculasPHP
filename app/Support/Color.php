@@ -23,7 +23,9 @@ namespace App\Support;
 class Color
 {
     public const FACTOR_ACENTO_OSCURO = 0.727;
+
     public const LUZ_ACENTO_SUAVE = 0.904;
+
     public const SATURACION_MAXIMA_SUAVE = 0.469;
 
     /** Tono de hover/activo: el mismo color con la luminosidad bajada. */
@@ -106,7 +108,7 @@ class Color
      * Equivalente de `colorsys.rgb_to_hls`. Devuelve [matiz, luz, saturacion]
      * — en ese orden, que es el de Python y no el habitual HSL.
      *
-     * @param array{float,float,float} $rgb
+     * @param  array{float,float,float}  $rgb
      * @return array{float,float,float}
      */
     private static function rgbAHls(array $rgb): array

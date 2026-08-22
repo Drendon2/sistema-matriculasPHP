@@ -137,7 +137,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::unprepared("DROP TRIGGER IF EXISTS cupo_promotoria_disponible_insert");
-        DB::unprepared("DROP TRIGGER IF EXISTS cupo_promotoria_disponible_update");
+        DB::unprepared('DROP TRIGGER IF EXISTS cupo_promotoria_disponible_insert');
+        DB::unprepared('DROP TRIGGER IF EXISTS cupo_promotoria_disponible_update');
     }
 };

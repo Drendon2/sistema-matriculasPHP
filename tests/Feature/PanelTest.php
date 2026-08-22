@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\CupoPromotoria;
@@ -30,10 +31,15 @@ class PanelTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Promotoria $violin;
+
     private Promotoria $danza;
+
     private Perfil $profesor;
+
     private Perfil $director;
+
     private Perfil $estudiante;
 
     protected function setUp(): void
@@ -360,7 +366,7 @@ class PanelTest extends TestCase
         $this->matricular($this->danza, estado: Matricula::ACTIVA);
         $pendiente = $this->matricular($this->violin);
 
-        $configuracion = \App\Models\ConfiguracionInstitucion::actual();
+        $configuracion = ConfiguracionInstitucion::actual();
         $configuracion->limite_promotorias_por_periodo = 1;
         $configuracion->save();
 
@@ -956,7 +962,7 @@ class PanelTest extends TestCase
         $matricula->save();
 
         $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
-        \App\Models\Asistencia::create([
+        Asistencia::create([
             'clase_id' => $clase->id,
             'matricula_id' => $matricula->id,
             'estado' => 'asistio',

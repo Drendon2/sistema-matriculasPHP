@@ -36,11 +36,11 @@ return new class extends Migration
         // El tope de 6 es el mismo RANURA_MAXIMA_ABSOLUTA que graba el CHECK de
         // `matriculas`: subir el limite operativo por encima del numero de
         // ranuras que admite el esquema dejaria matriculas imposibles de crear.
-        DB::statement("
+        DB::statement('
             ALTER TABLE configuracion_institucion
             ADD CONSTRAINT limite_promotorias_valido
             CHECK (limite_promotorias_por_periodo BETWEEN 1 AND 6)
-        ");
+        ');
 
         // El formato del color se valida tambien en la aplicacion, que es donde
         // se le puede dar un mensaje legible; esto ataja lo que entre por otra via.

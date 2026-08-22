@@ -10,7 +10,6 @@
  *
  * Se ejecuta con:  php database/verificacion_esquema.php
  */
-
 $dsn = 'mysql:host=127.0.0.1;port=3307;dbname=matriculas;charset=utf8mb4';
 $db = new PDO($dsn, 'matriculas', 'matriculas', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
@@ -30,6 +29,7 @@ function rechaza(PDO $db, string $titulo, callable $op, string $esperado = ''): 
         if ($esperado !== '' && stripos($msg, $esperado) === false) {
             echo "  FALLO   $titulo\n          rechazada, pero por otro motivo: $msg\n";
             $fallidas++;
+
             return;
         }
         echo "  ok      $titulo\n";
@@ -54,14 +54,14 @@ function acepta(PDO $db, string $titulo, callable $op): void
 // ---------------------------------------------------------------------------
 // Datos base
 // ---------------------------------------------------------------------------
-$db->exec("SET FOREIGN_KEY_CHECKS = 0");
-foreach (['confirmaciones_clase','asistencias','clases','matriculas','grupos',
-          'cupos_promotoria','promotorias','documentos_estudiante','documentos_requeridos',
-          'datos_estudiante','acudientes','encuestas_satisfaccion','encuestas_demograficas',
-          'perfiles','periodos','areas','users'] as $t) {
+$db->exec('SET FOREIGN_KEY_CHECKS = 0');
+foreach (['confirmaciones_clase', 'asistencias', 'clases', 'matriculas', 'grupos',
+    'cupos_promotoria', 'promotorias', 'documentos_estudiante', 'documentos_requeridos',
+    'datos_estudiante', 'acudientes', 'encuestas_satisfaccion', 'encuestas_demograficas',
+    'perfiles', 'periodos', 'areas', 'users'] as $t) {
     $db->exec("TRUNCATE TABLE $t");
 }
-$db->exec("SET FOREIGN_KEY_CHECKS = 1");
+$db->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 $db->exec("INSERT INTO users (id, username, password, activo, created_at, updated_at)
            VALUES (1,'ana','x',1,NOW(),NOW()), (2,'beto','x',1,NOW(),NOW())");
@@ -75,69 +75,68 @@ $db->exec("INSERT INTO promotorias (id, nombre, area_id, profesor_id, created_at
            VALUES (1,'Violin',1,2,NOW(),NOW()), (2,'Guitarra',1,2,NOW(),NOW()), (3,'Piano',1,2,NOW(),NOW()),
                   (4,'Flauta',1,2,NOW(),NOW()), (5,'Canto',1,2,NOW(),NOW())");
 
-$nuevaMatricula = fn($est, $promo, $ranura, $estado = 'pendiente') =>
-    "INSERT INTO matriculas (estudiante_id, promotoria_id, periodo_id, fecha, estado, ranura, created_at, updated_at)
+$nuevaMatricula = fn ($est, $promo, $ranura, $estado = 'pendiente') => "INSERT INTO matriculas (estudiante_id, promotoria_id, periodo_id, fecha, estado, ranura, created_at, updated_at)
      VALUES ($est, $promo, 1, NOW(), '$estado', $ranura, NOW(), NOW())";
 
 echo "\n== Periodo: solo uno en curso (indice unico parcial emulado) ==\n";
-acepta($db, "un segundo periodo INACTIVO entra", fn($d) => $d->exec(
+acepta($db, 'un segundo periodo INACTIVO entra', fn ($d) => $d->exec(
     "INSERT INTO periodos (nombre, fecha_inicio, fecha_fin, activo, matriculas_abiertas, created_at, updated_at)
      VALUES ('2026-2','2026-07-01','2026-12-15',0,0,NOW(),NOW())"));
-rechaza($db, "un segundo periodo ACTIVO se rechaza", fn($d) => $d->exec(
+rechaza($db, 'un segundo periodo ACTIVO se rechaza', fn ($d) => $d->exec(
     "INSERT INTO periodos (nombre, fecha_inicio, fecha_fin, activo, matriculas_abiertas, created_at, updated_at)
      VALUES ('2027-1','2027-01-15','2027-06-30',1,0,NOW(),NOW())"), 'un_solo_periodo_activo');
-rechaza($db, "activar por UPDATE un segundo periodo se rechaza", fn($d) => $d->exec(
+rechaza($db, 'activar por UPDATE un segundo periodo se rechaza', fn ($d) => $d->exec(
     "UPDATE periodos SET activo = 1 WHERE nombre = '2026-2'"), 'un_solo_periodo_activo');
 
 echo "\n== Matricula: unicidad y ranuras ==\n";
-acepta($db, "primera matricula de Ana (Violin, ranura 1)", fn($d) => $d->exec($nuevaMatricula(1,1,1)));
-rechaza($db, "la misma promotoria y periodo se rechaza", fn($d) => $d->exec($nuevaMatricula(1,1,2)),
+acepta($db, 'primera matricula de Ana (Violin, ranura 1)', fn ($d) => $d->exec($nuevaMatricula(1, 1, 1)));
+rechaza($db, 'la misma promotoria y periodo se rechaza', fn ($d) => $d->exec($nuevaMatricula(1, 1, 2)),
     'unica_matricula_por_periodo');
-acepta($db, "segunda promotoria en ranura 2", fn($d) => $d->exec($nuevaMatricula(1,2,2)));
-rechaza($db, "tercera promotoria reusando la ranura 1", fn($d) => $d->exec($nuevaMatricula(1,3,1)),
+acepta($db, 'segunda promotoria en ranura 2', fn ($d) => $d->exec($nuevaMatricula(1, 2, 2)));
+rechaza($db, 'tercera promotoria reusando la ranura 1', fn ($d) => $d->exec($nuevaMatricula(1, 3, 1)),
     'una_matricula_por_ranura_y_periodo');
-rechaza($db, "ranura 7 rompe el techo del esquema", fn($d) => $d->exec($nuevaMatricula(1,3,7)),
+rechaza($db, 'ranura 7 rompe el techo del esquema', fn ($d) => $d->exec($nuevaMatricula(1, 3, 7)),
     'ranura_valida');
-rechaza($db, "un estado inventado se rechaza", fn($d) => $d->exec($nuevaMatricula(1,3,3,'aprobada')),
+rechaza($db, 'un estado inventado se rechaza', fn ($d) => $d->exec($nuevaMatricula(1, 3, 3, 'aprobada')),
     'estado_valido');
 
 echo "\n== La retirada LIBERA la ranura, la cancelacion en tramite NO ==\n";
 $db->exec("UPDATE matriculas SET estado='cancelacion_solicitada' WHERE estudiante_id=1 AND promotoria_id=1");
-rechaza($db, "con cancelacion en tramite la ranura 1 sigue ocupada", fn($d) => $d->exec($nuevaMatricula(1,3,1)),
+rechaza($db, 'con cancelacion en tramite la ranura 1 sigue ocupada', fn ($d) => $d->exec($nuevaMatricula(1, 3, 1)),
     'una_matricula_por_ranura_y_periodo');
 $db->exec("UPDATE matriculas SET estado='retirada' WHERE estudiante_id=1 AND promotoria_id=1");
-acepta($db, "tras retirarla, la ranura 1 queda libre", fn($d) => $d->exec($nuevaMatricula(1,3,1)));
+acepta($db, 'tras retirarla, la ranura 1 queda libre', fn ($d) => $d->exec($nuevaMatricula(1, 3, 1)));
 $db->exec("UPDATE matriculas SET estado='retirada' WHERE estudiante_id=1 AND promotoria_id=3");
-acepta($db, "dos retiradas comparten ranura (NULL != NULL)", fn($d) => $d->exec($nuevaMatricula(1,4,1)));
+acepta($db, 'dos retiradas comparten ranura (NULL != NULL)', fn ($d) => $d->exec($nuevaMatricula(1, 4, 1)));
 
 echo "\n== Trigger de cupo ==\n";
-$db->exec("DELETE FROM matriculas");
-$db->exec("INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
-           VALUES (5, 1, 2, NOW(), NOW())");
-acepta($db, "cupo 2: entra la primera", fn($d) => $d->exec($nuevaMatricula(1,5,1)));
+$db->exec('DELETE FROM matriculas');
+$db->exec('INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
+           VALUES (5, 1, 2, NOW(), NOW())');
+acepta($db, 'cupo 2: entra la primera', fn ($d) => $d->exec($nuevaMatricula(1, 5, 1)));
 $db->exec("INSERT INTO users (id, username, password, activo, created_at, updated_at) VALUES (3,'caro','x',1,NOW(),NOW())");
 $db->exec("INSERT INTO perfiles (id, user_id, rol, nombre_completo, fecha_nacimiento, telefono, created_at, updated_at)
            VALUES (3,3,'estudiante','Caro Paz','2001-02-02','3000000002',NOW(),NOW())");
-acepta($db, "cupo 2: entra la segunda", fn($d) => $d->exec($nuevaMatricula(3,5,1)));
+acepta($db, 'cupo 2: entra la segunda', fn ($d) => $d->exec($nuevaMatricula(3, 5, 1)));
 $db->exec("INSERT INTO users (id, username, password, activo, created_at, updated_at) VALUES (4,'dani','x',1,NOW(),NOW())");
 $db->exec("INSERT INTO perfiles (id, user_id, rol, nombre_completo, fecha_nacimiento, telefono, created_at, updated_at)
            VALUES (4,4,'estudiante','Dani Gil','2002-03-03','3000000003',NOW(),NOW())");
-rechaza($db, "cupo 2: la tercera se rechaza", fn($d) => $d->exec($nuevaMatricula(4,5,1)),
+rechaza($db, 'cupo 2: la tercera se rechaza', fn ($d) => $d->exec($nuevaMatricula(4, 5, 1)),
     'no tiene cupos disponibles');
 
 echo "\n== Trigger de cupo: lo que NO debe bloquear (la parte delicada) ==\n";
 // Con la promotoria LLENA, el personal tiene que poder seguir operando sobre
 // las matriculas que ya existen. Si el trigger las bloqueara, bajar un cupo
 // dejaria al profesor sin poder confirmar a nadie.
-acepta($db, "confirmar una matricula ya existente en promotoria LLENA",
-    fn($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=1 AND promotoria_id=5"));
-acepta($db, "pedir cancelacion en promotoria LLENA",
-    fn($d) => $d->exec("UPDATE matriculas SET estado='cancelacion_solicitada' WHERE estudiante_id=3 AND promotoria_id=5"));
-acepta($db, "retirar siempre pasa",
-    fn($d) => $d->exec("UPDATE matriculas SET estado='retirada' WHERE estudiante_id=3 AND promotoria_id=5"));
+acepta($db, 'confirmar una matricula ya existente en promotoria LLENA',
+    fn ($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=1 AND promotoria_id=5"));
+acepta($db, 'pedir cancelacion en promotoria LLENA',
+    fn ($d) => $d->exec("UPDATE matriculas SET estado='cancelacion_solicitada' WHERE estudiante_id=3 AND promotoria_id=5"));
+acepta($db, 'retirar siempre pasa',
+    fn ($d) => $d->exec("UPDATE matriculas SET estado='retirada' WHERE estudiante_id=3 AND promotoria_id=5"));
 // Y ahora que una se retiro, queda un sitio: reactivarla debe poder.
-acepta($db, "reactivar una retirada cuando volvio a haber sitio",
-    fn($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=3 AND promotoria_id=5"));
+acepta($db, 'reactivar una retirada cuando volvio a haber sitio',
+    fn ($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=3 AND promotoria_id=5"));
 // Reactivar una retirada cuando el sitio YA lo tomo otro si debe bloquearse.
 // Se monta en Piano (cupo 1) para que el escenario quede a la vista:
 //   Dani entra y ocupa el unico sitio -> se retira -> Evi ocupa el sitio libre
@@ -146,13 +145,13 @@ acepta($db, "reactivar una retirada cuando volvio a haber sitio",
 $db->exec("INSERT INTO users (id, username, password, activo, created_at, updated_at) VALUES (5,'evi','x',1,NOW(),NOW())");
 $db->exec("INSERT INTO perfiles (id, user_id, rol, nombre_completo, fecha_nacimiento, telefono, created_at, updated_at)
            VALUES (5,5,'estudiante','Evi Mora','2003-04-04','3000000004',NOW(),NOW())");
-$db->exec("INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
-           VALUES (3, 1, 1, NOW(), NOW())");
-acepta($db, "Piano cupo 1: Dani toma el unico sitio", fn($d) => $d->exec($nuevaMatricula(4,3,1)));
+$db->exec('INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
+           VALUES (3, 1, 1, NOW(), NOW())');
+acepta($db, 'Piano cupo 1: Dani toma el unico sitio', fn ($d) => $d->exec($nuevaMatricula(4, 3, 1)));
 $db->exec("UPDATE matriculas SET estado='retirada' WHERE estudiante_id=4 AND promotoria_id=3");
-acepta($db, "Dani se retira y Evi ocupa el sitio libre", fn($d) => $d->exec($nuevaMatricula(5,3,1)));
-rechaza($db, "Dani ya no puede volver: el sitio esta tomado",
-    fn($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=4 AND promotoria_id=3"),
+acepta($db, 'Dani se retira y Evi ocupa el sitio libre', fn ($d) => $d->exec($nuevaMatricula(5, 3, 1)));
+rechaza($db, 'Dani ya no puede volver: el sitio esta tomado',
+    fn ($d) => $d->exec("UPDATE matriculas SET estado='activa' WHERE estudiante_id=4 AND promotoria_id=3"),
     'no tiene cupos disponibles');
 
 echo "\n== Sin cupo definido no hay tope ==\n";
@@ -161,47 +160,51 @@ for ($i = 6; $i <= 10; $i++) {
     $db->exec("INSERT INTO perfiles (id, user_id, rol, nombre_completo, fecha_nacimiento, telefono, created_at, updated_at)
                VALUES ($i,$i,'estudiante','Persona $i','2000-01-01','300000000$i',NOW(),NOW())");
 }
-acepta($db, "Violin no tiene fila de cupo: admite a los cinco", function ($d) use ($nuevaMatricula) {
-    for ($i = 6; $i <= 10; $i++) { $d->exec($nuevaMatricula($i, 1, 1)); }
+acepta($db, 'Violin no tiene fila de cupo: admite a los cinco', function ($d) use ($nuevaMatricula) {
+    for ($i = 6; $i <= 10; $i++) {
+        $d->exec($nuevaMatricula($i, 1, 1));
+    }
 });
 
 echo "\n== Otros CHECK del esquema ==\n";
-rechaza($db, "rol inventado en perfiles", fn($d) => $d->exec(
+rechaza($db, 'rol inventado en perfiles', fn ($d) => $d->exec(
     "INSERT INTO perfiles (user_id, rol, nombre_completo, fecha_nacimiento, telefono, created_at, updated_at)
      VALUES (1,'rector','X','2000-01-01','300',NOW(),NOW())"), 'rol_valido');
-rechaza($db, "limite de promotorias fuera de 1..6", fn($d) => $d->exec(
-    "INSERT INTO configuracion_institucion (limite_promotorias_por_periodo, created_at, updated_at)
-     VALUES (9, NOW(), NOW())"), 'limite_promotorias_valido');
-rechaza($db, "color de acento que no es hex", fn($d) => $d->exec(
+rechaza($db, 'limite de promotorias fuera de 1..6', fn ($d) => $d->exec(
+    'INSERT INTO configuracion_institucion (limite_promotorias_por_periodo, created_at, updated_at)
+     VALUES (9, NOW(), NOW())'), 'limite_promotorias_valido');
+rechaza($db, 'color de acento que no es hex', fn ($d) => $d->exec(
     "INSERT INTO configuracion_institucion (color_acento, created_at, updated_at)
      VALUES ('verde', NOW(), NOW())"), 'color_acento_hex');
-rechaza($db, "estrato 8 en la encuesta", fn($d) => $d->exec(
+rechaza($db, 'estrato 8 en la encuesta', fn ($d) => $d->exec(
     "INSERT INTO encuestas_demograficas (perfil_id, genero, barrio, estrato, nivel_educativo, ocupacion, created_at, updated_at)
      VALUES (1,'f','Centro',8,'tecnico','estudiante',NOW(),NOW())"), 'estrato_valido');
-rechaza($db, "nivel de grupo inventado", fn($d) => $d->exec(
+rechaza($db, 'nivel de grupo inventado', fn ($d) => $d->exec(
     "INSERT INTO grupos (promotoria_id, nivel, horario, salon, cupo_maximo, created_at, updated_at)
      VALUES (1,'experto','Lun 8am','A1',10,NOW(),NOW())"), 'nivel_valido');
-rechaza($db, "estado de asistencia inventado", function ($d) {
+rechaza($db, 'estado de asistencia inventado', function ($d) {
     $d->exec("INSERT INTO grupos (id, promotoria_id, nivel, horario, salon, cupo_maximo, created_at, updated_at)
               VALUES (1,1,'basico','Lun 8am','A1',10,NOW(),NOW())");
-    $d->exec("INSERT INTO clases (id, grupo_id, periodo_id, fecha_hora, registrada_por_id, confirmaciones_requeridas, created_at, updated_at)
-              VALUES (1,1,1,NOW(),2,3,NOW(),NOW())");
-    $mid = $d->query("SELECT id FROM matriculas LIMIT 1")->fetchColumn();
+    $d->exec('INSERT INTO clases (id, grupo_id, periodo_id, fecha_hora, registrada_por_id, confirmaciones_requeridas, created_at, updated_at)
+              VALUES (1,1,1,NOW(),2,3,NOW(),NOW())');
+    $mid = $d->query('SELECT id FROM matriculas LIMIT 1')->fetchColumn();
     $d->exec("INSERT INTO asistencias (clase_id, matricula_id, estado, fecha_registro, created_at, updated_at)
               VALUES (1,$mid,'tarde',NOW(),NOW(),NOW())");
 }, 'estado_asistencia_valido');
 
 echo "\n== Integridad referencial ==\n";
-rechaza($db, "borrar una promotoria con matriculas (RESTRICT)",
-    fn($d) => $d->exec("DELETE FROM promotorias WHERE id = 1"), 'foreign key');
-rechaza($db, "borrar un periodo con matriculas (RESTRICT)",
-    fn($d) => $d->exec("DELETE FROM periodos WHERE id = 1"), 'foreign key');
-acepta($db, "borrar una cuenta arrastra su perfil (CASCADE)", function ($d) {
-    $d->exec("DELETE FROM users WHERE id = 10");
-    $n = $d->query("SELECT COUNT(*) FROM perfiles WHERE user_id = 10")->fetchColumn();
-    if ($n != 0) { throw new PDOException("el perfil sobrevivio"); }
+rechaza($db, 'borrar una promotoria con matriculas (RESTRICT)',
+    fn ($d) => $d->exec('DELETE FROM promotorias WHERE id = 1'), 'foreign key');
+rechaza($db, 'borrar un periodo con matriculas (RESTRICT)',
+    fn ($d) => $d->exec('DELETE FROM periodos WHERE id = 1'), 'foreign key');
+acepta($db, 'borrar una cuenta arrastra su perfil (CASCADE)', function ($d) {
+    $d->exec('DELETE FROM users WHERE id = 10');
+    $n = $d->query('SELECT COUNT(*) FROM perfiles WHERE user_id = 10')->fetchColumn();
+    if ($n != 0) {
+        throw new PDOException('el perfil sobrevivio');
+    }
 });
 
-echo "\n" . str_repeat('-', 60) . "\n";
+echo "\n".str_repeat('-', 60)."\n";
 echo "Pasadas: $pasadas   Fallidas: $fallidas\n";
 exit($fallidas > 0 ? 1 : 0);

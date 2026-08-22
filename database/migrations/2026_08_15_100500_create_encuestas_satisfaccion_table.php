@@ -38,12 +38,12 @@ return new class extends Migration
             $table->unique(['perfil_id', 'periodo_id'], 'una_encuesta_satisfaccion_por_periodo');
         });
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE encuestas_satisfaccion
             ADD CONSTRAINT escalas_validas
             CHECK (satisfaccion_general BETWEEN 1 AND 5
                    AND calificacion_profesor BETWEEN 1 AND 5)
-        ");
+        ');
     }
 
     public function down(): void

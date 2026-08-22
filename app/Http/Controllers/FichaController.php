@@ -44,7 +44,7 @@ class FichaController extends Controller
             return redirect()->route('panel')->with(
                 'error',
                 "No tienes acceso a la ficha de {$usuario->nombre_completo}: "
-                . 'un profesor solo puede consultar la de sus estudiantes.'
+                .'un profesor solo puede consultar la de sus estudiantes.'
             );
         }
 

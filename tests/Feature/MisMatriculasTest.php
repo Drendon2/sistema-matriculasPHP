@@ -27,9 +27,13 @@ class MisMatriculasTest extends TestCase
     use RefreshDatabase;
 
     private Periodo $periodo;
+
     private Promotoria $violin;
+
     private Promotoria $danza;
+
     private User $user;
+
     private Perfil $perfil;
 
     protected function setUp(): void

@@ -83,11 +83,11 @@ return new class extends Migration
             $table->index(['grupo_id', 'periodo_id', 'estado']);
         });
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE matriculas
             ADD CONSTRAINT ranura_valida
             CHECK (ranura BETWEEN 1 AND 6)
-        ");
+        ');
 
         DB::statement("
             ALTER TABLE matriculas
@@ -104,11 +104,11 @@ return new class extends Migration
                 GENERATED ALWAYS AS (IF(estado <> 'retirada', ranura, NULL)) VIRTUAL
         ");
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE matriculas
             ADD UNIQUE INDEX una_matricula_por_ranura_y_periodo
                 (estudiante_id, periodo_id, ranura_activa)
-        ");
+        ');
     }
 
     public function down(): void

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Gestion;
 
 use App\Models\Area;
 use App\Models\Grupo;
-use App\Support\HorarioDeGrupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
+use App\Support\HorarioDeGrupo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -256,7 +256,7 @@ class GrupoController extends RecursoController
             'nombre' => [
                 'etiqueta' => 'Nombre del grupo', 'tipo' => 'text', 'max' => 60,
                 'ayuda' => 'Lo que distingue este grupo de los demás de la promotoría. '
-                    . 'Por ejemplo, Martes tarde.',
+                    .'Por ejemplo, Martes tarde.',
             ],
             'nivel' => ['etiqueta' => 'Nivel', 'tipo' => 'select', 'opciones' => Grupo::NIVELES],
             // El horario no es una columna sino filas aparte, asi que se pinta

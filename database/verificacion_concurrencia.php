@@ -11,20 +11,19 @@
  *
  * Se ejecuta con:  php database/verificacion_concurrencia.php
  */
-
 $dsn = 'mysql:host=127.0.0.1;port=3307;dbname=matriculas;charset=utf8mb4';
 $opt = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
-$cerrojo = __DIR__ . '/.cerrojo_tomado';
+$cerrojo = __DIR__.'/.cerrojo_tomado';
 
 $db = new PDO($dsn, 'matriculas', 'matriculas', $opt);
 
 // Escenario limpio: Violin con cupo 1 y nadie inscrito.
-$db->exec("SET FOREIGN_KEY_CHECKS = 0");
-foreach (['confirmaciones_clase','asistencias','clases','matriculas','grupos',
-          'cupos_promotoria','promotorias','perfiles','periodos','areas','users'] as $t) {
+$db->exec('SET FOREIGN_KEY_CHECKS = 0');
+foreach (['confirmaciones_clase', 'asistencias', 'clases', 'matriculas', 'grupos',
+    'cupos_promotoria', 'promotorias', 'perfiles', 'periodos', 'areas', 'users'] as $t) {
     $db->exec("TRUNCATE TABLE $t");
 }
-$db->exec("SET FOREIGN_KEY_CHECKS = 1");
+$db->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 $db->exec("INSERT INTO users (id, username, password, activo, created_at, updated_at)
            VALUES (1,'ana','x',1,NOW(),NOW()), (2,'beto','x',1,NOW(),NOW())");
@@ -36,27 +35,27 @@ $db->exec("INSERT INTO periodos (id, nombre, fecha_inicio, fecha_fin, activo, ma
            VALUES (1,'2026-1','2026-01-15','2026-06-30',1,1,NOW(),NOW())");
 $db->exec("INSERT INTO promotorias (id, nombre, area_id, created_at, updated_at)
            VALUES (1,'Violin',1,NOW(),NOW())");
-$db->exec("INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
-           VALUES (1,1,1,NOW(),NOW())");
+$db->exec('INSERT INTO cupos_promotoria (promotoria_id, periodo_id, cupo_maximo, created_at, updated_at)
+           VALUES (1,1,1,NOW(),NOW())');
 @unlink($cerrojo);
 
 echo "Escenario: Violin, cupo 1, nadie inscrito. Ana y Beto lo piden a la vez.\n\n";
 
 // A arranca en su propio proceso y retiene el cerrojo 3 segundos.
-$cmd = 'start /B "" ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/verificacion_concurrencia_a.php');
+$cmd = 'start /B "" '.escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/verificacion_concurrencia_a.php');
 pclose(popen($cmd, 'r'));
 
 $t0 = microtime(true);
-while (!file_exists($cerrojo) && microtime(true) - $t0 < 15) {
+while (! file_exists($cerrojo) && microtime(true) - $t0 < 15) {
     usleep(50000);
 }
-if (!file_exists($cerrojo)) {
+if (! file_exists($cerrojo)) {
     exit("La transaccion A nunca llego a tomar el cerrojo.\n");
 }
 echo "A (Ana): matricula escrita, transaccion ABIERTA, cerrojo tomado.\n";
 
 $b = new PDO($dsn, 'matriculas', 'matriculas', $opt);
-$b->exec("SET innodb_lock_wait_timeout = 20");
+$b->exec('SET innodb_lock_wait_timeout = 20');
 $b->beginTransaction();
 
 echo "B (Beto): pide el mismo ultimo sitio...\n";

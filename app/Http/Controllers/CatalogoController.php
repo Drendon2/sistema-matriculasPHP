@@ -33,7 +33,7 @@ class CatalogoController extends Controller
             return redirect()->route('mis-matriculas')->with(
                 'error',
                 'La inscripción por tu cuenta no está habilitada. Acércate a la '
-                . 'institución para que te matriculen.'
+                .'institución para que te matriculen.'
             );
         }
 

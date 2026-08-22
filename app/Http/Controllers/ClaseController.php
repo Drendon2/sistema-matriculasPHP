@@ -24,7 +24,7 @@ class ClaseController extends Controller
 {
     private const SOLO_EL_PROFESOR =
         'Registrar clases y pasar lista es de quien dicta la promotoría. Si no tiene a '
-        . 'nadie asignado —o si eres tú quien la dicta—, asígnala en Gestión → Promotorías.';
+        .'nadie asignado —o si eres tú quien la dicta—, asígnala en Gestión → Promotorías.';
 
     /**
      * Registra la clase que empieza ahora y lleva a pasar lista.
@@ -53,7 +53,7 @@ class ClaseController extends Controller
             return redirect()->route('panel')->with(
                 'error',
                 'No hay un periodo en curso, así que la clase no se puede registrar en ninguno. '
-                . 'Pide que marquen el periodo en curso desde Gestión.'
+                .'Pide que marquen el periodo en curso desde Gestión.'
             );
         }
 
@@ -67,7 +67,7 @@ class ClaseController extends Controller
             return redirect()->route('clase-asistencia', $deHoy)->with(
                 'success',
                 'Ya habías registrado una clase de este grupo hoy a las '
-                . $deHoy->fecha_hora->format('H:i') . '. Esta es su lista.'
+                .$deHoy->fecha_hora->format('H:i').'. Esta es su lista.'
             );
         }
 
@@ -183,8 +183,8 @@ class ClaseController extends Controller
             'success',
             $sinMarcar
                 ? "Asistencia guardada. Quedaron {$sinMarcar} "
-                    . ($sinMarcar === 1 ? 'estudiante' : 'estudiantes')
-                    . ' sin marcar: puedes volver a esta clase y completarlos.'
+                    .($sinMarcar === 1 ? 'estudiante' : 'estudiantes')
+                    .' sin marcar: puedes volver a esta clase y completarlos.'
                 : 'Asistencia guardada.'
         );
     }

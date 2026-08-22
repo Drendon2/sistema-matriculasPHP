@@ -153,7 +153,7 @@ class PanelController extends Controller
         // propia consulta a todos los periodos, y de aqui solo saca a QUIEN
         // preguntar por. Quien vuelve sigue apareciendo marcado como tal.
         $suyas = $periodo === null
-            ? new Collection()
+            ? new Collection
             : Matricula::query()
                 ->where('promotoria_id', $promotoria->id)
                 ->where('periodo_id', $periodo->id)
@@ -253,7 +253,7 @@ class PanelController extends Controller
 
             return $this->volver(
                 "{$matricula->estudiante->nombre_completo} ya ocupa {$permitidas} en este "
-                . 'periodo. Retira una de sus matrículas antes de confirmar esta.'
+                .'periodo. Retira una de sus matrículas antes de confirmar esta.'
             );
         }
 
@@ -487,8 +487,8 @@ class PanelController extends Controller
         if ($cupo < $ocupados) {
             return $this->volver(
                 "Cupo de {$promotoria} fijado en {$cupo} para {$periodo}, pero ya hay {$ocupados} "
-                . 'matrículas ocupando sitio. No se retiró a nadie: simplemente no entrarán '
-                . 'estudiantes nuevos hasta que el número baje.'
+                .'matrículas ocupando sitio. No se retiró a nadie: simplemente no entrarán '
+                .'estudiantes nuevos hasta que el número baje.'
             );
         }
 
@@ -642,7 +642,7 @@ class PanelController extends Controller
      * cambia de texto segun si el grupo ya tiene lista abierta hoy, y
      * preguntarlo grupo por grupo seria una consulta por fila.
      *
-     * @return array<int, \App\Models\Clase>
+     * @return array<int, Clase>
      */
     private function clasesDeHoy(?Periodo $periodo, Promotoria $promotoria): array
     {
@@ -671,7 +671,7 @@ class PanelController extends Controller
      * cuarenta consultas para pintar cuarenta etiquetas.
      *
      * @param  Collection<int, Matricula>  $matriculas
-     * @return array<string, list<int>>  "estudianteId:promotoriaId" => periodos cursados
+     * @return array<string, list<int>> "estudianteId:promotoriaId" => periodos cursados
      */
     private function renovacionesDe(Collection $matriculas): array
     {

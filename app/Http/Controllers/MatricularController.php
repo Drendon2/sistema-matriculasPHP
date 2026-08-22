@@ -42,14 +42,14 @@ class MatricularController extends Controller
         if ($datosEstudiante === null) {
             return $this->volver(
                 'Tu registro como estudiante no está completo (falta documento de identidad). '
-                . 'Contacta al administrador.'
+                .'Contacta al administrador.'
             );
         }
 
         if ($perfil->es_menor && $datosEstudiante->acudiente_id === null) {
             return $this->volver(
                 'Eres menor de edad y no tienes un acudiente registrado. '
-                . 'Pide al administrador que registre tu acudiente antes de matricularte.'
+                .'Pide al administrador que registre tu acudiente antes de matricularte.'
             );
         }
 
@@ -93,7 +93,7 @@ class MatricularController extends Controller
         return $this->volver(
             $reactivada
                 ? "Volviste a inscribirte en {$promotoria}. Tu matrícula quedó otra vez "
-                    . 'pendiente de confirmación del profesor.'
+                    .'pendiente de confirmación del profesor.'
                 : "Tu inscripción a {$promotoria} quedó pendiente de confirmación del profesor.",
             exito: true
         );
@@ -110,7 +110,7 @@ class MatricularController extends Controller
     {
         if (ErrorDeBaseDeDatos::esCupoAgotado($e)) {
             return "{$promotoria} se llenó mientras enviabas la solicitud: alguien tomó el "
-                . "último cupo de {$periodo}. No quedó registrada.";
+                ."último cupo de {$periodo}. No quedó registrada.";
         }
 
         // Matricula repetida en la misma promotoria, o el indice que limita las
@@ -118,8 +118,8 @@ class MatricularController extends Controller
         $limite = Matricula::limitePromotorias();
 
         return 'No se pudo registrar la matrícula: o ya tienes una en esa promotoría este '
-            . "periodo, o ya ocupas las {$limite} promotorías permitidas. "
-            . 'Revisa tus matrículas y vuelve a intentarlo.';
+            ."periodo, o ya ocupas las {$limite} promotorías permitidas. "
+            .'Revisa tus matrículas y vuelve a intentarlo.';
     }
 
     private function volver(string $mensaje, bool $exito = false): RedirectResponse
