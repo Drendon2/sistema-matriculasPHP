@@ -738,6 +738,49 @@ Correcto: `/registro` crea la cuenta **sin rol**, y hasta que un director o
 administrador se lo asigne desde Gestión → Usuarios, esa persona solo ve la
 pantalla de «cuenta pendiente».
 
+## El despliegue automático falla en «Desplegar por SSH»
+
+Pasó el 22/08/2026. Las pruebas en verde, y el paso de SSH en rojo a los **31
+segundos**. No es el `command_timeout` de 15 minutos agotándose: a esa velocidad
+lo que falla es la conexión, no el guion.
+
+**Cómo distinguir «no conectó» de «se rompió a mitad»**, que es lo primero que
+hay que saber: mira si hay un respaldo nuevo en `~/matriculas-app/respaldos/`. El
+respaldo es lo PRIMERO que hace `desplegar.sh`, antes incluso de cerrar el sitio.
+Sin respaldo nuevo, el guion no llegó a arrancar y el servidor sigue intacto en
+el commit anterior.
+
+En aquel caso el sitio siguió **abierto y sirviendo** el commit previo. No hubo
+caída: lo único que pasó es que los commits nuevos no llegaron al aire.
+
+Antes de culpar a la red, descarta lo de siempre desde el propio servidor:
+
+```bash
+ssh -p 65002 u821315052@46.202.183.237
+cd ~/matriculas-app
+git log --oneline -1          # en qué commit está de verdad
+git status --short            # ¿algo a medias?
+git fetch origin && git rev-list --count HEAD..origin/main   # ¿cuántos faltan?
+df -h ~                       # ¿queda disco?
+ls -lt respaldos/ | head -3   # ¿hasta dónde llegó?
+```
+
+**El arreglo**: reintentar. En GitHub, *Actions → la ejecución fallida →
+«Re-run failed jobs»*. Si vuelve a fallar, o si hay prisa, se despliega a mano
+—es exactamente lo mismo que hace la acción—:
+
+```bash
+ssh -p 65002 u821315052@46.202.183.237
+cd ~/matriculas-app && chmod +x desplegar.sh respaldar.sh && ./desplegar.sh
+```
+
+Termina diciendo `Desplegado: <commit> — <mensaje>`. Si esa línea sale, entró.
+
+**Si falla varias veces seguidas**, la sospecha pasa a ser que Hostinger le cerró
+la puerta a la IP del ejecutor de GitHub: es el mismo veto automático por IP que
+tiene bloqueada la oficina desde la que se desarrolla (ver más abajo). Ahí toca
+soporte de Hostinger, o desplegar a mano desde una red que sí pase.
+
 ---
 
 # Parte 5 — La instalación real (19/08/2026)
@@ -804,6 +847,26 @@ mismo proceso.
 `" 65002"` y la acción de SSH no pudo convertirlo en número: falló al leer sus
 propios parámetros, sin llegar a conectar. Los secretos se escriben a mano, no
 se pegan.
+
+**Hostinger veta IP enteras, y el síntoma imita a un sitio caído.** (22/08/2026.)
+La IP de la oficina desde la que se desarrolla está bloqueada en los servidores
+de origen: se cuelga **todo** —80, 443, 21 y el 65002 del SSH—. Como el dominio
+raíz va por CDN y el subdominio por un registro A directo, el WordPress carga y
+el sistema de matrículas parece muerto.
+
+Ese día casi cuesta un cambio de DNS innecesario en producción. Se leyó un
+`ECONNREFUSED` como «ahí no hay servidor», y no lo es: un cortafuegos puede
+**rechazar** (RST, error instantáneo) o **descartar** (te deja esperando hasta
+agotar el tiempo), y Hostinger usa las dos cosas según el rango. Los dos síntomas
+que parecían distintos eran lo mismo: veto, en las dos redes desde las que se
+probó.
+
+**Antes de concluir que el sitio está caído, pregunta si se ve desde un celular
+con datos móviles.** Ninguna prueba hecha desde la red vetada lo puede decidir.
+
+Lo que el veto **no** bloquea: la API de Hostinger (`api.hostinger.com`), hPanel,
+y el despliegue automático, que sale de los servidores de GitHub y no de la
+oficina.
 
 ## El huevo y la gallina de los arreglos del despliegue
 

@@ -14,7 +14,7 @@ la especificación funcional de referencia.
 
 > **Estado: en producción.** Las tres áreas del sistema —autoservicio del
 > estudiante, panel de quien dicta y gestión de dirección— están terminadas,
-> probadas y auditadas, con 331 pruebas en verde. Desplegado en
+> probadas y auditadas, con 347 pruebas en verde. Desplegado en
 > https://escuelas.culturaelsantuario.com, con despliegue automático desde
 > GitHub: cada `push` a `main` corre las pruebas y solo sube si pasan.
 
@@ -222,7 +222,7 @@ otro huso.
 php artisan test
 ```
 
-331 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+347 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.
