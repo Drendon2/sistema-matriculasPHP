@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\AuthenticateSession;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,10 +22,28 @@ return Application::configure(basePath: dirname(__DIR__))
             'rol' => RequiereRol::class,
         ]);
 
+        // Cambiar una contrasena tiene que cerrar las demas sesiones de esa
+        // cuenta. Sin esto, un administrador puede resetear la clave de alguien
+        // desde Gestion -> Usuarios y esa persona sigue dentro donde ya
+        // estuviera: es el unico camino por el que se cambia una contrasena en
+        // este sistema, asi que era justo el caso que importaba.
+        //
+        // Guarda el hash en la sesion y compara en cada peticion. Dos cosas que
+        // suelen frenar este cambio y que aqui NO aplican:
+        //
+        // - No cierra las sesiones ya abiertas al desplegarlo: si el hash falta
+        //   en la sesion lo GUARDA, y solo echa a quien lo tenga y no cuadre.
+        // - No toca «recuerdame»: el formulario de entrada no ofrece la
+        //   casilla, asi que `viaRemember()` nunca es cierto.
+        //
+        // Va antes que CuentaActiva por orden de coste: si la sesion ya no vale,
+        // no hace falta consultar si la cuenta sigue activa.
+        //
         // Desactivar una cuenta tiene que echar tambien a quien ya esta dentro,
         // que es lo que hace el original. Va en el grupo entero y no pegado a
         // 'rol' porque /post-login y /mi-perfil no llevan rol.
         $middleware->web(append: [
+            AuthenticateSession::class,
             CuentaActiva::class,
         ]);
 

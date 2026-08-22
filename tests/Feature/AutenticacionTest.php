@@ -290,4 +290,99 @@ class AutenticacionTest extends TestCase
         $respuesta->assertSessionHas('error');
         $respuesta->assertSessionMissing('username');
     }
+
+    // -----------------------------------------------------------------------
+    // La contrasena y las demas sesiones
+    // -----------------------------------------------------------------------
+
+    /**
+     * Una peticion NUEVA sobre la sesion que ya esta abierta.
+     *
+     * Entre dos peticiones del mismo test, el guard conserva en memoria el
+     * usuario que ya resolvio, asi que seguiria leyendo la contrasena vieja y la
+     * prueba pasaria sin probar nada. En produccion cada peticion es un proceso
+     * limpio: esto es lo que reproduce eso. Se prefiere a `actingAs(fresh())`
+     * porque no inyecta el usuario — deja que el guard lo resuelva desde la
+     * sesion, que es justo lo que se esta probando.
+     */
+    private function peticionNueva(string $ruta)
+    {
+        app('auth')->forgetGuards();
+
+        return $this->get($ruta);
+    }
+
+    /**
+     * Cambiar la contrasena cierra las sesiones que ya estaban abiertas.
+     *
+     * Es la mitad que quedo suelta del hallazgo de sesion de la auditoria. En
+     * este sistema la contrasena SOLO la cambia un administrador desde
+     * Gestion -> Usuarios, asi que el caso real es: se resetea la clave de
+     * alguien —porque se fue, o porque su cuenta esta comprometida— y esa
+     * persona sigue navegando donde ya estuviera.
+     */
+    public function test_cambiar_la_contrasena_echa_a_quien_ya_estaba_dentro(): void
+    {
+        $user = $this->crearCuenta('profesor', 'beto');
+
+        $this->post(route('login.entrar'), ['username' => 'beto', 'password' => 'secreto123']);
+        $this->get(route('mi-perfil'))->assertOk();
+
+        // Direccion le cambia la contrasena mientras la persona sigue dentro.
+        $user->update(['password' => 'otra-distinta-456']);
+
+        $this->peticionNueva(route('mi-perfil'))->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    /**
+     * Y no echa a nadie mas: la sesion de otra cuenta sigue viva.
+     *
+     * Lo que cierra la sesion es que el hash NO cuadre, no que exista el
+     * middleware. Sin esta prueba, un cambio que echara a todo el mundo en cada
+     * peticion pasaria igual la de arriba.
+     */
+    public function test_cambiar_una_contrasena_no_toca_las_sesiones_de_los_demas(): void
+    {
+        $this->crearCuenta('profesor', 'beto');
+        $otra = $this->crearCuenta('estudiante', 'ana');
+
+        $this->post(route('login.entrar'), ['username' => 'ana', 'password' => 'secreto123']);
+        $this->get(route('mi-perfil'))->assertOk();
+
+        User::where('username', 'beto')->first()->update(['password' => 'otra-distinta-456']);
+
+        $this->peticionNueva(route('mi-perfil'))->assertOk();
+        $this->assertAuthenticatedAs($otra);
+    }
+
+    /**
+     * Dos personas seguidas en el mismo navegador siguen pudiendo entrar.
+     *
+     * Es el riesgo que hay que descartar al atar la sesion al hash de la
+     * contrasena: que el hash de quien uso el equipo antes eche a quien entra
+     * despues. No pasa, por dos motivos que conviene tener fijados porque
+     * cualquiera de los dos podria cambiarse sin darse cuenta:
+     *
+     * - Cerrar sesion llama a `invalidate()`, que vacia la sesion entera y con
+     *   ella el hash guardado.
+     * - `/entrar` va detras del middleware `guest`, asi que quien ya tiene
+     *   sesion abierta ni siquiera llega al controlador de login.
+     */
+    public function test_otra_persona_entra_despues_en_el_mismo_navegador(): void
+    {
+        $this->crearCuenta('profesor', 'beto');
+        $ana = $this->crearCuenta('estudiante', 'ana');
+
+        $this->post(route('login.entrar'), ['username' => 'beto', 'password' => 'secreto123']);
+        $this->get(route('mi-perfil'))->assertOk();
+
+        $this->post(route('logout'));
+
+        app('auth')->forgetGuards();
+        $this->post(route('login.entrar'), ['username' => 'ana', 'password' => 'secreto123']);
+
+        $this->peticionNueva(route('mi-perfil'))->assertOk();
+        $this->assertAuthenticatedAs($ana);
+    }
 }
