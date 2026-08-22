@@ -103,6 +103,114 @@ class PanelTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // El panel se acota al periodo que se esta mirando
+    // -----------------------------------------------------------------------
+
+    /**
+     * Quien curso la promotoria en un periodo anterior NO sale en el panel.
+     *
+     * DIVERGENCIA DELIBERADA del original, decidida el 21/08/2026: el Django de
+     * origen no filtra por periodo (`views.py:861`), asi que ensena a todo el
+     * que haya pasado por la promotoria desde que existe. Y como nada retira las
+     * matriculas al cerrar un periodo —se quedan en `activa`—, el panel acababa
+     * afirmando que gente de hace tres semestres seguia en el salon.
+     *
+     * Esta prueba existe para que la divergencia no se deshaga por descuido al
+     * portar algo nuevo desde el original.
+     */
+    public function test_el_panel_no_ensena_a_los_de_periodos_anteriores(): void
+    {
+        $viejo = $this->crearPeriodoViejo();
+        $antiguo = $this->crearEstudiante('samu');
+
+        // Matriculado en el periodo pasado, y nunca retirado: es el caso real.
+        $this->matricularEn($viejo, $this->violin, $antiguo);
+
+        $deAhora = $this->matricular($this->violin, estado: Matricula::ACTIVA);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->assertSee($this->estudiante->nombre_completo)
+            ->assertDontSee($antiguo->nombre_completo);
+
+        $this->assertNotNull($deAhora->fresh());
+    }
+
+    /**
+     * Acotar por periodo NO se lleva por delante la marca de renovacion.
+     *
+     * Es lo que mas facil se rompe con este cambio: quien vuelve tiene que
+     * seguir apareciendo como que vuelve. `renovacionesDe()` hace su propia
+     * consulta a todos los periodos y del panel solo saca a QUIEN preguntar por,
+     * asi que acotar la lista no le quita informacion.
+     */
+    public function test_quien_vuelve_sigue_marcado_como_renovacion(): void
+    {
+        $viejo = $this->crearPeriodoViejo();
+
+        $this->matricularEn($viejo, $this->violin, $this->estudiante);
+
+        // Pendiente y no activa a proposito: la marca de renovacion solo se
+        // pinta en la tabla de solicitudes (`item.blade.php:120`), que es donde
+        // sirve — es lo que mira quien decide si confirmar y en que nivel ubicar.
+        $this->matricular($this->violin, estado: Matricula::PENDIENTE);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->assertSee($this->estudiante->nombre_completo)
+            // La etiqueta que distingue a quien vuelve de quien empieza.
+            ->assertSee('Renovación', false);
+    }
+
+    /**
+     * Entre dos semestres se ensena el mas reciente, no una pantalla vacia.
+     *
+     * Misma regla que ya siguen Estadisticas y Cupos. Sin esto, acotar por
+     * periodo dejaria el panel en blanco justo en el hueco entre semestres, que
+     * es cuando se reparte a la gente del que acaba de terminar.
+     */
+    public function test_sin_periodo_en_curso_el_panel_ensena_el_mas_reciente(): void
+    {
+        $this->matricular($this->violin, estado: Matricula::ACTIVA);
+
+        $this->periodo->activo = false;
+        $this->periodo->save();
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->assertSee($this->estudiante->nombre_completo);
+    }
+
+    /** Matricula ACTIVA en un periodo que no es el que hay en curso. */
+    private function matricularEn(Periodo $periodo, Promotoria $promotoria, Perfil $estudiante): Matricula
+    {
+        $matricula = new Matricula([
+            'estudiante_id' => $estudiante->id,
+            'promotoria_id' => $promotoria->id,
+            'periodo_id' => $periodo->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+        $matricula->save();
+
+        return $matricula;
+    }
+
+    /** Un periodo anterior al que hay en curso, para las pruebas de arriba. */
+    private function crearPeriodoViejo(): Periodo
+    {
+        return Periodo::create([
+            'nombre' => '2025-2',
+            'fecha_inicio' => '2025-07-15',
+            'fecha_fin' => '2025-12-15',
+            'activo' => false,
+            'matriculas_abiertas' => false,
+        ]);
+    }
+
+    // -----------------------------------------------------------------------
     // Puerta de entrada
     // -----------------------------------------------------------------------
 

@@ -93,7 +93,16 @@ class PanelController extends Controller
         );
 
         $promotoria->load(['area', 'profesor', 'grupos.sesiones', 'cupos']);
-        $periodo = Periodo::enCurso();
+
+        // Sin periodo en curso se ensena el mas reciente. Entre dos semestres no
+        // hay ninguno activo, y en ese hueco lo que quiere mirar quien dicta es
+        // justamente el que acaba de terminar — no una pantalla vacia. Es la
+        // misma regla que ya siguen Estadisticas y Cupos, para que las tres se
+        // comporten igual.
+        $periodo = Periodo::enCurso() ?? Periodo::query()
+            ->orderByDesc('fecha_inicio')
+            ->orderByDesc('id')
+            ->first();
 
         return view('panel.item', [
             'periodo' => $periodo,
@@ -124,18 +133,38 @@ class PanelController extends Controller
     {
         $exigidos = DocumentoRequerido::activos()->ordenados()->get();
 
-        // A proposito SIN filtrar por periodo, como el original: el panel es la
-        // vista de quien dicta sobre su promotoria entera, no sobre un semestre.
-        $suyas = Matricula::query()
-            ->where('promotoria_id', $promotoria->id)
-            ->whereIn('estado', [...Matricula::ESTADOS_INSCRITO, Matricula::PENDIENTE])
-            ->with([
-                'estudiante',
-                'estudiante.datosEstudiante.acudiente',
-                'estudiante.datosEstudiante.documentos',
-            ])
-            ->orderBy('id')
-            ->get();
+        // Acotado al periodo que se esta mirando.
+        //
+        // DIVERGE DEL ORIGINAL a proposito, y es una decision de producto, no
+        // una correccion de migracion: el Django de origen tampoco filtra
+        // (`views.py:861`), asi que el panel de alla ensena a todo el que haya
+        // pasado por la promotoria desde que existe.
+        //
+        // Se cambio porque eso hacia dos cosas malas a la vez. La cara: nada
+        // retira las matriculas al cerrar un periodo, asi que se quedan en
+        // `activa` para siempre y el panel afirmaba que gente de hace tres
+        // semestres seguia en el salon. La barata: el coste crecia sin techo
+        // —cada fila arrastra su perfil, sus datos, su acudiente y sus
+        // documentos—, y al cuarto o quinto ano abrir una promotoria veterana
+        // significaba hidratar miles de modelos para ensenar cuarenta filas, en
+        // un hosting compartido con la memoria contada.
+        //
+        // El mapa de renovaciones NO se resiente: `renovacionesDe()` hace su
+        // propia consulta a todos los periodos, y de aqui solo saca a QUIEN
+        // preguntar por. Quien vuelve sigue apareciendo marcado como tal.
+        $suyas = $periodo === null
+            ? new Collection()
+            : Matricula::query()
+                ->where('promotoria_id', $promotoria->id)
+                ->where('periodo_id', $periodo->id)
+                ->whereIn('estado', [...Matricula::ESTADOS_INSCRITO, Matricula::PENDIENTE])
+                ->with([
+                    'estudiante',
+                    'estudiante.datosEstudiante.acudiente',
+                    'estudiante.datosEstudiante.documentos',
+                ])
+                ->orderBy('id')
+                ->get();
 
         $renovaciones = $this->renovacionesDe($suyas);
         $clasesDeHoy = $this->clasesDeHoy($periodo, $promotoria);
@@ -178,10 +207,9 @@ class PanelController extends Controller
             // Se cuenta sobre lo que ya esta en memoria en vez de llamar a
             // `ocupadosEn()`, que consulta. El resultado es identico:
             // `ocupadosEn` cuenta las de ese periodo con estado distinto de
-            // 'retirada', y lo que se trajo son exactamente esos tres estados.
-            'ocupados' => $periodo === null
-                ? 0
-                : $suyas->where('periodo_id', $periodo->id)->count(),
+            // 'retirada', y lo que se trajo son exactamente esos tres estados
+            // —y ya solo de este periodo, desde que `$suyas` va acotada.
+            'ocupados' => $suyas->count(),
         ];
     }
 
