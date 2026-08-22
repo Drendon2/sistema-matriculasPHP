@@ -48,6 +48,7 @@ class ConfiguracionInstitucion extends Model
         'firmante_cargo',
         'color_acento',
         'limite_promotorias_por_periodo',
+        'limite_proyecciones_por_periodo',
         'promotorias_visibles_para_estudiantes',
     ];
 
@@ -72,6 +73,7 @@ class ConfiguracionInstitucion extends Model
         'firmante_cargo' => '',
         'color_acento' => '#0a7a59',
         'limite_promotorias_por_periodo' => 2,
+        'limite_proyecciones_por_periodo' => 2,
         'promotorias_visibles_para_estudiantes' => true,
     ];
 
@@ -79,6 +81,7 @@ class ConfiguracionInstitucion extends Model
     {
         return [
             'limite_promotorias_por_periodo' => 'integer',
+            'limite_proyecciones_por_periodo' => 'integer',
             'promotorias_visibles_para_estudiantes' => 'boolean',
         ];
     }

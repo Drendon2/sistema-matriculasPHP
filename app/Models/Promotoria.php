@@ -19,13 +19,89 @@ use Illuminate\Support\Collection;
  */
 class Promotoria extends Model
 {
+    /** Una sola clase: la gente se inscribe y va una vez. */
+    public const TALLER = 'taller';
+
+    /** Varias clases, pero sin llegar al final del periodo. */
+    public const CURSO = 'curso';
+
+    /** Clases durante todo el periodo. Es lo que habia antes de que hubiera tipos. */
+    public const PROGRAMA = 'programa';
+
+    /**
+     * No consume plaza del limite de matriculas.
+     *
+     * Es el UNICO tipo que cambia una regla de negocio, y no es un descuido:
+     * una banda sinfonica o un coro institucional es una actividad alineada con
+     * la matricula que el estudiante ya tiene, no una matricula mas que compita
+     * con ella. Quien ya llego a su tope puede entrar igual.
+     *
+     * Sigue respetando el cupo de su propio salon: eso lo decide el trigger de
+     * `matriculas`, que mira la promotoria y no la carga del estudiante.
+     */
+    public const PROYECCION = 'proyeccion';
+
+    public const TIPOS = [self::TALLER, self::CURSO, self::PROGRAMA, self::PROYECCION];
+
+    /**
+     * Como se llama cada tipo en pantalla.
+     *
+     * Con tildes, que es texto de interfaz. Las constantes de arriba son lo que
+     * viaja a la base y van sin ellas.
+     */
+    public const ETIQUETA_TIPO = [
+        self::TALLER => 'Taller',
+        self::CURSO => 'Curso',
+        self::PROGRAMA => 'Programa',
+        self::PROYECCION => 'Grupo de proyección',
+    ];
+
+    /** Una linea por tipo, para que quien crea una no tenga que adivinar. */
+    public const DESCRIPCION_TIPO = [
+        self::TALLER => 'Una sola clase. Se inscriben y van una vez.',
+        self::CURSO => 'Varias clases, sin llegar al final del periodo.',
+        self::PROGRAMA => 'Clases durante todo el periodo.',
+        self::PROYECCION => 'No ocupa plaza del límite de matrículas.',
+    ];
+
     protected $table = 'promotorias';
 
     protected $fillable = [
         'nombre',
         'area_id',
+        'tipo',
         'profesor_id',
     ];
+
+    /**
+     * El mismo defecto que declara la migracion, repetido aqui a proposito.
+     *
+     * Es la trampa que ya esta documentada en `ConfiguracionInstitucion`: el
+     * defecto lo pone la BASE al insertar, y el modelo en memoria no lo ha
+     * leido. Sin esto, una promotoria recien creada vuelve con `tipo` a null
+     * hasta que alguien la relea, y `exentaDelLimite()` decidiria sobre un null
+     * justo en la peticion que la estrena.
+     */
+    protected $attributes = [
+        'tipo' => self::PROGRAMA,
+    ];
+
+    /**
+     * Si esta promotoria se salta el limite de matriculas del estudiante.
+     *
+     * Se pregunta asi y no comparando el tipo a mano en cada sitio, para que el
+     * dia que haya otro tipo exento haya UN lugar donde decirlo.
+     */
+    public function exentaDelLimite(): bool
+    {
+        return $this->tipo === self::PROYECCION;
+    }
+
+    /** El nombre del tipo tal como se pinta. */
+    public function etiquetaTipo(): string
+    {
+        return self::ETIQUETA_TIPO[$this->tipo] ?? self::ETIQUETA_TIPO[self::PROGRAMA];
+    }
 
     public function area(): BelongsTo
     {

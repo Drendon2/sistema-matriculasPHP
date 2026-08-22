@@ -12,8 +12,10 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
 use App\Support\ResumenAsistencia;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -423,5 +425,163 @@ class ModelosTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         $metodo->invoke(null, new Grupo, $this->periodo, 'id) UNION SELECT 1 --');
+    }
+
+    // -----------------------------------------------------------------------
+    // Tipos de promotoria
+    // -----------------------------------------------------------------------
+
+    /** Lo que ya existia es un programa: la migracion no cambia nada de nada. */
+    public function test_una_promotoria_nace_siendo_programa(): void
+    {
+        $this->assertSame(Promotoria::PROGRAMA, $this->violin->tipo);
+        $this->assertFalse($this->violin->exentaDelLimite());
+    }
+
+    /**
+     * El caso que motivo todo esto: quien ya llego a su tope PUEDE entrar a un
+     * grupo de proyeccion, porque es una actividad alineada con la matricula
+     * que ya tiene y no una matricula mas que compita con ella.
+     */
+    public function test_un_grupo_de_proyeccion_entra_con_el_limite_lleno(): void
+    {
+        $banda = Promotoria::create([
+            'nombre' => 'Banda sinfónica',
+            'area_id' => $this->violin->area_id,
+            'tipo' => Promotoria::PROYECCION,
+        ]);
+
+        $ana = $this->estudiante();
+        $this->matricular($ana, $this->violin);
+        $this->matricular($ana, $this->danza);
+
+        // El tope de promotorias esta lleno: una tercera normal se rechaza.
+        try {
+            $this->matricular($ana, $this->teatro);
+            $this->fail('Se esperaba que la tercera promotoría se rechazara.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('promotorías', $e->errors()['promotoria'][0]);
+        }
+
+        // Y la proyeccion, con el mismo tope lleno, entra.
+        $proyeccion = $this->matricular($ana, $banda);
+
+        $this->assertTrue($proyeccion->exists);
+        $this->assertSame(3, Matricula::where('estudiante_id', $ana->id)->count());
+    }
+
+    /** Una proyeccion gasta ranura aunque no gaste plaza: si no, chocarian. */
+    public function test_la_proyeccion_toma_una_ranura_propia(): void
+    {
+        $banda = Promotoria::create([
+            'nombre' => 'Banda sinfónica',
+            'area_id' => $this->violin->area_id,
+            'tipo' => Promotoria::PROYECCION,
+        ]);
+
+        $ana = $this->estudiante();
+        $this->matricular($ana, $this->violin);
+        $this->matricular($ana, $this->danza);
+        $proyeccion = $this->matricular($ana, $banda);
+
+        $this->assertSame(3, $proyeccion->ranura);
+        $this->assertSame(
+            [1, 2, 3],
+            Matricula::where('estudiante_id', $ana->id)->pluck('ranura')->map(fn ($r) => (int) $r)->sort()->values()->all(),
+        );
+    }
+
+    /** Las proyecciones tienen su propio tope, y ese si se llena. */
+    public function test_las_proyecciones_tienen_su_propio_tope(): void
+    {
+        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 1]);
+
+        $area = $this->violin->area_id;
+        $banda = Promotoria::create(['nombre' => 'Banda', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
+        $coro = Promotoria::create(['nombre' => 'Coro', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
+
+        $ana = $this->estudiante();
+        $this->matricular($ana, $banda);
+
+        $this->expectException(ValidationException::class);
+        $this->matricular($ana, $coro);
+    }
+
+    /**
+     * Y el mensaje dice CUAL tope se lleno.
+     *
+     * Con el texto generico, a quien le dijeron que los coros no cuentan leeria
+     * «ya tienes 2 promotorías» al intentar entrar en uno, y no entenderia nada.
+     */
+    public function test_el_mensaje_del_tope_de_proyecciones_habla_de_proyecciones(): void
+    {
+        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 1]);
+
+        $area = $this->violin->area_id;
+        $banda = Promotoria::create(['nombre' => 'Banda', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
+        $coro = Promotoria::create(['nombre' => 'Coro', 'area_id' => $area, 'tipo' => Promotoria::PROYECCION]);
+
+        $ana = $this->estudiante();
+        $this->matricular($ana, $banda);
+
+        try {
+            $this->matricular($ana, $coro);
+            $this->fail('Se esperaba una ValidationException.');
+        } catch (ValidationException $e) {
+            $mensaje = $e->errors()['promotoria'][0];
+            $this->assertStringContainsString('grupo de proyección', $mensaje);
+            $this->assertStringNotContainsString('promotorías', $mensaje);
+        }
+    }
+
+    /** Un tope de cero cierra la puerta, y lo dice sin hablar de cantidades. */
+    public function test_sin_proyecciones_admitidas_no_se_entra(): void
+    {
+        ConfiguracionInstitucion::actual()->update(['limite_proyecciones_por_periodo' => 0]);
+
+        $banda = Promotoria::create([
+            'nombre' => 'Banda',
+            'area_id' => $this->violin->area_id,
+            'tipo' => Promotoria::PROYECCION,
+        ]);
+
+        try {
+            $this->matricular($this->estudiante(), $banda);
+            $this->fail('Se esperaba una ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('no admite inscripciones', $e->errors()['promotoria'][0]);
+        }
+    }
+
+    /** Una proyeccion NO afloja el tope de las promotorias normales. */
+    public function test_estar_en_una_proyeccion_no_deja_meter_una_promotoria_de_mas(): void
+    {
+        $banda = Promotoria::create([
+            'nombre' => 'Banda',
+            'area_id' => $this->violin->area_id,
+            'tipo' => Promotoria::PROYECCION,
+        ]);
+
+        $ana = $this->estudiante();
+        $this->matricular($ana, $banda);
+        $this->matricular($ana, $this->violin);
+        $this->matricular($ana, $this->danza);
+
+        $this->expectException(ValidationException::class);
+        $this->matricular($ana, $this->teatro);
+    }
+
+    /** El esquema rechaza un tipo que no existe, entre por donde entre. */
+    public function test_la_base_no_admite_un_tipo_inventado(): void
+    {
+        $this->expectException(QueryException::class);
+
+        DB::table('promotorias')->insert([
+            'nombre' => 'Rara',
+            'area_id' => $this->violin->area_id,
+            'tipo' => 'seminario',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

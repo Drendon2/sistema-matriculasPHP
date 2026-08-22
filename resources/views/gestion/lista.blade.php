@@ -26,6 +26,7 @@
 @php($etiquetaProtegido = $etiqueta_protegido ?? 'registros')
 @php($mostrarTagArea = $mostrar_tag_area ?? false)
 @php($mostrarProfesor = $mostrar_profesor ?? false)
+@php($mostrarTipo = $mostrar_tipo ?? false)
 @php($preset = isset($preset_campo) ? '?'.$preset_campo.'='.$preset_valor : '')
 
 @if ($migas)
@@ -97,6 +98,19 @@
       <td>
         @if ($mostrarTagArea)<span class="tag-dot {{ $obj->tag_color }}"></span>@endif
         @if ($rutaFila)<a href="{{ route($rutaFila, $obj) }}">{{ $obj }}</a>@else{{ $obj }}@endif
+        {{--
+          El tipo, solo cuando NO es el corriente. Un «Programa» en cada
+          renglón sería ruido —lo son casi todas— y taparía justo el caso que
+          hay que ver de un vistazo: cuál es un grupo de proyección, que se
+          comporta distinto y no ocupa plaza del límite.
+
+          El valor se precalcula con la directiva PHP en línea: pegar una
+          directiva a una letra la deja sin compilar.
+        --}}
+        @php($tipoVisible = $mostrarTipo && $obj->tipo !== \App\Models\Promotoria::PROGRAMA)
+        @if ($tipoVisible)
+          <span class="tipo-chip">{{ $obj->etiquetaTipo() }}</span>
+        @endif
         @if ($etiquetaPlural && $fila['hijos'] !== null)
           <span class="campo-info" style="margin:0;display:inline;">— {{ $fila['hijos'] }} {{ $fila['hijos'] == 1 ? $etiquetaSingular : $etiquetaPlural }}</span>
         @endif

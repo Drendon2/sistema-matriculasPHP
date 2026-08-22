@@ -10,6 +10,7 @@ use App\Support\Imagen;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -60,6 +61,12 @@ class ConfiguracionController extends Controller
             'limite_promotorias_por_periodo' => [
                 'required', 'integer', 'min:1', 'max:'.ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA,
             ],
+            // Admite 0: una institucion que no ofrezca grupos de proyeccion no
+            // tiene por que reservarles sitio. El de promotorias empieza en 1,
+            // porque un sistema donde nadie puede matricularse no es un sistema.
+            'limite_proyecciones_por_periodo' => [
+                'required', 'integer', 'min:0', 'max:'.(ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA - 1),
+            ],
             'promotorias_visibles_para_estudiantes' => ['nullable', 'boolean'],
         ], [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
@@ -68,6 +75,24 @@ class ConfiguracionController extends Controller
             'firmante_nombre' => 'nombre de quien firma',
             'firmante_cargo' => 'cargo de quien firma',
         ]);
+
+        // Los dos topes juntos no pueden pasar del numero de ranuras que admite
+        // el esquema. No es una preferencia: una proyeccion no gasta plaza pero
+        // SI gasta ranura, y `ranura` esta acotada por el CHECK `ranura_valida`.
+        // Pasarse dejaria matriculas que la aplicacion admite y la base rechaza,
+        // que es la peor forma de fallar. No cabe en un CHECK de MariaDB —tendria
+        // que sumar dos columnas de otra fila— asi que vive aqui, que ademas es
+        // donde se puede explicar.
+        $techo = ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA;
+        $suma = $datos['limite_promotorias_por_periodo'] + $datos['limite_proyecciones_por_periodo'];
+
+        if ($suma > $techo) {
+            throw ValidationException::withMessages([
+                'limite_proyecciones_por_periodo' => "Los dos límites juntos no pueden pasar de {$techo}: "
+                    ."ahora suman {$suma}. Un grupo de proyección no ocupa plaza de matrícula, "
+                    .'pero sí ocupa un sitio en el periodo.',
+            ]);
+        }
 
         // Quitar el logo es una casilla aparte y no "subir vacio": dejar el
         // campo de archivo en blanco significa conservar el que hay, que es lo
@@ -118,6 +143,7 @@ class ConfiguracionController extends Controller
         $configuracion->firmante_cargo = trim($datos['firmante_cargo'] ?? '');
         $configuracion->color_acento = strtolower($datos['color_acento']);
         $configuracion->limite_promotorias_por_periodo = $datos['limite_promotorias_por_periodo'];
+        $configuracion->limite_proyecciones_por_periodo = $datos['limite_proyecciones_por_periodo'];
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');
         $configuracion->save();
 

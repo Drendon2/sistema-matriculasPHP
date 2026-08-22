@@ -540,6 +540,7 @@ class GestionTest extends TestCase
             ->post(route('promotoria-nueva'), [
                 'nombre' => 'Tiple',
                 'area_id' => $this->musica->id,
+                'tipo' => Promotoria::PROGRAMA,
                 'profesor_id' => '',
             ])
             ->assertRedirect(route('promotorias-por-area', $this->musica));
@@ -942,6 +943,7 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa de la Cultura El Santuario',
                 'color_acento' => '#0a7a59',
                 'limite_promotorias_por_periodo' => 3,
+                'limite_proyecciones_por_periodo' => 2,
                 'promotorias_visibles_para_estudiantes' => 1,
             ])
             ->assertSessionHas('success');
@@ -963,6 +965,7 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa',
                 'color_acento' => '#ffee00',
                 'limite_promotorias_por_periodo' => 2,
+                'limite_proyecciones_por_periodo' => 2,
             ])
             ->assertSessionHas('success')
             ->assertSessionHas('error');
@@ -1618,5 +1621,125 @@ class GestionTest extends TestCase
         $this->assertSame('Musica', $arbol[0]['nombre']);
         $this->assertSame(2, $arbol[0]['total'], 'Sigue: la activa y la que pidio cancelacion.');
         $this->assertSame(1, $arbol[0]['retirados'], 'Deja: solo la retirada.');
+    }
+
+    // -----------------------------------------------------------------------
+    // Tipos de promotoria
+    // -----------------------------------------------------------------------
+
+    /** El formulario ofrece los cuatro, con su explicacion al lado. */
+    public function test_el_formulario_de_promotoria_ofrece_los_cuatro_tipos(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('promotoria-nueva'))
+            ->assertOk()
+            ->getContent();
+
+        foreach (Promotoria::TIPOS as $tipo) {
+            $this->assertStringContainsString('value="'.$tipo.'"', $html);
+            $this->assertStringContainsString(Promotoria::ETIQUETA_TIPO[$tipo], $html);
+        }
+
+        // La unica diferencia con consecuencias tiene que leerse ANTES de elegir.
+        $this->assertStringContainsString('No ocupa plaza del límite de matrículas.', $html);
+    }
+
+    public function test_se_crea_una_promotoria_marcada_como_proyeccion(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('promotoria-nueva'), [
+            'nombre' => 'Banda sinfónica',
+            'area_id' => $this->musica->id,
+            'tipo' => Promotoria::PROYECCION,
+            'profesor_id' => '',
+        ])->assertRedirect();
+
+        $banda = Promotoria::where('nombre', 'Banda sinfónica')->firstOrFail();
+
+        $this->assertSame(Promotoria::PROYECCION, $banda->tipo);
+        $this->assertTrue($banda->exentaDelLimite());
+    }
+
+    /** Un tipo inventado no pasa del formulario. */
+    public function test_un_tipo_que_no_existe_se_rechaza(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('promotoria-nueva'), [
+            'nombre' => 'Rara',
+            'area_id' => $this->musica->id,
+            'tipo' => 'seminario',
+            'profesor_id' => '',
+        ])->assertSessionHasErrors('tipo');
+
+        $this->assertNull(Promotoria::where('nombre', 'Rara')->first());
+    }
+
+    /**
+     * El listado marca las que NO son un programa, y solo esas.
+     *
+     * Un «Programa» en cada renglón sería ruido —lo son casi todas— y taparía
+     * justo el caso que hay que ver de un vistazo.
+     */
+    public function test_el_listado_marca_las_proyecciones_y_no_los_programas(): void
+    {
+        Promotoria::create([
+            'nombre' => 'Banda sinfónica',
+            'area_id' => $this->musica->id,
+            'tipo' => Promotoria::PROYECCION,
+        ]);
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('promotoria-lista'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Grupo de proyección', $html);
+        // «Violin» es un programa y no lleva chip.
+        $this->assertStringNotContainsString('<span class="tipo-chip">Programa</span>', $html);
+    }
+
+    // -----------------------------------------------------------------------
+    // El tope de proyecciones, en Institucion
+    // -----------------------------------------------------------------------
+
+    public function test_se_guarda_el_tope_de_proyecciones(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-configuracion'), $this->datosDeInstitucion([
+                'limite_proyecciones_por_periodo' => 3,
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(3, ConfiguracionInstitucion::actual()->fresh()->limite_proyecciones_por_periodo);
+    }
+
+    /**
+     * Los dos topes juntos no pueden pasar de las ranuras que admite el esquema.
+     *
+     * Sin esto, la aplicacion aceptaria una configuracion con la que hay
+     * matriculas que ella misma admite y la base rechaza — la peor forma de
+     * fallar, porque el error sale lejos de donde se causo.
+     */
+    public function test_los_dos_topes_juntos_no_pasan_del_techo(): void
+    {
+        $techo = ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA;
+
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-configuracion'), $this->datosDeInstitucion([
+                'limite_promotorias_por_periodo' => $techo,
+                'limite_proyecciones_por_periodo' => 1,
+            ]))
+            ->assertSessionHasErrors('limite_proyecciones_por_periodo');
+    }
+
+    /** @return array<string, mixed> */
+    private function datosDeInstitucion(array $extra = []): array
+    {
+        $actual = ConfiguracionInstitucion::actual();
+
+        return array_merge([
+            'nombre_institucion' => $actual->nombre_institucion,
+            'color_acento' => $actual->color_acento,
+            'limite_promotorias_por_periodo' => $actual->limite_promotorias_por_periodo,
+            'limite_proyecciones_por_periodo' => $actual->limite_proyecciones_por_periodo,
+        ], $extra);
     }
 }

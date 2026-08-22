@@ -155,13 +155,65 @@ class Matricula extends Model
         return ConfiguracionInstitucion::actual()->limite_promotorias_por_periodo;
     }
 
+    /** Cuantos grupos de proyeccion se admiten ADEMAS de las promotorias. */
+    public static function limiteProyecciones(): int
+    {
+        return ConfiguracionInstitucion::actual()->limite_proyecciones_por_periodo;
+    }
+
+    /**
+     * Cuantas ranuras puede llegar a usar una persona en un periodo.
+     *
+     * NO es una regla de negocio, es capacidad del esquema. Una proyeccion no
+     * gasta plaza del limite de matriculas, pero si gasta una ranura: `ranura`
+     * es NOT NULL y el indice unico la reparte. Si la colocacion se guiara solo
+     * por `limitePromotorias()`, alguien con 2 de 2 promotorias no encontraria
+     * ranura libre para una proyeccion y el tope exento no serviria de nada.
+     *
+     * Se acota a RANURA_MAXIMA_ABSOLUTA porque el CHECK del esquema no admite
+     * mas. La suma tambien se valida al guardar la configuracion, que es donde
+     * se le puede explicar a quien la escribe.
+     */
+    public static function ranurasDisponibles(): int
+    {
+        return min(
+            self::limitePromotorias() + self::limiteProyecciones(),
+            ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA
+        );
+    }
+
     /** Cuantos cupos de promotoria tiene ocupados el estudiante en el periodo. */
     public static function promotoriasOcupadas(int $estudianteId, int $periodoId, ?int $excluirId = null): int
     {
-        return static::where('estudiante_id', $estudianteId)
-            ->where('periodo_id', $periodoId)
-            ->where('estado', '!=', self::RETIRADA)
-            ->when($excluirId !== null, fn ($q) => $q->where('id', '!=', $excluirId))
+        return self::ocupadasPorTipo($estudianteId, $periodoId, $excluirId, exentas: false);
+    }
+
+    /** Las plazas gastadas en grupos de proyeccion, que van por su propio tope. */
+    public static function proyeccionesOcupadas(int $estudianteId, int $periodoId, ?int $excluirId = null): int
+    {
+        return self::ocupadasPorTipo($estudianteId, $periodoId, $excluirId, exentas: true);
+    }
+
+    /**
+     * Las matriculas vivas de alguien, contando solo las de un lado u otro.
+     *
+     * El `join` es lo que separa los dos topes: el tipo vive en `promotorias` y
+     * no en la matricula, a proposito — cambiar el tipo de una promotoria
+     * reencuadra sus matriculas sin tener que reescribirlas una a una.
+     */
+    private static function ocupadasPorTipo(
+        int $estudianteId,
+        int $periodoId,
+        ?int $excluirId,
+        bool $exentas,
+    ): int {
+        return static::query()
+            ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
+            ->where('matriculas.estudiante_id', $estudianteId)
+            ->where('matriculas.periodo_id', $periodoId)
+            ->where('matriculas.estado', '!=', self::RETIRADA)
+            ->where('promotorias.tipo', $exentas ? '=' : '!=', Promotoria::PROYECCION)
+            ->when($excluirId !== null, fn ($q) => $q->where('matriculas.id', '!=', $excluirId))
             ->count();
     }
 
@@ -193,9 +245,17 @@ class Matricula extends Model
      * Las ranuras se numeran hasta RANURA_MAXIMA_ABSOLUTA para poder colocar las
      * que ya existan por encima del limite nuevo.
      */
-    private function primeraRanuraLibre(?int $limite = null): ?int
+    /**
+     * La primera ranura libre, o null si no queda ninguna.
+     *
+     * `$capacidad` son CUANTAS ranuras puede usar esta persona, que no es el
+     * limite de promotorias desde que las proyecciones existen: gastan ranura
+     * sin gastar plaza. Por defecto, la capacidad completa —quien decide si la
+     * matricula cabe por su tope es `validar()`, no esta funcion.
+     */
+    private function primeraRanuraLibre(?int $capacidad = null): ?int
     {
-        $limite ??= self::limitePromotorias();
+        $limite = $capacidad ?? self::ranurasDisponibles();
         $ocupadas = $this->ranurasOcupadasPorOtras();
 
         if (count($ocupadas) >= $limite) {
@@ -223,7 +283,7 @@ class Matricula extends Model
      * podria pasarse del tope configurado sin que ningun indice se queje. De eso
      * se ocupa `validar()`.
      */
-    private function colocarEnRanuraLibre(?int $limite = null): bool
+    private function colocarEnRanuraLibre(?int $capacidad = null): bool
     {
         if ($this->estado === self::RETIRADA || ! $this->estudiante_id || ! $this->periodo_id) {
             return false;
@@ -233,7 +293,7 @@ class Matricula extends Model
             return false;
         }
 
-        $libre = $this->primeraRanuraLibre($limite);
+        $libre = $this->primeraRanuraLibre($capacidad);
 
         if ($libre === null) {
             return false;
@@ -296,13 +356,19 @@ class Matricula extends Model
      */
     public function validar(): void
     {
-        // Se resuelve una vez y se reparte: leer la configuracion es una
-        // consulta, y aqui hacen falta dos usos del mismo numero.
-        $limite = self::limitePromotorias();
+        // La promotoria decide QUE tope se aplica. Se resuelve una vez: hace
+        // falta aqui y en el mensaje de error.
+        $promotoria = $this->promotoria ?? ($this->promotoria_id ? Promotoria::find($this->promotoria_id) : null);
+        $exenta = $promotoria?->exentaDelLimite() ?? false;
+
+        $limite = $exenta ? self::limiteProyecciones() : self::limitePromotorias();
 
         // Colocar la ranura va antes de validar: si no, la segunda matricula
-        // chocaria todavia con la ranura por defecto.
-        $this->colocarEnRanuraLibre($limite);
+        // chocaria todavia con la ranura por defecto. Se guia por la CAPACIDAD
+        // total y no por `$limite`, porque una proyeccion gasta ranura aunque no
+        // gaste plaza: con el tope de promotorias lleno seguiria necesitando una
+        // ranura libre donde colocarse.
+        $this->colocarEnRanuraLibre(self::ranurasDisponibles());
 
         $aumenta = $this->aumentaOcupacion();
 
@@ -314,20 +380,28 @@ class Matricula extends Model
         // detras como red: acota cualquier fuga a RANURA_MAXIMA_ABSOLUTA y
         // cierra la carrera entre dos peticiones simultaneas.
         if ($this->estudiante_id && $this->periodo_id && $aumenta) {
-            $ocupadas = self::promotoriasOcupadas(
-                $this->estudiante_id,
-                $this->periodo_id,
-                $this->exists ? $this->id : null
-            );
+            $ocupadas = $exenta
+                ? self::proyeccionesOcupadas($this->estudiante_id, $this->periodo_id, $this->exists ? $this->id : null)
+                : self::promotoriasOcupadas($this->estudiante_id, $this->periodo_id, $this->exists ? $this->id : null);
 
             if ($ocupadas >= $limite) {
-                $palabra = $limite === 1 ? 'promotoría' : 'promotorías';
+                // Los dos topes son independientes, y el mensaje tiene que
+                // decir cual se lleno: con el texto generico, alguien con dos
+                // promotorias leeria «ya tienes 2» al intentar entrar a un coro
+                // y no entenderia por que, si le dijeron que los coros no
+                // contaban.
+                $mensaje = $exenta
+                    ? ($limite === 0
+                        ? 'Esta institución no admite inscripciones en grupos de proyección.'
+                        : 'Un estudiante puede estar en un máximo de '.$limite.' '
+                            .($limite === 1 ? 'grupo de proyección' : 'grupos de proyección')
+                            .' por periodo, y este ya los tiene ocupados. Retira uno antes de agregar otro.')
+                    : 'Un estudiante puede estar en un máximo de '.$limite.' '
+                        .($limite === 1 ? 'promotoría' : 'promotorías')
+                        .' por periodo, y este ya tiene ese cupo ocupado. Retira una matrícula '
+                        .'antes de agregar otra.';
 
-                throw ValidationException::withMessages([
-                    'promotoria' => "Un estudiante puede estar en un máximo de {$limite} {$palabra} "
-                        .'por periodo, y este ya tiene ese cupo ocupado. Retira una matrícula '
-                        .'antes de agregar otra.',
-                ]);
+                throw ValidationException::withMessages(['promotoria' => $mensaje]);
             }
         }
 
