@@ -306,6 +306,30 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/grupos/{grupo}/estudiantes', [Gestion\GrupoController::class, 'estudiantes'])
         ->name('grupo-estudiantes');
 
+    // Cursos y talleres
+    Route::get('/cursos', [Gestion\CursoTallerController::class, 'index'])->name('actividad-curso-lista');
+    Route::get('/cursos/nuevo', [Gestion\CursoTallerController::class, 'crear'])->name('actividad-curso-nueva');
+    Route::post('/cursos/nuevo', [Gestion\CursoTallerController::class, 'guardar']);
+    Route::get('/cursos/{objeto}/editar', [Gestion\CursoTallerController::class, 'editar'])
+        ->name('actividad-curso-editar');
+    Route::post('/cursos/{objeto}/editar', [Gestion\CursoTallerController::class, 'actualizar']);
+    Route::get('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'confirmarBorrado'])
+        ->name('actividad-curso-eliminar');
+    Route::post('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'eliminar']);
+
+    // Grupos de proyeccion
+    Route::get('/proyeccion', [Gestion\ProyeccionController::class, 'index'])
+        ->name('actividad-proyeccion-lista');
+    Route::get('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'crear'])
+        ->name('actividad-proyeccion-nueva');
+    Route::post('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'guardar']);
+    Route::get('/proyeccion/{objeto}/editar', [Gestion\ProyeccionController::class, 'editar'])
+        ->name('actividad-proyeccion-editar');
+    Route::post('/proyeccion/{objeto}/editar', [Gestion\ProyeccionController::class, 'actualizar']);
+    Route::get('/proyeccion/{objeto}/eliminar', [Gestion\ProyeccionController::class, 'confirmarBorrado'])
+        ->name('actividad-proyeccion-eliminar');
+    Route::post('/proyeccion/{objeto}/eliminar', [Gestion\ProyeccionController::class, 'eliminar']);
+
     // Usuarios
     Route::get('/usuarios', [Gestion\UsuarioController::class, 'index'])->name('usuario-lista');
     Route::get('/usuarios/nuevo', [Gestion\UsuarioController::class, 'crear'])->name('usuario-nuevo');

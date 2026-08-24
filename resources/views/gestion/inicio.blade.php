@@ -15,6 +15,14 @@
   <a class="tarjeta-enlace" href="{{ route('promotoria-lista') }}">Promotorías</a>
   <a class="tarjeta-enlace" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
   <a class="tarjeta-enlace" href="{{ route('grupo-lista') }}">Grupos</a>
+  {{--
+    Las dos actividades van después del árbol académico y antes de Usuarios, no
+    mezcladas entre las promotorías: no cuelgan de un departamento ni pasan por
+    matrícula, y ponerlas al lado de «Promotorías» invita a buscar ahí lo que
+    aquí se hace por un enlace.
+  --}}
+  <a class="tarjeta-enlace" href="{{ route('actividad-curso-lista') }}">Cursos y talleres</a>
+  <a class="tarjeta-enlace" href="{{ route('actividad-proyeccion-lista') }}">Grupos de proyección</a>
   <a class="tarjeta-enlace" href="{{ route('usuario-lista') }}">Usuarios</a>
   @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">Estadísticas</a>

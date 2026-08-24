@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Http\Controllers\Gestion;
+
+use App\Models\Actividad;
+use App\Models\Perfil;
+use App\Models\Periodo;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+/**
+ * Lo que comparten las dos pantallas de actividades.
+ *
+ * Cursos y talleres viven en un boton de Gestion y los grupos de proyeccion en
+ * otro, porque asi se piensan; pero por debajo son la misma tabla y el mismo
+ * formulario, y lo unico que las separa es que filtran por tipo.
+ *
+ * El listado NO pasa por `gestion.lista`. Aquella plantilla sirve a los cuatro
+ * catalogos del arbol academico y todos ellos ensenan lo mismo: un nombre, que
+ * cuelga de el y que impide borrarlo. Una actividad tiene ademas un enlace que
+ * copiar, un cupo y un interruptor de abierta o cerrada, y estirar la plantilla
+ * compartida para que quepan es como se acaba con una plantilla que pregunta de
+ * que pantalla se trata.
+ */
+abstract class ActividadController extends RecursoController
+{
+    /** El tipo, o los tipos, que administra esta pantalla. */
+    abstract protected function tipos(): array;
+
+    protected function modelo(): string
+    {
+        return Actividad::class;
+    }
+
+    /**
+     * El listado propio.
+     *
+     * `listado()` sigue existiendo porque la clase de arriba la exige, pero no
+     * se usa: quien pinta aqui es `index()`.
+     */
+    protected function listado(Request $request): array
+    {
+        return [];
+    }
+
+    public function index(Request $request): View
+    {
+        return view('gestion.actividades', [
+            ...$this->textos(),
+            'actividades' => Actividad::with(['responsable', 'periodo'])
+                ->whereIn('tipo', $this->tipos())
+                ->orderBy('nombre')
+                ->get(),
+        ]);
+    }
+
+    /**
+     * El periodo en curso queda anotado al crear, si lo hay.
+     *
+     * No se pregunta en el formulario a proposito: no es una decision, es el
+     * momento en que se creo. Y admite no haber ninguno, porque montar un
+     * taller es de las primeras cosas que hace quien estrena el sistema, antes
+     * de tener periodos.
+     */
+    protected function atributosFijos(): array
+    {
+        return ['periodo_id' => Periodo::enCurso()?->id];
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    protected function campos(Request $request, ?Model $objeto): array
+    {
+        return [
+            'nombre' => ['etiqueta' => 'Nombre', 'tipo' => 'text', 'max' => 80],
+            'responsable_id' => [
+                'etiqueta' => 'Responsable',
+                'tipo' => 'select',
+                // Profesor, director o administrador. Quien dirige una banda
+                // suele ser el director de la escuela, y pedir el rol
+                // "profesor" lo dejaria fuera de su propio ensayo.
+                'opciones' => Perfil::whereIn('rol', Perfil::ROLES_PERSONAL)
+                    ->orderBy('nombre_completo')
+                    ->pluck('nombre_completo', 'id')
+                    ->all(),
+                'ayuda' => 'Quien inicia las sesiones y pasa lista.',
+            ],
+            'cupo_maximo' => [
+                'etiqueta' => 'Cupo máximo',
+                'tipo' => 'number',
+                'min' => 1,
+                'opcional' => true,
+                'ayuda' => 'Déjalo en blanco si no hay tope. Al llenarse, el enlace deja de admitir gente.',
+            ],
+        ];
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    protected function reglas(Request $request, ?Model $objeto): array
+    {
+        return [
+            'nombre' => ['required', 'string', 'max:80'],
+            'responsable_id' => [
+                'required',
+                Rule::exists('perfiles', 'id')->whereIn('rol', Perfil::ROLES_PERSONAL),
+            ],
+            // `nullable` y no `sometimes`: el campo SIEMPRE llega, vacio cuando
+            // no hay tope, y un vacio tiene que valer.
+            'cupo_maximo' => ['nullable', 'integer', 'min:1', 'max:65535'],
+        ];
+    }
+
+    /**
+     * Solo se llega a lo que administra ESTA pantalla.
+     *
+     * Sin esto, la pantalla de cursos podria editar un grupo de proyeccion con
+     * solo cambiar el id de la URL, y su desplegable de tipo —que solo ofrece
+     * curso y taller— lo convertiria en otra cosa al guardar. Las dos pantallas
+     * las ve el mismo personal, asi que no es un agujero de permisos; es que
+     * cada una tiene que responder por lo suyo.
+     */
+    protected function buscar(string $id): Model
+    {
+        return Actividad::whereIn('tipo', $this->tipos())->findOrFail($id);
+    }
+}

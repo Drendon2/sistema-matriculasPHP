@@ -74,6 +74,25 @@ abstract class RecursoController extends Controller
     }
 
     /**
+     * Columnas que fija la PANTALLA y no quien llena el formulario.
+     *
+     * Vacio para los catalogos de siempre. Lo usa la pantalla de grupos de
+     * proyeccion, que crea actividades de un tipo concreto sin preguntarlo:
+     * ofrecer un desplegable con una sola opcion es preguntar algo que ya se
+     * sabe, y aceptarlo por el formulario dejaria que un POST a mano creara un
+     * curso desde la pantalla de proyeccion.
+     *
+     * Solo se aplica al CREAR. Al editar no tiene sentido: lo que ya existe ya
+     * tiene su valor, y un campo que el formulario no ofrece tampoco lo cambia.
+     *
+     * @return array<string, mixed>
+     */
+    protected function atributosFijos(): array
+    {
+        return [];
+    }
+
+    /**
      * Resuelve el registro de la URL.
      *
      * Se hace a mano y no con el enlace implicito de Laravel porque estos cuatro
@@ -82,7 +101,7 @@ abstract class RecursoController extends Controller
      * consultar. La alternativa era repetir los cuatro metodos en cada subclase
      * solo para cambiar una firma.
      */
-    private function buscar(string $id): Model
+    protected function buscar(string $id): Model
     {
         return $this->modelo()::findOrFail($id);
     }
@@ -118,7 +137,7 @@ abstract class RecursoController extends Controller
         // escribir: si esto lanza, no queda un registro a medias en la base.
         $extra = $this->validarExtra($request, null);
 
-        $objeto = new $modelo($datos);
+        $objeto = new $modelo(array_merge($datos, $this->atributosFijos()));
         $objeto->save();
         $this->despuesDeGuardar($objeto, $extra);
 

@@ -29,11 +29,20 @@
   @endif
 
   @php($valor = old($campo, $spec['valor'] ?? $objeto->{$campo}))
+  {{--
+    Casi todos los campos son obligatorios, así que lo obligatorio es el
+    defecto y lo que se declara es la excepción. Un campo opcional lo es de
+    verdad: el cupo de una actividad en blanco significa «sin tope», y esa
+    ausencia tiene que poder escribirse.
+
+    Se precalcula con la directiva PHP en línea, como el resto del archivo.
+  --}}
+  @php($obligatorio = ! ($spec['opcional'] ?? false))
   <div class="field">
     <label for="{{ $campo }}">{{ $spec['etiqueta'] }}</label>
 
     @if ($spec['tipo'] === 'select')
-      <select name="{{ $campo }}" id="{{ $campo }}" @required(! isset($spec['vacio']))>
+      <select name="{{ $campo }}" id="{{ $campo }}" @required($obligatorio && ! isset($spec['vacio']))>
         @isset($spec['vacio'])
           <option value="">{{ $spec['vacio'] }}</option>
         @endisset
@@ -43,13 +52,13 @@
       </select>
     @elseif ($spec['tipo'] === 'date')
       {{-- El <input type="date"> del navegador solo entiende aaaa-mm-dd. --}}
-      <input type="date" name="{{ $campo }}" id="{{ $campo }}" required
+      <input type="date" name="{{ $campo }}" id="{{ $campo }}" @required($obligatorio)
              value="{{ $valor instanceof \Illuminate\Support\Carbon ? $valor->toDateString() : $valor }}">
     @elseif ($spec['tipo'] === 'number')
-      <input type="number" name="{{ $campo }}" id="{{ $campo }}" required
+      <input type="number" name="{{ $campo }}" id="{{ $campo }}" @required($obligatorio)
              min="{{ $spec['min'] ?? 0 }}" step="1" value="{{ $valor }}">
     @else
-      <input type="text" name="{{ $campo }}" id="{{ $campo }}" required
+      <input type="text" name="{{ $campo }}" id="{{ $campo }}" @required($obligatorio)
              maxlength="{{ $spec['max'] ?? 255 }}" value="{{ $valor }}">
     @endif
 
