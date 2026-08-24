@@ -64,7 +64,10 @@ class Dependencias
         // ella, y la pantalla lo dice antes de preguntar.
         Actividad::class => [
             'bloquean' => [],
-            'arrastran' => ['sesiones' => ['sesión', 'sesiones']],
+            'arrastran' => [
+                'sesiones' => ['sesión', 'sesiones'],
+                'inscritos' => ['inscrito', 'inscritos'],
+            ],
         ],
     ];
 

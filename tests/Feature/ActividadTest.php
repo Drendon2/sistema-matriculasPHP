@@ -8,6 +8,7 @@ use App\Models\InscritoActividad;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Models\SesionActividad;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -15,12 +16,23 @@ use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
- * Cursos, talleres y grupos de proyeccion.
+ * Cursos, talleres y grupos de proyeccion, de punta a punta.
  *
- * Lo que se prueba aqui no es que la pantalla pinte, sino las tres cosas que la
- * separan del catalogo academico: que cada boton administre lo suyo y no lo del
- * otro, que el enlace nazca solo y sea distinto en cada actividad, y que el
- * cupo en blanco signifique "sin tope" en vez de "cero".
+ * Lo que sostiene este archivo son las cinco cosas que separan una actividad de
+ * una promotoria, y ninguna de ellas se ve leyendo una pantalla suelta:
+ *
+ * - Cada boton de Gestion administra lo suyo y no lo del otro.
+ * - El tipo NO se elige: sale del numero de clases, al crear y cada vez que se
+ *   guardan las fechas.
+ * - Al enlace se entra sin cuenta y sin matricula, y deja de admitir gente por
+ *   dos motivos distintos —lleno y cerrado— que la pantalla distingue.
+ * - Direccion VE y quien dirige ESCRIBE, en las tres pantallas del Panel.
+ * - "Sin marcar" no es un estado: es que no hay fila.
+ *
+ * Dos avisos concuerdan en genero con tres palabras que no concuerdan igual
+ * ("la clase", "el taller", "el ensayo"). Las dos pruebas que los recorren
+ * existen porque las dos frases salieron mal la primera vez, y las dos se
+ * vieron en el navegador y no aqui.
  */
 class ActividadTest extends TestCase
 {
@@ -818,6 +830,262 @@ class ActividadTest extends TestCase
             ->assertRedirect(route('panel-actividad', $banda));
 
         $this->assertSame(1, $banda->sesiones()->count());
+    }
+
+    // -----------------------------------------------------------------------
+    // Pasar lista
+    // -----------------------------------------------------------------------
+
+    /** Una sesion ya iniciada, con gente apuntada, lista para pasar lista. */
+    private function sesionEnMarcha(int $cuantosInscritos = 2): SesionActividad
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        foreach (range(1, $cuantosInscritos) as $n) {
+            $taller->inscritos()->create([
+                'nombre_completo' => "Inscrito {$n}",
+                'documento' => "100{$n}",
+                'origen' => InscritoActividad::ENLACE,
+            ]);
+        }
+
+        return $taller->sesiones()->create([
+            'fecha' => '2026-09-03',
+            'iniciada_en' => now(),
+            'iniciada_por_id' => $this->profesor->id,
+        ]);
+    }
+
+    public function test_no_hay_lista_que_pasar_de_algo_que_no_empezo(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+        $sesion = $taller->sesiones()->create(['fecha' => '2026-09-03']);
+
+        // El boton de la pantalla anterior ya lo tiene en cuenta; esto cierra
+        // la URL.
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-actividad-lista', $sesion))
+            ->assertRedirect(route('panel-actividad', $taller));
+    }
+
+    public function test_el_sello_de_la_sesion_concuerda_con_los_tres_nombres(): void
+    {
+        // El mismo tropiezo que ya costo una vez en el aviso de iniciar: la
+        // primera version de esta pantalla decia «Taller iniciada el». Aqui la
+        // frase lleva a la persona de sujeto, asi que no concuerda con nada.
+        $esperado = [
+            Actividad::CURSO => 'inició la clase',
+            Actividad::TALLER => 'inició el taller',
+            Actividad::PROYECCION => 'inició el ensayo',
+        ];
+
+        foreach ($esperado as $tipo => $frase) {
+            $actividad = $this->crearActividad($tipo, "Prueba {$tipo}");
+            $sesion = $actividad->sesiones()->create([
+                'fecha' => '2026-09-03',
+                'iniciada_en' => now(),
+                'iniciada_por_id' => $this->profesor->id,
+            ]);
+
+            $this->actingAs($this->profesor->user)
+                ->get(route('panel-actividad-lista', $sesion))
+                ->assertOk()
+                ->assertSee($frase, escape: false);
+        }
+    }
+
+    public function test_las_marcas_se_guardan(): void
+    {
+        $sesion = $this->sesionEnMarcha();
+        [$uno, $dos] = $sesion->actividad->inscritos()->orderBy('nombre_completo')->get()->all();
+
+        $this->actingAs($this->profesor->user)->post(route('panel-actividad-lista', $sesion), [
+            "estado_{$uno->id}" => 'asistio',
+            "estado_{$dos->id}" => 'excusa',
+        ])->assertSessionHas('success');
+
+        $this->assertSame(
+            ['asistio', 'excusa'],
+            [
+                $sesion->asistencias()->where('inscrito_id', $uno->id)->value('estado'),
+                $sesion->asistencias()->where('inscrito_id', $dos->id)->value('estado'),
+            ]
+        );
+    }
+
+    public function test_sin_marcar_no_guarda_fila(): void
+    {
+        // "Sin marcar" NO es un cuarto estado: es que no hay fila. Que no la
+        // haya es informacion real —la sesion se dio y a esa persona nadie la
+        // paso— y guardarla como valor la volveria indistinguible.
+        $sesion = $this->sesionEnMarcha();
+        $uno = $sesion->actividad->inscritos()->orderBy('nombre_completo')->first();
+
+        $this->actingAs($this->profesor->user)->post(route('panel-actividad-lista', $sesion), [
+            "estado_{$uno->id}" => 'asistio',
+        ]);
+
+        $this->assertSame(1, $sesion->asistencias()->count());
+    }
+
+    public function test_volver_a_guardar_corrige_en_vez_de_acumular(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+        $uno = $sesion->actividad->inscritos()->first();
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-lista', $sesion), ["estado_{$uno->id}" => 'falto']);
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-lista', $sesion), ["estado_{$uno->id}" => 'asistio']);
+
+        $this->assertSame(1, $sesion->asistencias()->count());
+        $this->assertSame('asistio', $sesion->asistencias()->first()->estado);
+    }
+
+    public function test_un_estado_inventado_se_ignora(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+        $uno = $sesion->actividad->inscritos()->first();
+
+        // Que no se GUARDE lo ataja el CHECK de la base por su cuenta. Lo que
+        // se comprueba aqui es lo otro: que se descarte en PHP y la peticion
+        // devuelva una pantalla. Sin la comprobacion esta linea es un 500 —se
+        // comprobo— y la de abajo pasa igual, porque un 500 tampoco guarda.
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-lista', $sesion), ["estado_{$uno->id}" => 'vino_tarde'])
+            ->assertRedirect(route('panel-actividad-lista', $sesion));
+
+        $this->assertSame(0, $sesion->asistencias()->count());
+    }
+
+    public function test_la_marca_de_un_inscrito_ajeno_no_entra(): void
+    {
+        // El bucle recorre los inscritos de ESTA actividad, no lo que llegue en
+        // el POST: un id de otra actividad no tiene donde encajar.
+        $sesion = $this->sesionEnMarcha(1);
+        $otra = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+        $ajeno = $otra->inscritos()->create([
+            'nombre_completo' => 'Alguien de la banda',
+            'documento' => '777',
+            'origen' => InscritoActividad::ENLACE,
+        ]);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-lista', $sesion), ["estado_{$ajeno->id}" => 'asistio']);
+
+        $this->assertSame(0, $sesion->asistencias()->count());
+    }
+
+    public function test_direccion_ve_la_lista_pero_no_la_escribe(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+        $uno = $sesion->actividad->inscritos()->first();
+
+        $this->actingAs($this->director->user)
+            ->get(route('panel-actividad-lista', $sesion))
+            ->assertOk()
+            ->assertSee('Inscrito 1');
+
+        $this->actingAs($this->director->user)
+            ->post(route('panel-actividad-lista', $sesion), ["estado_{$uno->id}" => 'asistio'])
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, $sesion->asistencias()->count());
+    }
+
+    public function test_a_direccion_no_se_le_pintan_los_botones_de_marcar(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+
+        $html = $this->actingAs($this->director->user)
+            ->get(route('panel-actividad-lista', $sesion))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('type="radio"', $html);
+        $this->assertStringNotContainsString(route('panel-actividad-anadir', $sesion), $html);
+    }
+
+    // -----------------------------------------------------------------------
+    // Quien llega sin inscribirse
+    // -----------------------------------------------------------------------
+
+    public function test_anadir_en_clase_deja_inscrito_y_marcado(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+
+        $this->actingAs($this->profesor->user)->post(route('panel-actividad-anadir', $sesion), [
+            'nombre_completo' => 'Pedro Nel Gómez',
+        ])->assertSessionHas('success');
+
+        $nuevo = $sesion->actividad->inscritos()->firstWhere('nombre_completo', 'Pedro Nel Gómez');
+
+        $this->assertSame(InscritoActividad::EN_SESION, $nuevo->origen);
+        // Sin documento: nadie se lo va a pedir con la clase empezando.
+        $this->assertNull($nuevo->documento);
+        // Y marcado de una vez: se le anade PORQUE esta aqui.
+        $this->assertSame('asistio', $sesion->asistencias()->where('inscrito_id', $nuevo->id)->value('estado'));
+    }
+
+    public function test_se_puede_anadir_a_varios_sin_documento(): void
+    {
+        // El unico de (actividad, documento) no puede chocar consigo mismo: en
+        // MariaDB los NULL no colisionan, y estos son gente distinta con el
+        // mismo hueco.
+        $sesion = $this->sesionEnMarcha(1);
+
+        foreach (['Ana Restrepo', 'Luis Ossa'] as $nombre) {
+            $this->actingAs($this->profesor->user)
+                ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => $nombre])
+                ->assertSessionHas('success');
+        }
+
+        $this->assertSame(3, $sesion->actividad->inscritos()->count());
+    }
+
+    public function test_anadir_en_clase_se_salta_el_cupo(): void
+    {
+        // El cupo gobierna el ENLACE. A quien esta de pie en el salon no lo
+        // echa un numero.
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
+        $taller->inscritos()->create([
+            'nombre_completo' => 'El único',
+            'documento' => '111',
+            'origen' => InscritoActividad::ENLACE,
+        ]);
+        $sesion = $taller->sesiones()->create([
+            'fecha' => '2026-09-03',
+            'iniciada_en' => now(),
+            'iniciada_por_id' => $this->profesor->id,
+        ]);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => 'El que llegó'])
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, $taller->inscritos()->count());
+    }
+
+    public function test_direccion_no_anade_a_nadie(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+
+        $this->actingAs($this->director->user)
+            ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => 'Pedro Nel Gómez'])
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, $sesion->actividad->inscritos()->count());
+    }
+
+    public function test_anadir_sin_nombre_se_rechaza(): void
+    {
+        $sesion = $this->sesionEnMarcha(1);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => ''])
+            ->assertSessionHasErrors('nombre_completo');
+
+        $this->assertSame(1, $sesion->actividad->inscritos()->count());
     }
 
     public function test_el_panel_no_ofrece_el_enlace_si_no_hay_ninguna(): void

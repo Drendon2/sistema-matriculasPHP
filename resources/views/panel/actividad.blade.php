@@ -91,7 +91,20 @@
           @endif
         </td>
         <td style="text-align:right;">
-          @if (! $sesion->yaEmpezo() && $dirige)
+          @if ($sesion->yaEmpezo())
+            {{--
+              La lista se ofrece a todos los que ven la pantalla, no solo a
+              quien dirige: dirección la abre en solo lectura, que es
+              exactamente para lo que necesita entrar.
+            --}}
+            <a class="btn btn-blanco btn-sm" href="{{ route('panel-actividad-lista', $sesion) }}">
+              @if ($sesion->asistencias_count)
+                Lista ({{ $sesion->asistencias_count }})
+              @else
+                Pasar lista
+              @endif
+            </a>
+          @elseif ($dirige)
           <form method="post" action="{{ route('panel-actividad-iniciar', $sesion) }}">
             @csrf
             <button type="submit" class="btn btn-sm">Iniciar</button>

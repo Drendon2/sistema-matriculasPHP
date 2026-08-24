@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Un dia concreto de una actividad: una clase, el taller, o un ensayo.
@@ -40,6 +41,11 @@ class SesionActividad extends Model
     public function iniciadaPor(): BelongsTo
     {
         return $this->belongsTo(Perfil::class, 'iniciada_por_id');
+    }
+
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(AsistenciaActividad::class, 'sesion_id');
     }
 
     /** Si ya se oprimio "Iniciar". */

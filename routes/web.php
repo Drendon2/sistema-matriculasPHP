@@ -166,6 +166,11 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
         ->name('panel-actividad-iniciar-hoy');
     Route::post('/panel/sesiones/{sesion}/iniciar', [PanelActividadController::class, 'iniciar'])
         ->name('panel-actividad-iniciar');
+    Route::get('/panel/sesiones/{sesion}/lista', [PanelActividadController::class, 'lista'])
+        ->name('panel-actividad-lista');
+    Route::post('/panel/sesiones/{sesion}/lista', [PanelActividadController::class, 'guardarLista']);
+    Route::post('/panel/sesiones/{sesion}/anadir', [PanelActividadController::class, 'anadirEnSesion'])
+        ->name('panel-actividad-anadir');
 
     Route::get('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'crear'])
         ->name('panel-grupo-nuevo');
