@@ -1137,6 +1137,18 @@
   }
   .config-muestra-chip-claro { border: 1px solid var(--border-strong); }
 
+  /* La rejilla de fechas de un curso. Columnas que se acomodan solas: con
+     cuatro clases caben en una fila y con veinte se envuelven, sin que haya
+     que decidir un numero de columnas que sea malo para los dos casos. */
+  .fechas-rejilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.4rem 1rem;
+    margin-bottom: 1.2rem;
+  }
+  .fechas-casilla { margin: 0; }
+  .fechas-casilla label { font-size: 0.78rem; color: var(--ink-soft); }
+
   /* Que es una actividad, al lado de su nombre. Comparte la letra de los chips
      de estado —mono, en versalitas— pero se queda en neutro a proposito: dice
      QUE es, no como va. Un taller cerrado y un taller abierto son el mismo

@@ -87,9 +87,21 @@ abstract class RecursoController extends Controller
      *
      * @return array<string, mixed>
      */
-    protected function atributosFijos(): array
+    protected function atributosFijos(Request $request): array
     {
         return [];
+    }
+
+    /**
+     * A donde se va justo despues de CREAR, si no es al mismo sitio que tras
+     * editar.
+     *
+     * Lo usa la pantalla de cursos: un curso recien creado todavia no tiene sus
+     * fechas, y devolverlo al listado lo dejaria ahi, incompleto y sin decirlo.
+     */
+    protected function urlTrasCrear(Model $objeto, Request $request): string
+    {
+        return $this->urlExito($objeto);
     }
 
     /**
@@ -137,11 +149,11 @@ abstract class RecursoController extends Controller
         // escribir: si esto lanza, no queda un registro a medias en la base.
         $extra = $this->validarExtra($request, null);
 
-        $objeto = new $modelo(array_merge($datos, $this->atributosFijos()));
+        $objeto = new $modelo(array_merge($datos, $this->atributosFijos($request)));
         $objeto->save();
         $this->despuesDeGuardar($objeto, $extra);
 
-        return redirect($this->urlExito($objeto))->with('success', $this->textos()['creado']);
+        return redirect($this->urlTrasCrear($objeto, $request))->with('success', $this->textos()['creado']);
     }
 
     public function editar(Request $request, string $id): View

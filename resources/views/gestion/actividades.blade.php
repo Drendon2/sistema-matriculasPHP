@@ -36,6 +36,25 @@
       <td>
         {{ $actividad->nombre }}
         <span class="tipo-chip">{{ $actividad->etiquetaTipo() }}</span>
+        {{--
+          Cuántas clases tiene, y el aviso cuando todavía no tiene ninguna. Un
+          curso sin fechas está a medio crear: no se puede iniciar nada ni
+          decirle a nadie cuándo es, y sin este renglón la fila se ve igual que
+          la de uno terminado.
+
+          Se precalcula con la directiva PHP en línea: pegar una directiva a
+          una letra la deja sin compilar.
+        --}}
+        @php($cuantas = $actividad->sesiones_count)
+        @if ($actividad->llevaFechas())
+          <span class="campo-info" style="margin:0;display:block;">
+            @if ($cuantas)
+              {{ $cuantas }} {{ $cuantas == 1 ? 'clase' : 'clases' }}
+            @else
+              <strong>Sin fechas todavía.</strong> Ponlas para poder iniciarlas.
+            @endif
+          </span>
+        @endif
         @if (! $actividad->abierta)
           <span class="campo-info" style="margin:0;display:block;">Enlace cerrado</span>
         @endif
@@ -56,6 +75,10 @@
         @endif
       </td>
       <td style="text-align:right;white-space:nowrap;">
+        @if ($actividad->llevaFechas())
+          <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
+          &nbsp;·&nbsp;
+        @endif
         <a href="{{ route($ruta_editar, $actividad) }}">Editar</a>
         &nbsp;·&nbsp;
         <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);">Eliminar</a>

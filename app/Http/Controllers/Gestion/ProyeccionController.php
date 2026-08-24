@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gestion;
 
 use App\Models\Actividad;
+use Illuminate\Http\Request;
 
 /**
  * Grupos de proyeccion: lo que no tiene fechas.
@@ -22,10 +23,10 @@ class ProyeccionController extends ActividadController
         return [Actividad::PROYECCION];
     }
 
-    protected function atributosFijos(): array
+    protected function atributosFijos(Request $request): array
     {
         return [
-            ...parent::atributosFijos(),
+            ...parent::atributosFijos($request),
             'tipo' => Actividad::PROYECCION,
         ];
     }

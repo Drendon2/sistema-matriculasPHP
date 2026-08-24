@@ -316,6 +316,12 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'confirmarBorrado'])
         ->name('actividad-curso-eliminar');
     Route::post('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'eliminar']);
+    // Las fechas son el segundo paso de crear un curso, y donde se le cambian
+    // despues. Van con {objeto} como las de arriba: `buscar()` de esa pantalla
+    // ya se encarga de que no se llegue a un grupo de proyeccion.
+    Route::get('/cursos/{objeto}/fechas', [Gestion\CursoTallerController::class, 'fechas'])
+        ->name('actividad-curso-fechas');
+    Route::post('/cursos/{objeto}/fechas', [Gestion\CursoTallerController::class, 'guardarFechas']);
 
     // Grupos de proyeccion
     Route::get('/proyeccion', [Gestion\ProyeccionController::class, 'index'])

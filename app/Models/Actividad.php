@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
@@ -129,6 +130,29 @@ class Actividad extends Model
     public function periodo(): BelongsTo
     {
         return $this->belongsTo(Periodo::class);
+    }
+
+    /** Sus dias, del primero al ultimo. */
+    public function sesiones(): HasMany
+    {
+        return $this->hasMany(SesionActividad::class, 'actividad_id')->orderBy('fecha');
+    }
+
+    /**
+     * Que es una actividad de tantas clases.
+     *
+     * El tipo NO se elige: se deduce de cuantos dias tiene, porque un taller es
+     * exactamente eso —"los talleres son solo de un dia"—. Preguntarlo aparte
+     * dejaba crear un taller de cuatro dias y un curso de uno, y entonces el
+     * nombre del tipo dejaba de querer decir nada.
+     *
+     * Se aplica al crear, con el numero que se pidio, y otra vez cada vez que se
+     * guardan las fechas: quitarle dias a un curso hasta dejarlo en uno lo
+     * convierte en taller, que es lo que ha pasado de verdad.
+     */
+    public static function tipoSegunClases(int $clases): string
+    {
+        return $clases <= 1 ? self::TALLER : self::CURSO;
     }
 
     /** El nombre del tipo tal como se pinta. */

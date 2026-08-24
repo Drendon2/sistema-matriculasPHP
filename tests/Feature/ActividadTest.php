@@ -124,10 +124,201 @@ class ActividadTest extends TestCase
     {
         $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
 
-        // Sin esto, el desplegable de tipo de esa pantalla —que solo ofrece
-        // curso y taller— convertiria la banda en otra cosa al guardar.
+        // Cada pantalla responde por lo suyo. Sin esto, la de cursos tocaria
+        // un grupo de proyeccion con solo cambiar el id de la URL.
         $this->actingAs($this->admin->user)
             ->get(route('actividad-curso-editar', $banda))
+            ->assertNotFound();
+    }
+
+    // -----------------------------------------------------------------------
+    // El numero de clases decide el tipo
+    // -----------------------------------------------------------------------
+
+    public function test_una_sola_clase_es_un_taller(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
+            'nombre' => 'Taller de cajón',
+            'clases' => '1',
+            'responsable_id' => $this->profesor->id,
+            'cupo_maximo' => '',
+        ]);
+
+        $this->assertSame(Actividad::TALLER, Actividad::firstWhere('nombre', 'Taller de cajón')->tipo);
+    }
+
+    public function test_dos_o_mas_clases_son_un_curso(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
+            'nombre' => 'Iniciación a la guitarra',
+            'clases' => '4',
+            'responsable_id' => $this->profesor->id,
+            'cupo_maximo' => '',
+        ]);
+
+        $this->assertSame(Actividad::CURSO, Actividad::firstWhere('nombre', 'Iniciación a la guitarra')->tipo);
+    }
+
+    public function test_el_formulario_no_pregunta_el_tipo(): void
+    {
+        // Se quito a proposito: el tipo es consecuencia del numero de clases, y
+        // preguntarlo aparte dejaba crear un taller de cuatro dias.
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('actividad-curso-nueva'))
+            ->assertOk()
+            ->assertSee('¿Cuántas clases?', escape: false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('name="tipo"', $html);
+    }
+
+    public function test_al_crear_se_va_a_poner_las_fechas_y_no_al_listado(): void
+    {
+        // Un curso sin fechas esta a medio crear: no se puede iniciar nada ni
+        // decirle a nadie cuando es.
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
+            'nombre' => 'Iniciación a la guitarra',
+            'clases' => '4',
+            'responsable_id' => $this->profesor->id,
+            'cupo_maximo' => '',
+        ])->assertRedirect(route('actividad-curso-fechas', [
+            Actividad::firstWhere('nombre', 'Iniciación a la guitarra'),
+            'clases' => 4,
+        ]));
+    }
+
+    public function test_la_pantalla_de_fechas_pinta_una_casilla_por_clase_pedida(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('actividad-curso-fechas', [$curso, 'clases' => 4]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(4, substr_count($html, 'name="fechas[]"'));
+    }
+
+    public function test_al_volver_a_entrar_hay_casillas_de_sobra_para_crecer(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03']);
+        $curso->sesiones()->create(['fecha' => '2026-09-10']);
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('actividad-curso-fechas', $curso))
+            ->assertOk()
+            ->getContent();
+
+        // Las dos que tiene, mas tres vacias: asi se le anaden dias sin un
+        // boton que las invente.
+        $this->assertSame(5, substr_count($html, 'name="fechas[]"'));
+        $this->assertStringContainsString('value="2026-09-03"', $html);
+    }
+
+    // -----------------------------------------------------------------------
+    // Guardar las fechas
+    // -----------------------------------------------------------------------
+
+    public function test_las_fechas_se_guardan_y_las_vacias_no_cuentan(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['2026-09-03', '', '2026-09-10', ''],
+        ])->assertRedirect(route('actividad-curso-lista'));
+
+        $this->assertSame(
+            ['2026-09-03', '2026-09-10'],
+            $curso->sesiones()->get()->map(fn ($s) => $s->fecha->toDateString())->all()
+        );
+    }
+
+    public function test_quitarle_dias_a_un_curso_hasta_dejarlo_en_uno_lo_hace_taller(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03']);
+        $curso->sesiones()->create(['fecha' => '2026-09-10']);
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['2026-09-03'],
+        ]);
+
+        $this->assertSame(Actividad::TALLER, $curso->fresh()->tipo);
+        $this->assertSame(1, $curso->sesiones()->count());
+    }
+
+    public function test_anadirle_un_dia_a_un_taller_lo_hace_curso(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+        $taller->sesiones()->create(['fecha' => '2026-09-03']);
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $taller), [
+            'fechas' => ['2026-09-03', '2026-09-10'],
+        ]);
+
+        $this->assertSame(Actividad::CURSO, $taller->fresh()->tipo);
+    }
+
+    public function test_una_fecha_repetida_se_rechaza(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['2026-09-03', '2026-09-03'],
+        ])->assertSessionHas('error');
+
+        $this->assertSame(0, $curso->sesiones()->count());
+    }
+
+    public function test_no_se_puede_dejar_sin_ninguna_fecha(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03']);
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['', ''],
+        ])->assertSessionHas('error');
+
+        $this->assertSame(1, $curso->sesiones()->count());
+    }
+
+    public function test_una_sesion_ya_iniciada_no_se_borra_quitandole_la_fecha(): void
+    {
+        // Lo que ocurrio, ocurrio: con la sesion se iria su lista de asistencia.
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03', 'iniciada_en' => now()]);
+        $curso->sesiones()->create(['fecha' => '2026-09-10']);
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['2026-09-10'],
+        ])->assertSessionHas('error');
+
+        $this->assertSame(2, $curso->sesiones()->count());
+    }
+
+    public function test_cambiar_las_fechas_no_borra_la_sesion_que_se_queda(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $iniciada = $curso->sesiones()->create(['fecha' => '2026-09-03', 'iniciada_en' => now()]);
+        $curso->sesiones()->create(['fecha' => '2026-09-10']);
+
+        $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
+            'fechas' => ['2026-09-03', '2026-09-17'],
+        ])->assertRedirect(route('actividad-curso-lista'));
+
+        // La que sigue en la lista conserva su id y su hora de inicio: no se
+        // borra y se vuelve a crear.
+        $this->assertNotNull($iniciada->fresh()?->iniciada_en);
+        $this->assertSame($iniciada->id, $curso->sesiones()->first()->id);
+    }
+
+    public function test_un_grupo_de_proyeccion_no_tiene_pantalla_de_fechas(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->admin->user)
+            ->get(route('actividad-curso-fechas', $banda))
             ->assertNotFound();
     }
 
@@ -147,11 +338,11 @@ class ActividadTest extends TestCase
     public function test_un_curso_se_crea_con_su_tipo_y_su_responsable(): void
     {
         $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
-            'tipo' => Actividad::CURSO,
             'nombre' => 'Iniciación a la guitarra',
+            'clases' => '4',
             'responsable_id' => $this->profesor->id,
             'cupo_maximo' => '20',
-        ])->assertRedirect(route('actividad-curso-lista'));
+        ]);
 
         $curso = Actividad::firstWhere('nombre', 'Iniciación a la guitarra');
 
@@ -165,8 +356,8 @@ class ActividadTest extends TestCase
     public function test_un_estudiante_no_puede_quedar_a_cargo(): void
     {
         $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
-            'tipo' => Actividad::TALLER,
             'nombre' => 'Taller de cajón',
+            'clases' => '1',
             'responsable_id' => $this->estudiante->id,
             'cupo_maximo' => '',
         ])->assertSessionHasErrors('responsable_id');
@@ -181,11 +372,11 @@ class ActividadTest extends TestCase
     public function test_el_cupo_en_blanco_es_sin_tope_y_no_cero(): void
     {
         $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
-            'tipo' => Actividad::TALLER,
             'nombre' => 'Taller de cajón',
+            'clases' => '1',
             'responsable_id' => $this->profesor->id,
             'cupo_maximo' => '',
-        ])->assertRedirect(route('actividad-curso-lista'));
+        ]);
 
         $this->assertNull(Actividad::firstWhere('nombre', 'Taller de cajón')->cupo_maximo);
     }
@@ -212,8 +403,8 @@ class ActividadTest extends TestCase
         // Cero no es "sin tope": es una actividad a la que nadie puede entrar.
         // Para eso esta el interruptor de cerrar el enlace.
         $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
-            'tipo' => Actividad::TALLER,
             'nombre' => 'Taller de cajón',
+            'clases' => '1',
             'responsable_id' => $this->profesor->id,
             'cupo_maximo' => '0',
         ])->assertSessionHasErrors('cupo_maximo');
@@ -242,11 +433,11 @@ class ActividadTest extends TestCase
         $this->periodo->update(['activo' => false]);
 
         $this->actingAs($this->admin->user)->post(route('actividad-curso-nueva'), [
-            'tipo' => Actividad::TALLER,
             'nombre' => 'Taller de cajón',
+            'clases' => '1',
             'responsable_id' => $this->profesor->id,
             'cupo_maximo' => '',
-        ])->assertRedirect(route('actividad-curso-lista'));
+        ]);
 
         $this->assertNull(Actividad::firstWhere('nombre', 'Taller de cajón')->periodo_id);
     }

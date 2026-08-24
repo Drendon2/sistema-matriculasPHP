@@ -50,6 +50,10 @@ abstract class ActividadController extends RecursoController
         return view('gestion.actividades', [
             ...$this->textos(),
             'actividades' => Actividad::with(['responsable', 'periodo'])
+                // El conteo por `withCount` y no recorriendo la relacion: el
+                // listado pinta una fila por actividad y `sesiones` dentro del
+                // bucle costaria una consulta por fila.
+                ->withCount('sesiones')
                 ->whereIn('tipo', $this->tipos())
                 ->orderBy('nombre')
                 ->get(),
@@ -64,7 +68,7 @@ abstract class ActividadController extends RecursoController
      * taller es de las primeras cosas que hace quien estrena el sistema, antes
      * de tener periodos.
      */
-    protected function atributosFijos(): array
+    protected function atributosFijos(Request $request): array
     {
         return ['periodo_id' => Periodo::enCurso()?->id];
     }

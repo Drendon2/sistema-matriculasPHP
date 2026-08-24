@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Actividad;
 use App\Models\Area;
 use App\Models\Grupo;
 use App\Models\Periodo;
@@ -56,6 +57,14 @@ class Dependencias
         Grupo::class => [
             'bloquean' => ['matriculas' => ['matrícula', 'matrículas']],
             'arrastran' => ['clases' => ['clase', 'clases']],
+        ],
+        // Una actividad no la bloquea nada: sus sesiones y sus inscritos son
+        // suyos y de nadie mas, y no son historial academico de nadie —a un
+        // taller se entra por un enlace, no con una matricula—. Se van con
+        // ella, y la pantalla lo dice antes de preguntar.
+        Actividad::class => [
+            'bloquean' => [],
+            'arrastran' => ['sesiones' => ['sesión', 'sesiones']],
         ],
     ];
 
