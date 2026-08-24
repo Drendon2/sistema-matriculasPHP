@@ -14,7 +14,7 @@ la especificación funcional de referencia.
 
 > **Estado: en producción.** Las tres áreas del sistema —autoservicio del
 > estudiante, panel de quien dicta y gestión de dirección— están terminadas,
-> probadas y auditadas, con 347 pruebas en verde. Desplegado en
+> probadas y auditadas, con la suite entera en verde. Desplegado en
 > https://escuelas.culturaelsantuario.com, con despliegue automático desde
 > GitHub: cada `push` a `main` corre las pruebas y solo sube si pasan.
 
@@ -79,14 +79,47 @@ y su perfil (foto, documento, papeles y encuesta demográfica).
 **Panel** (quien dicta, dirección y administración) — confirmar y rechazar
 solicitudes (una a una o por lote), fijar el cupo del periodo, crear grupos y
 repartir en ellos a los matriculados (uno a uno o por lote), registrar clases,
-pasar lista y consultar la ficha y la trayectoria de cada persona.
+pasar lista y consultar la ficha y la trayectoria de cada persona. También los
+cursos, talleres y grupos de proyección que tenga a su cargo (ver abajo).
 
 **Gestión** (dirección y administración) — el catálogo en cuatro niveles
 (departamento → promotoría → grupo → estudiantes) con filtros de grupos por
 departamento, promotoría y profesor; la ventana de matrículas, los cupos de todo
 el catálogo de una vez, las cancelaciones por resolver (también por lote), los
-usuarios con filtros por catálogo y periodo, los ajustes de la institución y las
-estadísticas agregadas.
+usuarios con filtros por catálogo y periodo, los cursos, talleres y grupos de
+proyección, los ajustes de la institución y las estadísticas agregadas.
+
+## Cursos, talleres y grupos de proyección
+
+Es la otra mitad del sistema, y funciona **al revés que las promotorías**. A una
+promotoría se entra con una matrícula que alguien confirma; a esto se entra por
+un **enlace que alguien comparte**, sin cuenta y sin matrícula. Nada de lo que
+hay aquí toca el límite de promotorías del estudiante ni pasa por el trigger de
+cupos: son tablas propias que no conocen a `Matricula`.
+
+Se crean en **Gestión del catálogo académico**, en dos botones:
+
+- **Cursos y talleres.** Se pregunta el nombre, **cuántas clases**, el
+  responsable y el cupo. El tipo no se elige: una sola clase es un taller y dos
+  o más son un curso, porque un taller es exactamente eso. Al guardar se pasa a
+  una segunda pantalla con una casilla de fecha por clase.
+- **Grupos de proyección.** Igual, pero sin fechas: una banda o un coro ensayan
+  cuando toca, y la sesión nace al oprimir el botón.
+
+Cada uno genera su **enlace**. Quien lo abre llena cinco campos —nombre,
+documento, fecha de nacimiento, teléfono y, opcional, correo— y queda inscrito.
+Si el documento coincide con el de un estudiante de la casa, queda vinculado a
+su ficha; para la mayoría no habrá coincidencia y eso es lo normal. El enlace
+deja de admitir gente por dos motivos distintos, y la pantalla dice cuál: el
+**cupo lleno**, que se cierra solo, o el **interruptor** de dirección, que es lo
+único capaz de parar una actividad sin tope.
+
+En el **Panel**, quien esté a cargo ve los inscritos, oprime «Iniciar» cuando la
+clase empieza de verdad y pasa lista. Puede además añadir a quien llegó sin
+inscribirse, solo con el nombre: nadie le va a pedir el documento con la clase
+empezando. Dirección **ve** todo esto pero no lo escribe — es la misma regla que
+separa gestionar una promotoría de dictarla, y aquí pesa más, porque estos
+inscritos no tienen cuenta con la que confirmar después que la sesión se dio.
 
 ## Informes descargables
 
@@ -166,8 +199,9 @@ persona tiene algo: una flecha que lleva a un panel vacío no informa de nada.
 
 Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
 
-- **Límite de intentos** en las tres puertas que se pueden empujar sin cuenta. El
-  del login cuenta por **usuario + IP** y no por IP sola: una escuela entera sale
+- **Límite de intentos** en las cuatro puertas que se pueden empujar sin cuenta
+  —entrar, registro, inscripción y el enlace de una actividad—. El del login
+  cuenta por **usuario + IP** y no por IP sola: una escuela entera sale
   a internet por una sola dirección, y con el contador por IP treinta estudiantes
   entrando desde la sala de cómputo se bloquearían entre sí.
 - **Ocho caracteres mínimo** en las contraseñas, declarado una sola vez con
@@ -182,11 +216,16 @@ Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
 - **Celdas de CSV neutralizadas**: un valor que empieza por `=`, `+`, `-` o `@`
   lo ejecutaría Excel al abrir el archivo, y aquí los nombres y los barrios los
   escribe el público.
-
-Queda anotado un asunto conocido: **desactivar una cuenta no cierra la sesión que
-ya tuviera abierta**. `activo` se comprueba al iniciar sesión y no en cada
-petición, así que quien fue dado de baja conserva acceso hasta que su sesión
-expire (`SESSION_LIFETIME`, 120 minutos por defecto).
+- **Desactivar una cuenta expulsa en el acto**, y cambiar una contraseña cierra
+  las demás sesiones de esa cuenta. Lo primero lo hace el middleware
+  `CuentaActiva`, que mira `activo` en cada petición y no solo al entrar; lo
+  segundo, `AuthenticateSession`. Los dos van en el grupo `web` entero y no
+  pegados al rol, porque `/post-login` y `/mi-perfil` no llevan rol y por ahí se
+  colaría.
+- **El enlace de una actividad** es la única ruta que escribe sin autenticar. Lo
+  que autoriza es el token de la URL —32 caracteres de `Str::random`, que va por
+  `random_bytes`— y nada más. No crea cuentas, no sube archivos y no toca ninguna
+  tabla del sistema de matrículas.
 
 ## Puesta en marcha local
 
@@ -222,7 +261,7 @@ otro huso.
 php artisan test
 ```
 
-347 pruebas. Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
+Corren contra **MariaDB, no contra SQLite**, y no es una preferencia: buena parte
 de lo que hay que probar son garantías del motor —columnas generadas con índice
 único, triggers con `SIGNAL`, `SELECT … FOR UPDATE`— y SQLite no tiene ninguna de
 las tres. Necesitan una base `test_matriculas` con los mismos permisos.

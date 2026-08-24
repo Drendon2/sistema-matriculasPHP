@@ -216,8 +216,12 @@ Ya puedes entrar en http://127.0.0.1:8000 con ese usuario y esa contraseña.
 php artisan test
 ```
 
-Son **331 pruebas** y deben pasar todas. Corren contra la base
-`test_matriculas`, **no contra la de trabajo**: no tocan tus datos.
+Deben pasar **todas**. Corren contra la base `test_matriculas`, **no contra la
+de trabajo**: no tocan tus datos.
+
+(El número de pruebas no se escribe aquí a propósito: lo dice `artisan test` al
+terminar, y una cifra en un documento se queda vieja sin que nadie se entere.
+Llegó a haber tres distintas en este repositorio, y ninguna era la de verdad.)
 
 Hay además dos guiones que comprueban el esquema contra SQL crudo, incluida la
 carrera de dos transacciones por el último cupo:
@@ -370,7 +374,34 @@ quien la dicta le asigna un grupo después.
 Mientras estén cerradas, el formulario público de inscripción muestra un aviso y
 rechaza los envíos, aunque alguien llegue a la URL directamente.
 
-## 2.11 Cómo se usa a partir de aquí
+## 2.11 Cursos, talleres y grupos de proyección (opcional)
+
+Esto es **independiente de todo lo anterior**: no necesita periodo, ni cupos, ni
+matrículas abiertas, y de hecho puede montarse antes que el catálogo entero. Si
+la institución solo da promotorías, sáltatelo.
+
+**Gestión → Cursos y talleres**, o **Gestión → Grupos de proyección**.
+
+Al crear uno se pide el nombre, **cuántas clases**, quién queda a cargo y el cupo
+(en blanco, sin tope). Una sola clase es un taller; dos o más, un curso. Después
+se ponen las fechas, una casilla por clase. Los grupos de proyección no llevan
+fechas: la sesión nace cuando se oprime «Iniciar ensayo».
+
+Cada uno genera un **enlace** que se copia y se comparte. Quien lo abra se
+inscribe con cinco campos y **sin crear cuenta**; si su documento coincide con el
+de un estudiante de la casa, queda vinculado a su ficha. El enlace deja de
+admitir gente al llenarse el cupo, o cuando dirección lo cierra a mano — que es
+lo único que puede parar uno sin tope.
+
+Quien quedó a cargo lo ve en su **Panel**: inicia cada sesión y pasa lista. Puede
+añadir a quien llegó sin inscribirse, solo con el nombre.
+
+> **Ojo al asignar el responsable.** Dirección ve todas las actividades, pero
+> **solo quien está a cargo puede iniciar sesiones y pasar lista**. Si esa
+> persona falta, hay que cambiar el responsable desde Gestión; nadie más puede
+> escribir en su lista.
+
+## 2.12 Cómo se usa a partir de aquí
 
 1. **El público se inscribe** en `/inscripcion`: crea su cuenta y elige sus
    promotorías en un solo formulario. Un menor de edad debe registrar acudiente.
@@ -595,7 +626,7 @@ php artisan view:cache
 El repositorio trae un flujo de trabajo, `.github/workflows/desplegar.yml`, que
 en cada `push` a `main`:
 
-1. Levanta MariaDB y corre **las 331 pruebas**.
+1. Levanta MariaDB y corre **la suite entera**.
 2. **Solo si pasan todas**, entra por SSH al servidor y ejecuta `desplegar.sh`.
 
 Esa segunda condición es el motivo de que exista. Un `git pull` automático sin
@@ -895,7 +926,7 @@ hora mirando registros.
 
 ## Trabajar a partir de ahora
 
-Escribir, probar en local, `git push origin main`. GitHub corre las 331 pruebas
+Escribir, probar en local, `git push origin main`. GitHub corre la suite
 y solo despliega si pasan todas.
 
 Dos reglas para que siga funcionando:

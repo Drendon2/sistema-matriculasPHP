@@ -1,7 +1,7 @@
 # Prueba y despliega.
 #
-# En cada push a `main`: se levantan las 331 pruebas contra MariaDB y, SOLO si
-# pasan todas, se entra por SSH al servidor y se ejecuta `desplegar.sh`.
+# En cada push a `main`: se levanta la suite entera contra MariaDB y, SOLO si
+# pasa, se entra por SSH al servidor y se ejecuta `desplegar.sh`.
 #
 # Esa puerta es el motivo de que este archivo exista. Un `git pull` automático
 # sin pruebas publica el error en internet treinta segundos después de haberlo
@@ -90,6 +90,19 @@ jobs:
 
       - name: Pruebas
         run: php artisan test
+
+      # DESPUES de las pruebas, y no antes, a proposito. Pint es barato y lo
+      # normal seria ponerlo primero para fallar rapido; pero si falla primero,
+      # las pruebas no llegan a correr y el viaje se hace dos veces: arreglas un
+      # espacio, empujas, y solo entonces descubres que ademas algo esta roto.
+      # Lo que importa mas se comprueba antes.
+      #
+      # Es una PUERTA y no un aviso: si esto no bloquea, el formato vuelve a
+      # ensuciarse solo. Ya paso una vez y costo un commit de 69 archivos, con
+      # el ruido de formato mezclado en el diff de lo que de verdad cambiaba.
+      # Cuando se ponga en rojo, se arregla con `./vendor/bin/pint` y a seguir.
+      - name: Formato (Pint)
+        run: ./vendor/bin/pint --test
 
   desplegar:
     name: Desplegar
