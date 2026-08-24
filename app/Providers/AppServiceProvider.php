@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\ConfiguracionInstitucion;
+use App\Support\Recurso;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -55,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->limitarIntentos();
         $this->exigirContrasenaMinima();
+        $this->declararRecursoVersionado();
 
         // En Hostinger el SSL termina antes de PHP, asi que la aplicacion ve
         // http y generaria enlaces y formularios en http dentro de una pagina
@@ -129,5 +132,29 @@ class AppServiceProvider extends ServiceProvider
     private function exigirContrasenaMinima(): void
     {
         Password::defaults(fn () => Password::min(8));
+    }
+
+    /**
+     * `@recurso('js/acciones.js')`: el activo con su fecha pegada detras.
+     *
+     * Es la PRIMERA directiva propia del proyecto y se anade con reparo, porque
+     * cada directiva es vocabulario nuevo que hay que aprender para leer una
+     * plantilla. Se justifica por el numero: son diez referencias en ocho
+     * plantillas, y la alternativa —escribir la llamada estatica completa en
+     * cada una— es la forma segura de que la proxima se escriba con `asset()`
+     * por costumbre y se quede sin version sin que nadie lo note.
+     *
+     * Compila a una LLAMADA, no al resultado. Importa porque el despliegue corre
+     * `view:cache`: si la fecha se calculara al compilar, se congelaria la del
+     * momento del despliegue y no volveria a moverse.
+     *
+     * Va con `e()` por el contexto —siempre dentro de un atributo HTML— aunque
+     * hoy ninguna ruta de `public/` tenga nada que escapar.
+     */
+    private function declararRecursoVersionado(): void
+    {
+        // La barra inicial no es decorativa: la plantilla compilada vive en el
+        // espacio de nombres global, y sin ella el nombre seria relativo.
+        Blade::directive('recurso', fn (string $ruta) => '<?php echo e(\\'.Recurso::class."::versionado({$ruta})); ?>");
     }
 }

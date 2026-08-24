@@ -13,7 +13,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@yield('title', $configuracion->nombre_institucion)</title>
-<link rel="stylesheet" href="{{ asset('css/publico.css') }}">
+<link rel="stylesheet" href="@recurso('css/publico.css')">
 <style>
   :root {
     --accent: {{ $configuracion->color_acento }};

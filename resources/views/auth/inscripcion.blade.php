@@ -160,6 +160,6 @@
 
 @push('scripts')
   @if ($periodo && $matriculasAbiertas)
-    <script src="{{ asset('js/inscripcion.js') }}"></script>
+    <script src="@recurso('js/inscripcion.js')"></script>
   @endif
 @endpush

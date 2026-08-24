@@ -182,5 +182,5 @@
 
 @push('scripts')
 {{-- Solo el gesto de deslizar entre periodos. Las flechas funcionan sin esto. --}}
-<script src="{{ asset('js/periodo.js') }}" defer></script>
+<script src="@recurso('js/periodo.js')" defer></script>
 @endpush

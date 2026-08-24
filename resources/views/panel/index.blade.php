@@ -63,6 +63,6 @@
   delegan en `document` acumularían un oyente por repintado. Aquí se carga una
   vez y sobrevive a los cambios de <main>, que es justo lo que necesita.
 --}}
-<script src="{{ asset('js/lote.js') }}" defer></script>
-<script src="{{ asset('js/panel.js') }}" defer></script>
+<script src="@recurso('js/lote.js')" defer></script>
+<script src="@recurso('js/panel.js')" defer></script>
 @endpush

@@ -117,5 +117,5 @@
   Solo la casilla de «todos» y la cuenta de marcados. Sin JavaScript la pantalla
   funciona igual: se marcan las casillas a mano y se envía.
 --}}
-<script src="{{ asset('js/lote.js') }}" defer></script>
+<script src="@recurso('js/lote.js')" defer></script>
 @endpush

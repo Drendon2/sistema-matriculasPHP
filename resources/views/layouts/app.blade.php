@@ -12,7 +12,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@hasSection('title')@yield('title') — @endif{{ $configuracion->nombre_institucion }}</title>
-<link rel="stylesheet" href="{{ asset('css/app.css') }}">
+<link rel="stylesheet" href="@recurso('css/app.css')">
 {{--
   Marca configurable: sobreescribe SOLO el acento y sus dos tonos derivados.
   El resto del sistema de diseño (neutros, estados, colores de Área) no se toca.
@@ -67,7 +67,7 @@
   @yield('content')
 </main>
 
-<script src="{{ asset('js/acciones.js') }}" defer></script>
+<script src="@recurso('js/acciones.js')" defer></script>
 @stack('scripts')
 </body>
 </html>
