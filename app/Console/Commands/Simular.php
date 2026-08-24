@@ -89,10 +89,27 @@ class Simular extends Command
 
     private const SALONES = ['Salón 1', 'Salón 2', 'Salón 3', 'Aula múltiple', 'Tarima'];
 
+    /**
+     * Los horarios, como DATO y no como texto.
+     *
+     * Antes eran cadenas —«Martes 4:00-6:00 p. m.»— porque `grupos.horario` era
+     * un varchar libre. Esa columna se fue el 20/08 y el horario vive ahora en
+     * `sesiones_grupo`, con su dia y sus horas. Este comando se quedo atras y
+     * llevaba cuatro dias reventando al crear el primer grupo.
+     *
+     * Cada entrada es [dia (1=lunes), hora de inicio, hora de fin].
+     */
     private const HORARIOS = [
-        'Lunes 2:00-4:00 p. m.', 'Martes 4:00-6:00 p. m.', 'Miércoles 8:00-10:00 a. m.',
-        'Jueves 3:00-5:00 p. m.', 'Viernes 10:00 a. m.-12:00 m.', 'Sábado 9:00-11:00 a. m.',
+        [1, '14:00', '16:00'],
+        [2, '16:00', '18:00'],
+        [3, '08:00', '10:00'],
+        [4, '15:00', '17:00'],
+        [5, '10:00', '12:00'],
+        [6, '09:00', '11:00'],
     ];
+
+    /** Como se llaman los grupos. El unico de la base es (promotoria, nombre). */
+    private const NOMBRES_DE_GRUPO = ['Grupo A', 'Grupo B', 'Grupo C'];
 
     private int $documento = 900000;
 
@@ -313,13 +330,21 @@ class Simular extends Command
             $cuantos = $indice % 7 === 0 ? 0 : $this->entre(1, 3);
 
             for ($n = 0; $n < $cuantos; $n++) {
-                $porPromotoria[$promotoria->id][] = Grupo::create([
+                $grupo = Grupo::create([
                     'promotoria_id' => $promotoria->id,
+                    'nombre' => self::NOMBRES_DE_GRUPO[$n],
                     'nivel' => $niveles[$n],
-                    'horario' => self::HORARIOS[$this->entre(0, count(self::HORARIOS) - 1)],
                     'salon' => self::SALONES[$this->entre(0, count(self::SALONES) - 1)],
                     'cupo_maximo' => $this->entre(8, 20),
                 ]);
+
+                // El horario va en filas aparte desde el 20/08. Una sola sesion
+                // por grupo: basta para que el mapa de calor tenga patron, que
+                // es para lo que este comando siembra clases.
+                [$dia, $inicio, $fin] = self::HORARIOS[$this->entre(0, count(self::HORARIOS) - 1)];
+                $grupo->sesiones()->create(['dia' => $dia, 'hora_inicio' => $inicio, 'hora_fin' => $fin]);
+
+                $porPromotoria[$promotoria->id][] = $grupo;
             }
         }
 
@@ -644,43 +669,20 @@ class Simular extends Command
     /**
      * La sesion de hace `$semanas` semanas, en el dia que dice el horario.
      *
-     * El horario es texto libre («Martes 4:00-6:00 p. m.»), asi que el dia se
-     * lee de ahi. Si no se reconoce ninguno —porque alguien escribio el horario
-     * a su manera— cae en miercoles, que es un dia laborable cualquiera: mejor
-     * un dia fijo que uno al azar, porque al azar el mapa deja de tener patron.
+     * El dia y la hora salen de la SESION del grupo, que es donde viven desde
+     * el 20/08. Antes se leian del texto de `grupos.horario` buscando «martes»
+     * dentro de la cadena; esa columna ya no existe y adivinar dejo de tener
+     * sentido cuando el horario paso a ser dato.
      */
     private function sesion(Grupo $grupo, int $semanas): Carbon
     {
-        $dias = [
-            'lunes' => Carbon::MONDAY,
-            'martes' => Carbon::TUESDAY,
-            'miércoles' => Carbon::WEDNESDAY,
-            'miercoles' => Carbon::WEDNESDAY,
-            'jueves' => Carbon::THURSDAY,
-            'viernes' => Carbon::FRIDAY,
-            'sábado' => Carbon::SATURDAY,
-            'sabado' => Carbon::SATURDAY,
-            'domingo' => Carbon::SUNDAY,
-        ];
+        $sesion = $grupo->sesiones->first();
 
-        $horario = mb_strtolower($grupo->horario);
-        $dia = Carbon::WEDNESDAY;
-
-        foreach ($dias as $nombre => $numero) {
-            if (str_contains($horario, $nombre)) {
-                $dia = $numero;
-
-                break;
-            }
-        }
-
-        // La hora sale tambien del texto cuando se puede leer; si no, media
-        // tarde, que es cuando de verdad se dan estas clases.
-        $hora = preg_match('/(\d{1,2}):(\d{2})/', $grupo->horario, $c) ? (int) $c[1] : 16;
-
-        if ($hora < 7) {
-            $hora += 12; // «2:00 p. m.» viene sin el 14.
-        }
+        // Un grupo sin sesiones cae en miercoles a media tarde, que es cuando de
+        // verdad se dan estas clases. Mejor un dia fijo que uno al azar: al azar
+        // el mapa de calor deja de tener patron, que es justo lo que se siembra.
+        $dia = $sesion?->dia ?? Carbon::WEDNESDAY;
+        $hora = $sesion ? (int) substr((string) $sesion->hora_inicio, 0, 2) : 16;
 
         return Carbon::today()
             ->subWeeks($semanas)

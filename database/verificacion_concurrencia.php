@@ -11,16 +11,34 @@
  *
  * Se ejecuta con:  php database/verificacion_concurrencia.php
  */
-$dsn = 'mysql:host=127.0.0.1;port=3307;dbname=matriculas;charset=utf8mb4';
-$opt = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
+// La conexion sale del .env: ver `conexion_verificacion.php`.
 $cerrojo = __DIR__.'/.cerrojo_tomado';
 
-$db = new PDO($dsn, 'matriculas', 'matriculas', $opt);
+$db = require __DIR__.'/conexion_verificacion.php';
 
 // Escenario limpio: Violin con cupo 1 y nadie inscrito.
+confirmarBorradoDeDatos($db);
+
 $db->exec('SET FOREIGN_KEY_CHECKS = 0');
-foreach (['confirmaciones_clase', 'asistencias', 'clases', 'matriculas', 'grupos',
-    'cupos_promotoria', 'promotorias', 'perfiles', 'periodos', 'areas', 'users'] as $t) {
+// La lista NO va escrita a mano: se pregunta al motor.
+//
+// Escrita a mano se quedo en agosto de 2025, y dejo fuera `sesiones_grupo`
+// —que nacio despues— y las cuatro tablas de actividades. Como el TRUNCATE va
+// con las claves foraneas apagadas, el resultado no era «quedan datos de mas»
+// sino filas HUERFANAS: sesiones apuntando a grupos que ya no existen. Un
+// escenario de prueba sucio es peor que ninguno, porque parece limpio.
+//
+// Se excluyen las de Laravel: `migrations` diria que no hay esquema, y las de
+// sesion, cache y colas no son datos del dominio.
+$deLaravel = ['migrations', 'sessions', 'cache', 'cache_locks', 'jobs',
+    'job_batches', 'failed_jobs', 'password_reset_tokens'];
+
+$tablas = array_diff(
+    array_map(fn (array $f) => array_values($f)[0], $db->query('SHOW TABLES')->fetchAll(PDO::FETCH_ASSOC)),
+    $deLaravel
+);
+
+foreach ($tablas as $t) {
     $db->exec("TRUNCATE TABLE $t");
 }
 $db->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -54,7 +72,7 @@ if (! file_exists($cerrojo)) {
 }
 echo "A (Ana): matricula escrita, transaccion ABIERTA, cerrojo tomado.\n";
 
-$b = new PDO($dsn, 'matriculas', 'matriculas', $opt);
+$b = require __DIR__.'/conexion_verificacion.php';
 $b->exec('SET innodb_lock_wait_timeout = 20');
 $b->beginTransaction();
 

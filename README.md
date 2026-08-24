@@ -231,9 +231,15 @@ Hay además dos guiones que comprueban el esquema contra SQL crudo, incluida la
 carrera de dos transacciones por el último cupo:
 
 ```bash
-php database/verificacion_esquema.php
-php database/verificacion_concurrencia.php
+php database/verificacion_esquema.php --borrar-datos
+php database/verificacion_concurrencia.php --borrar-datos
 ```
+
+**Estos dos VACÍAN la base antes de empezar**, porque necesitan un escenario
+conocido. La bandera es obligatoria y no es una formalidad: sin ella el guion se
+niega y te dice cuántas filas ibas a perder. Además solo corren con
+`APP_ENV=local` — en un servidor no se conectan siquiera, y esa barrera cierra
+en falso: un `.env` sin `APP_ENV`, o con cualquier otro valor, tampoco pasa.
 
 ## Despliegue
 

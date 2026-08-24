@@ -10,8 +10,9 @@
  *
  * Se ejecuta con:  php database/verificacion_esquema.php
  */
-$dsn = 'mysql:host=127.0.0.1;port=3307;dbname=matriculas;charset=utf8mb4';
-$db = new PDO($dsn, 'matriculas', 'matriculas', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+// La conexion sale del .env, no de credenciales escritas aqui: ver
+// `conexion_verificacion.php`.
+$db = require __DIR__.'/conexion_verificacion.php';
 
 $pasadas = 0;
 $fallidas = 0;
@@ -54,11 +55,28 @@ function acepta(PDO $db, string $titulo, callable $op): void
 // ---------------------------------------------------------------------------
 // Datos base
 // ---------------------------------------------------------------------------
+confirmarBorradoDeDatos($db);
+
 $db->exec('SET FOREIGN_KEY_CHECKS = 0');
-foreach (['confirmaciones_clase', 'asistencias', 'clases', 'matriculas', 'grupos',
-    'cupos_promotoria', 'promotorias', 'documentos_estudiante', 'documentos_requeridos',
-    'datos_estudiante', 'acudientes', 'encuestas_satisfaccion', 'encuestas_demograficas',
-    'perfiles', 'periodos', 'areas', 'users'] as $t) {
+// La lista NO va escrita a mano: se pregunta al motor.
+//
+// Escrita a mano se quedo en agosto de 2025, y dejo fuera `sesiones_grupo`
+// —que nacio despues— y las cuatro tablas de actividades. Como el TRUNCATE va
+// con las claves foraneas apagadas, el resultado no era «quedan datos de mas»
+// sino filas HUERFANAS: sesiones apuntando a grupos que ya no existen. Un
+// escenario de prueba sucio es peor que ninguno, porque parece limpio.
+//
+// Se excluyen las de Laravel: `migrations` diria que no hay esquema, y las de
+// sesion, cache y colas no son datos del dominio.
+$deLaravel = ['migrations', 'sessions', 'cache', 'cache_locks', 'jobs',
+    'job_batches', 'failed_jobs', 'password_reset_tokens'];
+
+$tablas = array_diff(
+    array_map(fn (array $f) => array_values($f)[0], $db->query('SHOW TABLES')->fetchAll(PDO::FETCH_ASSOC)),
+    $deLaravel
+);
+
+foreach ($tablas as $t) {
     $db->exec("TRUNCATE TABLE $t");
 }
 $db->exec('SET FOREIGN_KEY_CHECKS = 1');
@@ -180,11 +198,11 @@ rechaza($db, 'estrato 8 en la encuesta', fn ($d) => $d->exec(
     "INSERT INTO encuestas_demograficas (perfil_id, genero, barrio, estrato, nivel_educativo, ocupacion, created_at, updated_at)
      VALUES (1,'f','Centro',8,'tecnico','estudiante',NOW(),NOW())"), 'estrato_valido');
 rechaza($db, 'nivel de grupo inventado', fn ($d) => $d->exec(
-    "INSERT INTO grupos (promotoria_id, nivel, horario, salon, cupo_maximo, created_at, updated_at)
-     VALUES (1,'experto','Lun 8am','A1',10,NOW(),NOW())"), 'nivel_valido');
+    "INSERT INTO grupos (promotoria_id, nivel, nombre, salon, cupo_maximo, created_at, updated_at)
+     VALUES (1,'experto','Grupo A','A1',10,NOW(),NOW())"), 'nivel_valido');
 rechaza($db, 'estado de asistencia inventado', function ($d) {
-    $d->exec("INSERT INTO grupos (id, promotoria_id, nivel, horario, salon, cupo_maximo, created_at, updated_at)
-              VALUES (1,1,'basico','Lun 8am','A1',10,NOW(),NOW())");
+    $d->exec("INSERT INTO grupos (id, promotoria_id, nivel, nombre, salon, cupo_maximo, created_at, updated_at)
+              VALUES (1,1,'basico','Grupo A','A1',10,NOW(),NOW())");
     $d->exec('INSERT INTO clases (id, grupo_id, periodo_id, fecha_hora, registrada_por_id, confirmaciones_requeridas, created_at, updated_at)
               VALUES (1,1,1,NOW(),2,3,NOW(),NOW())');
     $mid = $d->query('SELECT id FROM matriculas LIMIT 1')->fetchColumn();

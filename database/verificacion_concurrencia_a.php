@@ -7,11 +7,8 @@
  * para que B se encuentre de verdad con la transaccion abierta. Vive en su
  * propio proceso porque una transaccion no se puede retener desde fuera.
  */
-$db = new PDO(
-    'mysql:host=127.0.0.1;port=3307;dbname=matriculas;charset=utf8mb4',
-    'matriculas', 'matriculas',
-    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-);
+// La conexion sale del .env: ver `conexion_verificacion.php`.
+$db = require __DIR__.'/conexion_verificacion.php';
 
 $db->beginTransaction();
 $db->exec("INSERT INTO matriculas (estudiante_id, promotoria_id, periodo_id, fecha, estado, ranura, created_at, updated_at)
