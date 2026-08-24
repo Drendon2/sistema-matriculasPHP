@@ -55,6 +55,7 @@ class CursoTallerController extends ActividadController
             'ruta_nuevo' => 'actividad-curso-nueva',
             'ruta_editar' => 'actividad-curso-editar',
             'ruta_eliminar' => 'actividad-curso-eliminar',
+            'ruta_enlace' => 'actividad-curso-enlace',
             'creado' => 'Creado. Ahora pon las fechas.',
             'actualizado' => 'Curso actualizado.',
         ];

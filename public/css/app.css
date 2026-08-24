@@ -1137,6 +1137,18 @@
   }
   .config-muestra-chip-claro { border: 1px solid var(--border-strong); }
 
+  /* El enlace que se comparte, en un campo de solo lectura. Es un input y no
+     un texto para que se seleccione de un tiron: esto acaba pegado en un
+     WhatsApp, y arrastrar el raton por encima de una URL sin pasarse es
+     justamente lo que no hay que pedirle a nadie. */
+  .enlace-copiable {
+    width: 100%; max-width: 26rem; margin: 0.35rem 0 0;
+    padding: 0.25rem 0.4rem;
+    font-family: var(--font-mono); font-size: 0.7rem;
+    color: var(--ink-soft); background: var(--surface-alt);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+  }
+
   /* La rejilla de fechas de un curso. Columnas que se acomodan solas: con
      cuatro clases caben en una fila y con veinte se envuelven, sin que haya
      que decidir un numero de columnas que sea malo para los dos casos. */

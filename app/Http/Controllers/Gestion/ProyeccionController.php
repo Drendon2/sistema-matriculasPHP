@@ -41,6 +41,7 @@ class ProyeccionController extends ActividadController
             'ruta_nuevo' => 'actividad-proyeccion-nueva',
             'ruta_editar' => 'actividad-proyeccion-editar',
             'ruta_eliminar' => 'actividad-proyeccion-eliminar',
+            'ruta_enlace' => 'actividad-proyeccion-enlace',
             'creado' => 'Grupo de proyección creado.',
             'actualizado' => 'Grupo de proyección actualizado.',
         ];

@@ -6,6 +6,7 @@ use App\Models\Actividad;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -53,7 +54,7 @@ abstract class ActividadController extends RecursoController
                 // El conteo por `withCount` y no recorriendo la relacion: el
                 // listado pinta una fila por actividad y `sesiones` dentro del
                 // bucle costaria una consulta por fila.
-                ->withCount('sesiones')
+                ->withCount(['sesiones', 'inscritos'])
                 ->whereIn('tipo', $this->tipos())
                 ->orderBy('nombre')
                 ->get(),
@@ -71,6 +72,28 @@ abstract class ActividadController extends RecursoController
     protected function atributosFijos(Request $request): array
     {
         return ['periodo_id' => Periodo::enCurso()?->id];
+    }
+
+    /**
+     * Abre o cierra el enlace a mano.
+     *
+     * Es lo unico que puede parar una actividad sin cupo: esa no se llena
+     * nunca. Y en una con cupo sirve para lo otro —"ya empezamos, no reciban
+     * mas"—, que no es lo mismo que estar llena.
+     */
+    public function alternarEnlace(string $id): RedirectResponse
+    {
+        /** @var Actividad $actividad */
+        $actividad = $this->buscar($id);
+        $actividad->abierta = ! $actividad->abierta;
+        $actividad->save();
+
+        return redirect()->route($this->textos()['ruta_lista'])->with(
+            'success',
+            $actividad->abierta
+                ? "El enlace de «{$actividad->nombre}» vuelve a recibir inscripciones."
+                : "El enlace de «{$actividad->nombre}» queda cerrado."
+        );
     }
 
     /** @return array<string, array<string, mixed>> */

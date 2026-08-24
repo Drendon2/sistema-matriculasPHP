@@ -138,6 +138,47 @@ class Actividad extends Model
         return $this->hasMany(SesionActividad::class, 'actividad_id')->orderBy('fecha');
     }
 
+    /** Quien se apunto, por el enlace o anadido en una sesion. */
+    public function inscritos(): HasMany
+    {
+        return $this->hasMany(InscritoActividad::class, 'actividad_id');
+    }
+
+    /**
+     * La direccion que se comparte.
+     *
+     * Absoluta, no relativa: esto se pega en un WhatsApp, no se pulsa dentro de
+     * la aplicacion.
+     */
+    public function enlace(): string
+    {
+        return route('actividad-inscribirse', $this->token);
+    }
+
+    /**
+     * Si el enlace todavia admite gente.
+     *
+     * Dos cosas lo cierran y son distintas a proposito: el CUPO lo cierra solo
+     * cuando se llena, y `abierta` lo cierra porque alguien lo decidio. Una
+     * actividad sin cupo no se llena nunca, asi que ahi el interruptor es lo
+     * unico que puede pararla.
+     *
+     * Recibe el conteo en vez de consultarlo para que un listado no pague una
+     * consulta por fila; sin el, lo pregunta.
+     */
+    public function admiteInscripciones(?int $inscritos = null): bool
+    {
+        if (! $this->abierta) {
+            return false;
+        }
+
+        if ($this->cupo_maximo === null) {
+            return true;
+        }
+
+        return ($inscritos ?? $this->inscritos()->count()) < $this->cupo_maximo;
+    }
+
     /**
      * Que es una actividad de tantas clases.
      *

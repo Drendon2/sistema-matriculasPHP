@@ -11,6 +11,7 @@ use App\Http\Controllers\ClaseController;
 use App\Http\Controllers\FichaController;
 use App\Http\Controllers\Gestion;
 use App\Http\Controllers\InformeController;
+use App\Http\Controllers\InscripcionActividadController;
 use App\Http\Controllers\MatricularController;
 use App\Http\Controllers\MiPerfilController;
 use App\Http\Controllers\MisClasesController;
@@ -48,6 +49,16 @@ use Illuminate\Support\Facades\Route;
 // El del login cuenta por usuario+IP a traves del limitador con nombre `entrar`
 // (ver `AppServiceProvider`); los otros dos van por IP, que es lo que
 // corresponde cuando lo que se frena es crear cuentas en masa.
+// El enlace de una actividad. Va FUERA de `guest`, al contrario que las tres de
+// abajo: aquellas ofrecen crear una cuenta y no tienen sentido con la sesion ya
+// abierta, pero esta no crea ninguna. Y quien comparte el enlace —el profesor,
+// el director— tiene que poder abrirlo para comprobar que funciona sin cerrar
+// su sesion primero.
+Route::get('/inscribirse/{token}', [InscripcionActividadController::class, 'mostrar'])
+    ->name('actividad-inscribirse');
+Route::post('/inscribirse/{token}', [InscripcionActividadController::class, 'guardar'])
+    ->middleware('throttle:10,1');
+
 Route::middleware('guest')->group(function () {
     Route::get('/entrar', [LoginController::class, 'mostrar'])->name('login');
     Route::post('/entrar', [LoginController::class, 'entrar'])
@@ -316,6 +327,8 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'confirmarBorrado'])
         ->name('actividad-curso-eliminar');
     Route::post('/cursos/{objeto}/eliminar', [Gestion\CursoTallerController::class, 'eliminar']);
+    Route::post('/cursos/{objeto}/enlace', [Gestion\CursoTallerController::class, 'alternarEnlace'])
+        ->name('actividad-curso-enlace');
     // Las fechas son el segundo paso de crear un curso, y donde se le cambian
     // despues. Van con {objeto} como las de arriba: `buscar()` de esa pantalla
     // ya se encarga de que no se llegue a un grupo de proyeccion.
@@ -335,6 +348,8 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/proyeccion/{objeto}/eliminar', [Gestion\ProyeccionController::class, 'confirmarBorrado'])
         ->name('actividad-proyeccion-eliminar');
     Route::post('/proyeccion/{objeto}/eliminar', [Gestion\ProyeccionController::class, 'eliminar']);
+    Route::post('/proyeccion/{objeto}/enlace', [Gestion\ProyeccionController::class, 'alternarEnlace'])
+        ->name('actividad-proyeccion-enlace');
 
     // Usuarios
     Route::get('/usuarios', [Gestion\UsuarioController::class, 'index'])->name('usuario-lista');

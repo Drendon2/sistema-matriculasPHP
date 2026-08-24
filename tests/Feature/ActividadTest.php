@@ -3,11 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Actividad;
+use App\Models\DatosEstudiante;
+use App\Models\InscritoActividad;
+use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -61,6 +65,21 @@ class ActividadTest extends TestCase
             'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
             'telefono' => '3000000000',
         ]);
+    }
+
+    /**
+     * Cierra el enlace sin pasar por la pantalla.
+     *
+     * A mano y no con `create(['abierta' => false])`: `abierta` esta fuera del
+     * `$fillable`, asi que la asignacion en masa la ignora en silencio y la
+     * actividad nace abierta igual.
+     */
+    private function cerrarEnlace(Actividad $actividad): Actividad
+    {
+        $actividad->abierta = false;
+        $actividad->save();
+
+        return $actividad;
     }
 
     /** @param  array<string, mixed>  $extra */
@@ -417,6 +436,223 @@ class ActividadTest extends TestCase
 
         $this->assertSame(32, strlen($uno->token));
         $this->assertNotSame($uno->token, $otro->token);
+    }
+
+    // -----------------------------------------------------------------------
+    // El enlace publico
+    // -----------------------------------------------------------------------
+
+    /** @param  array<string, mixed>  $extra */
+    private function inscribirse(Actividad $actividad, array $extra = []): TestResponse
+    {
+        return $this->post(route('actividad-inscribirse', $actividad->token), [
+            'nombre_completo' => 'Pedro Nel Gómez',
+            'documento' => '99887766',
+            'telefono' => '3001234567',
+            'correo' => 'pedro@example.com',
+            'fecha_nacimiento' => '2010-05-04',
+            ...$extra,
+        ]);
+    }
+
+    public function test_el_enlace_se_abre_sin_cuenta(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        // Sin `actingAs`: es la unica pantalla del sistema que no pide sesion.
+        $this->get(route('actividad-inscribirse', $taller->token))
+            ->assertOk()
+            ->assertSee('Taller de cajón');
+    }
+
+    public function test_un_token_que_no_existe_da_404(): void
+    {
+        $this->get(route('actividad-inscribirse', str_repeat('x', 32)))->assertNotFound();
+    }
+
+    public function test_inscribirse_no_crea_cuenta_ni_matricula(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+        $usuarios = User::count();
+
+        $this->inscribirse($taller)->assertSessionHas('success');
+
+        $inscrito = $taller->inscritos()->first();
+
+        $this->assertSame('Pedro Nel Gómez', $inscrito->nombre_completo);
+        $this->assertSame(InscritoActividad::ENLACE, $inscrito->origen);
+        // Lo que separa esto de la inscripcion de estudiantes: ni cuenta ni
+        // matricula. Solo una fila diciendo quien se apunto.
+        $this->assertSame($usuarios, User::count());
+        $this->assertSame(0, Matricula::count());
+    }
+
+    public function test_el_correo_es_opcional(): void
+    {
+        // A un taller de ninos se apunta gente que no tiene uno, y bloquear la
+        // inscripcion por eso es perder a la persona, no ganar el dato.
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        $this->inscribirse($taller, ['correo' => ''])->assertSessionHas('success');
+
+        $this->assertNull($taller->inscritos()->first()->correo);
+    }
+
+    public function test_el_documento_si_es_obligatorio(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        $this->inscribirse($taller, ['documento' => ''])->assertSessionHasErrors('documento');
+    }
+
+    public function test_el_mismo_documento_no_se_apunta_dos_veces(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        $this->inscribirse($taller);
+        // Quien no esta seguro de si el primer envio entro, lo manda otra vez.
+        // Se cuenta como buena noticia: el resultado que queria ya esta puesto.
+        $this->inscribirse($taller)->assertSessionHas('success');
+
+        $this->assertSame(1, $taller->inscritos()->count());
+    }
+
+    public function test_el_mismo_documento_si_se_apunta_a_dos_actividades(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->inscribirse($taller);
+        $this->inscribirse($banda);
+
+        $this->assertSame(1, $taller->inscritos()->count());
+        $this->assertSame(1, $banda->inscritos()->count());
+    }
+
+    public function test_si_el_documento_es_de_un_estudiante_queda_vinculado(): void
+    {
+        $ana = $this->estudiante;
+        DatosEstudiante::create(['perfil_id' => $ana->id, 'documento_identidad' => '55554444']);
+
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+        $this->inscribirse($banda, ['documento' => '55554444']);
+
+        $this->assertSame($ana->id, $banda->inscritos()->first()->perfil_id);
+    }
+
+    public function test_un_documento_desconocido_no_vincula_nada(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+        $this->inscribirse($banda, ['documento' => '00000000']);
+
+        // Lo normal: casi nadie que llegue por el enlace tendra cuenta.
+        $this->assertNull($banda->inscritos()->first()->perfil_id);
+    }
+
+    // -----------------------------------------------------------------------
+    // Cuando el enlace deja de admitir gente
+    // -----------------------------------------------------------------------
+
+    public function test_con_el_cupo_lleno_no_entra_nadie_mas(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
+
+        $this->inscribirse($taller, ['documento' => '111']);
+        $this->inscribirse($taller, ['documento' => '222'])->assertSessionHas('error');
+
+        $this->assertSame(1, $taller->inscritos()->count());
+    }
+
+    public function test_el_formulario_desaparece_cuando_esta_lleno(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
+        $this->inscribirse($taller, ['documento' => '111']);
+
+        $this->get(route('actividad-inscribirse', $taller->token))
+            ->assertOk()
+            ->assertSee('Ya no quedan cupos')
+            ->assertDontSee('name="documento"', escape: false);
+    }
+
+    public function test_cerrar_el_enlace_a_mano_lo_cierra_de_verdad(): void
+    {
+        // Es lo unico que puede parar una actividad SIN cupo: esa no se llena.
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('actividad-proyeccion-enlace', $banda))
+            ->assertRedirect(route('actividad-proyeccion-lista'));
+
+        $this->assertFalse($banda->fresh()->abierta);
+
+        // Y el POST tambien queda cerrado, no solo el formulario: esconderlo no
+        // cierra la URL.
+        $this->inscribirse($banda)->assertSessionHas('error');
+        $this->assertSame(0, $banda->inscritos()->count());
+    }
+
+    public function test_el_enlace_cerrado_dice_cual_es_la_actividad(): void
+    {
+        // Quien llega con ese enlace lo recibio de alguien: necesita saber si
+        // llego tarde o si se equivoco de sitio, no un 404.
+        $banda = $this->cerrarEnlace($this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica'));
+
+        $this->get(route('actividad-inscribirse', $banda->token))
+            ->assertOk()
+            ->assertSee('Banda sinfónica')
+            ->assertSee('inscripciones están cerradas', escape: false);
+    }
+
+    public function test_volver_a_abrir_el_enlace_readmite_gente(): void
+    {
+        $banda = $this->cerrarEnlace($this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica'));
+
+        $this->actingAs($this->admin->user)->post(route('actividad-proyeccion-enlace', $banda));
+
+        $this->assertTrue($banda->fresh()->abierta);
+        $this->inscribirse($banda)->assertSessionHas('success');
+    }
+
+    public function test_el_enlace_no_se_cierra_por_el_formulario_de_editar(): void
+    {
+        // Lo que la protege NO es el `$fillable` —se comprobo, y con `abierta`
+        // dentro esta prueba pasaba igual—, sino que `reglas()` no la nombra:
+        // `validate()` devuelve solo lo que valido, y `fill()` nunca la ve. El
+        // dia que alguien la anada a las reglas del formulario, esto se rompe,
+        // que es justo para lo que esta.
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->admin->user)->post(route('actividad-proyeccion-editar', $banda), [
+            'nombre' => 'Banda sinfónica',
+            'responsable_id' => $this->profesor->id,
+            'cupo_maximo' => '',
+            'abierta' => '0',
+        ])->assertRedirect(route('actividad-proyeccion-lista'));
+
+        $this->assertTrue($banda->fresh()->abierta);
+    }
+
+    public function test_un_estudiante_no_cierra_el_enlace_de_nadie(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->estudiante->user)
+            ->post(route('actividad-proyeccion-enlace', $banda))
+            ->assertRedirect(route('post-login'));
+
+        $this->assertTrue($banda->fresh()->abierta);
+    }
+
+    public function test_el_curso_ensena_sus_fechas_a_quien_abre_el_enlace(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03']);
+        $curso->sesiones()->create(['fecha' => '2026-09-10']);
+
+        $this->get(route('actividad-inscribirse', $curso->token))
+            ->assertOk()
+            ->assertSee('03/09/2026')
+            ->assertSee('10/09/2026');
     }
 
     public function test_una_actividad_nace_abierta(): void

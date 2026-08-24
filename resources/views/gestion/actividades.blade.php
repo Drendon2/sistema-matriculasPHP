@@ -26,26 +26,28 @@
     <tr>
       <th>Nombre</th>
       <th>Responsable</th>
-      <th class="num">Cupo</th>
+      <th class="num">Inscritos</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
     @foreach ($actividades as $actividad)
+    {{--
+      Los dos conteos se precalculan con la directiva PHP en línea, como el
+      resto del proyecto: pegar una directiva a una letra la deja sin compilar.
+    --}}
+    @php($cuantas = $actividad->sesiones_count)
+    @php($apuntados = $actividad->inscritos_count)
+    @php($admite = $actividad->admiteInscripciones($apuntados))
     <tr>
       <td>
         {{ $actividad->nombre }}
         <span class="tipo-chip">{{ $actividad->etiquetaTipo() }}</span>
         {{--
-          Cuántas clases tiene, y el aviso cuando todavía no tiene ninguna. Un
-          curso sin fechas está a medio crear: no se puede iniciar nada ni
+          Un curso sin fechas está a medio crear: no se puede iniciar nada ni
           decirle a nadie cuándo es, y sin este renglón la fila se ve igual que
           la de uno terminado.
-
-          Se precalcula con la directiva PHP en línea: pegar una directiva a
-          una letra la deja sin compilar.
         --}}
-        @php($cuantas = $actividad->sesiones_count)
         @if ($actividad->llevaFechas())
           <span class="campo-info" style="margin:0;display:block;">
             @if ($cuantas)
@@ -55,9 +57,15 @@
             @endif
           </span>
         @endif
-        @if (! $actividad->abierta)
-          <span class="campo-info" style="margin:0;display:block;">Enlace cerrado</span>
-        @endif
+
+        {{--
+          El enlace, en un campo que se puede seleccionar de un tirón: esto se
+          copia y se pega en un WhatsApp, y un texto suelto obliga a arrastrar
+          el ratón por encima sin pasarse.
+        --}}
+        <label class="sr-solo" for="enlace_{{ $actividad->id }}">Enlace de {{ $actividad->nombre }}</label>
+        <input class="enlace-copiable" type="text" id="enlace_{{ $actividad->id }}"
+               readonly value="{{ $actividad->enlace() }}">
       </td>
       <td>
         @if (\App\Support\Permisos::puedeVerFicha($yo, $actividad->responsable))
@@ -69,19 +77,39 @@
       <td class="num">
         {{-- Sin tope no es cero: es que nadie puso uno. --}}
         @if ($actividad->cupo_maximo === null)
-          <span class="cupo-cifra cupo-cifra-libre">∞</span>
+          <span class="cupo-cifra cupo-cifra-libre">{{ $apuntados }} / ∞</span>
+        @elseif ($apuntados >= $actividad->cupo_maximo)
+          <span class="cupo-cifra cupo-cifra-lleno">{{ $apuntados }} / {{ $actividad->cupo_maximo }}</span>
         @else
-          <span class="cupo-cifra">{{ $actividad->cupo_maximo }}</span>
+          <span class="cupo-cifra">{{ $apuntados }} / {{ $actividad->cupo_maximo }}</span>
+        @endif
+        {{--
+          Por qué no admite gente. Lleno y cerrado son dos cosas distintas: la
+          primera se arregla subiendo el cupo y la segunda con el botón de al
+          lado, y decir solo «no admite» dejaría adivinando cuál toca.
+        --}}
+        @if (! $admite)
+          <span class="campo-info" style="margin:0.2rem 0 0;display:block;">
+            {{ $actividad->abierta ? 'Cupos llenos' : 'Enlace cerrado' }}
+          </span>
         @endif
       </td>
       <td style="text-align:right;white-space:nowrap;">
-        @if ($actividad->llevaFechas())
-          <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
+        <form method="post" action="{{ route($ruta_enlace, $actividad) }}" style="display:inline;">
+          @csrf
+          <button type="submit" class="btn btn-blanco btn-sm">
+            {{ $actividad->abierta ? 'Cerrar enlace' : 'Abrir enlace' }}
+          </button>
+        </form>
+        <span class="campo-info" style="margin:0.35rem 0 0;display:block;">
+          @if ($actividad->llevaFechas())
+            <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
+            &nbsp;·&nbsp;
+          @endif
+          <a href="{{ route($ruta_editar, $actividad) }}">Editar</a>
           &nbsp;·&nbsp;
-        @endif
-        <a href="{{ route($ruta_editar, $actividad) }}">Editar</a>
-        &nbsp;·&nbsp;
-        <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);">Eliminar</a>
+          <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);">Eliminar</a>
+        </span>
       </td>
     </tr>
     @endforeach
