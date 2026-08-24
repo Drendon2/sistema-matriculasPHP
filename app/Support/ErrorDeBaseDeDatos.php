@@ -67,12 +67,6 @@ class ErrorDeBaseDeDatos
         return self::indiceViolado($e) === 'una_inscripcion_por_documento';
     }
 
-    /** ¿La promotoria ya tenia un grupo de ese nivel? */
-    public static function esNivelRepetido(QueryException $e): bool
-    {
-        return self::indiceViolado($e) === 'un_nivel_por_promotoria';
-    }
-
     /**
      * ¿El borrado se rechazo porque otra tabla apunta a la fila?
      *
