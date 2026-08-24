@@ -420,6 +420,109 @@ class HorarioTest extends TestCase
         $this->assertSame('Martes y jueves 4:00 p. m. a 6:00 p. m.', $grupo->horario);
     }
 
+    public function test_un_grupo_puede_reunirse_todo_s_los_dias(): void
+    {
+        // No hay tope de dias, y esta prueba existe para que no aparezca uno.
+        // Se reporto desde produccion que un grupo «no dejaba escoger mas de 2
+        // dias» teniendo clase 3; en el codigo no hay tal limite —ni en el
+        // formulario, que pinta los seis, ni en `HorarioDeGrupo::leer()`, que
+        // los recorre todos— asi que esto fija la garantia por si alguien la
+        // rompe al tocar la rejilla.
+        $marcados = [];
+
+        foreach (array_keys(SesionGrupo::DIAS) as $dia) {
+            $marcados[$dia] = ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'];
+        }
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Todos los días',
+                'nivel' => 'basico',
+                'sesiones' => $marcados,
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame(
+            count(SesionGrupo::DIAS),
+            Grupo::where('nombre', 'Todos los días')->first()->sesiones()->count()
+        );
+    }
+
+    public function test_una_promotoria_no_tiene_tope_de_grupos(): void
+    {
+        // Tampoco hay tope de grupos. Se reporto que «al llegar a 9 no dejaba
+        // crear mas»; lo unico que no se puede repetir dentro de una promotoria
+        // es el NOMBRE (`un_nombre_por_promotoria`), y el nivel si se repite a
+        // proposito. Doce con nombres distintos tienen que entrar los doce.
+        foreach (range(1, 12) as $n) {
+            $this->actingAs($this->profesor->user)
+                ->post(route('panel-grupo-nuevo', $this->violin), [
+                    'nombre' => "Grupo {$n}",
+                    // Todos del mismo nivel a proposito: es el caso real de una
+                    // promotoria con mucha gente, y el que rompia el unico viejo
+                    // (promotoria, nivel) antes de que lo relevara el del nombre.
+                    'nivel' => 'basico',
+                    'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+                    'salon' => 'A1',
+                    'cupo_maximo' => 10,
+                ])
+                ->assertSessionHas('success', fn ($m) => str_contains($m, 'creado'));
+        }
+
+        $this->assertSame(12, $this->violin->grupos()->count());
+    }
+
+    public function test_al_rebotar_el_formulario_conserva_los_dias_marcados(): void
+    {
+        // Es lo que decide si un profesor cree que «no le deja» algo. Si el
+        // formulario rebota —por un nombre repetido, por una hora al reves— y
+        // ademas borra el horario que ya habia puesto, a la segunda o tercera
+        // vez cualquiera concluye que hay un tope. `paraElFormulario()` lee
+        // `old('sesiones')` justamente para esto, y esta prueba lo fija.
+        // `actingAs` UNA sola vez: vaciar la sesion es justo lo que hace
+        // `Tests\TestCase::actingAs`, y volver a llamarlo se llevaria por
+        // delante el `old()` que esta prueba viene a comprobar.
+        $this->actingAs($this->profesor->user);
+
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Repetido',
+            'nivel' => 'basico',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHas('success');
+
+        // El mismo nombre otra vez, ahora con TRES dias puestos: tiene que
+        // rebotar por el nombre, no por el horario.
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Repetido',
+            'nivel' => 'basico',
+            'sesiones' => [
+                1 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'],
+                3 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'],
+                5 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00'],
+            ],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])
+            ->assertSessionHasErrors('nombre');
+
+        // Y al volver al formulario, los tres dias siguen marcados con su hora.
+        $html = $this->get(route('panel-grupo-nuevo', $this->violin))
+            ->assertOk()
+            ->getContent();
+
+        foreach ([1, 3, 5] as $dia) {
+            $this->assertMatchesRegularExpression(
+                '/id="sesion-'.$dia.'"[^>]*checked/',
+                $html,
+                "El día {$dia} perdió su marca al rebotar el formulario."
+            );
+        }
+    }
+
     public function test_un_grupo_sin_ningun_dia_marcado_se_rechaza(): void
     {
         $this->actingAs($this->profesor->user)
