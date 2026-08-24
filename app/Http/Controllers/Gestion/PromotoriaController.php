@@ -73,7 +73,6 @@ class PromotoriaController extends RecursoController
             // Quien dicta cada una. `gestion.lista` sirve a cuatro catalogos y
             // solo las promotorias tienen profesor, asi que va por bandera.
             'mostrar_profesor' => true,
-            'mostrar_tipo' => true,
         ];
     }
 
@@ -111,21 +110,6 @@ class PromotoriaController extends RecursoController
                 // armando ese departamento no tiene por que volver a elegirlo.
                 'valor' => $objeto?->area_id ?? $request->query('area_id'),
             ],
-            'tipo' => [
-                'etiqueta' => 'Tipo',
-                'tipo' => 'select',
-                // Se pinta con la etiqueta y su explicacion en la misma linea:
-                // quien crea una promotoria no tiene por que saber de memoria
-                // que distingue un curso de un programa, y la unica diferencia
-                // con consecuencias —que la proyeccion no ocupa plaza— tiene que
-                // leerse ANTES de elegir, no despues.
-                'opciones' => collect(Promotoria::TIPOS)
-                    ->mapWithKeys(fn (string $t) => [
-                        $t => Promotoria::ETIQUETA_TIPO[$t].' — '.Promotoria::DESCRIPCION_TIPO[$t],
-                    ])
-                    ->all(),
-                'valor' => $objeto?->tipo ?? Promotoria::PROGRAMA,
-            ],
             'profesor_id' => [
                 'etiqueta' => 'Profesor',
                 'tipo' => 'select',
@@ -146,7 +130,6 @@ class PromotoriaController extends RecursoController
         return [
             'nombre' => ['required', 'string', 'max:60'],
             'area_id' => ['required', 'exists:areas,id'],
-            'tipo' => ['required', Rule::in(Promotoria::TIPOS)],
             'profesor_id' => [
                 'nullable',
                 Rule::exists('perfiles', 'id')->whereIn('rol', Perfil::ROLES_PERSONAL),

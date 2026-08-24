@@ -540,7 +540,6 @@ class GestionTest extends TestCase
             ->post(route('promotoria-nueva'), [
                 'nombre' => 'Tiple',
                 'area_id' => $this->musica->id,
-                'tipo' => Promotoria::PROGRAMA,
                 'profesor_id' => '',
             ])
             ->assertRedirect(route('promotorias-por-area', $this->musica));
@@ -1619,79 +1618,5 @@ class GestionTest extends TestCase
         $this->assertSame('Musica', $arbol[0]['nombre']);
         $this->assertSame(2, $arbol[0]['total'], 'Sigue: la activa y la que pidio cancelacion.');
         $this->assertSame(1, $arbol[0]['retirados'], 'Deja: solo la retirada.');
-    }
-
-    // -----------------------------------------------------------------------
-    // Tipos de promotoria
-    // -----------------------------------------------------------------------
-
-    /** El formulario ofrece los cuatro, con su explicacion al lado. */
-    public function test_el_formulario_de_promotoria_ofrece_los_cuatro_tipos(): void
-    {
-        $html = $this->actingAs($this->admin->user)
-            ->get(route('promotoria-nueva'))
-            ->assertOk()
-            ->getContent();
-
-        foreach (Promotoria::TIPOS as $tipo) {
-            $this->assertStringContainsString('value="'.$tipo.'"', $html);
-            $this->assertStringContainsString(Promotoria::ETIQUETA_TIPO[$tipo], $html);
-        }
-
-        // Que consume plaza y que no tiene que leerse ANTES de elegir.
-        $this->assertStringContainsString('Ocupa una plaza del límite.', $html);
-        $this->assertStringContainsString('No ocupa plaza del límite.', $html);
-    }
-
-    public function test_se_crea_una_promotoria_marcada_como_proyeccion(): void
-    {
-        $this->actingAs($this->admin->user)->post(route('promotoria-nueva'), [
-            'nombre' => 'Banda sinfónica',
-            'area_id' => $this->musica->id,
-            'tipo' => Promotoria::PROYECCION,
-            'profesor_id' => '',
-        ])->assertRedirect();
-
-        $banda = Promotoria::where('nombre', 'Banda sinfónica')->firstOrFail();
-
-        $this->assertSame(Promotoria::PROYECCION, $banda->tipo);
-        $this->assertTrue($banda->exentaDelLimite());
-    }
-
-    /** Un tipo inventado no pasa del formulario. */
-    public function test_un_tipo_que_no_existe_se_rechaza(): void
-    {
-        $this->actingAs($this->admin->user)->post(route('promotoria-nueva'), [
-            'nombre' => 'Rara',
-            'area_id' => $this->musica->id,
-            'tipo' => 'seminario',
-            'profesor_id' => '',
-        ])->assertSessionHasErrors('tipo');
-
-        $this->assertNull(Promotoria::where('nombre', 'Rara')->first());
-    }
-
-    /**
-     * El listado marca las que NO son un programa, y solo esas.
-     *
-     * Un «Programa» en cada renglón sería ruido —lo son casi todas— y taparía
-     * justo el caso que hay que ver de un vistazo.
-     */
-    public function test_el_listado_marca_las_proyecciones_y_no_los_programas(): void
-    {
-        Promotoria::create([
-            'nombre' => 'Banda sinfónica',
-            'area_id' => $this->musica->id,
-            'tipo' => Promotoria::PROYECCION,
-        ]);
-
-        $html = $this->actingAs($this->admin->user)
-            ->get(route('promotoria-lista'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('Grupo de proyección', $html);
-        // «Violin» es un programa y no lleva chip.
-        $this->assertStringNotContainsString('<span class="tipo-chip">Programa</span>', $html);
     }
 }

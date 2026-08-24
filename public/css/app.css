@@ -1138,19 +1138,6 @@
   .config-muestra-chip-claro { border: 1px solid var(--border-strong); }
   .card > form > button[type="submit"] { margin-top: 1.6rem; }
 
-  /* Tipo de promotoria, en el listado del catalogo. Comparte la letra de los
-     chips de estado —mono, en versalitas— pero se queda en neutro a proposito:
-     dice QUE es, no como va. El color en esa lista ya significa otra cosa (el
-     departamento, en el punto de la izquierda) y competir con el confundiria. */
-  .tipo-chip {
-    display: inline-block;
-    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.045em;
-    color: var(--ink-soft); background: var(--bg-soft, transparent);
-    border: 1px solid var(--border-strong);
-    padding: 0.12rem 0.42rem; border-radius: var(--radius-sm);
-    vertical-align: 0.08em;
-  }
   /* Etiqueta solo para lectores de pantalla. */
   .sr-solo {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
