@@ -2,16 +2,22 @@
 
 namespace App\Support;
 
+use App\Models\Actividad;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
 
 /**
- * Quien puede hacer que sobre una promotoria.
+ * Quien puede hacer que sobre una promotoria o una actividad.
  *
  * El middleware `rol:` solo cierra la puerta de la pantalla. Esto es la capa de
  * dentro: dos personas con el mismo rol entran al mismo Panel pero no pueden
  * tocar las mismas promotorias.
+ *
+ * La pareja de reglas se repite en los dos lados y conviene leerla junta:
+ * `puedeGestionarPromotoria`/`puedeVerActividad` son las anchas —direccion
+ * entra por el rol— y `dictaLaPromotoria`/`dirigeLaActividad` las estrechas,
+ * que es lo que hace falta para escribir asistencia.
  *
  * Puerto de los ayudantes sueltos de `matriculas/views.py`. Aqui son una clase
  * porque tambien los necesitan las plantillas, y repetir la regla de roles en
@@ -68,6 +74,43 @@ class Permisos
     public static function dictaLaPromotoria(Perfil $perfil, Promotoria $promotoria): bool
     {
         return $promotoria->profesor_id !== null && $promotoria->profesor_id === $perfil->id;
+    }
+
+    /**
+     * ¿Puede VER esta actividad en el Panel?
+     *
+     * Direccion ve todas; el responsable, la suya. Es la misma forma que
+     * `puedeGestionarPromotoria()`, y por la misma razon: un director tiene que
+     * poder mirar que se esta dando en su casa sin ser el que lo da.
+     */
+    public static function puedeVerActividad(Perfil $perfil, Actividad $actividad): bool
+    {
+        return in_array($perfil->rol, ['director', 'administrador'], true)
+            || $actividad->responsable_id === $perfil->id;
+    }
+
+    /**
+     * ¿Es esta persona quien DIRIGE la actividad?
+     *
+     * La regla estrecha, y la diferencia esta donde tiene que estar: la misma
+     * que separa `puedeGestionarPromotoria()` de `dictaLaPromotoria()`. Ver una
+     * actividad es cosa de direccion; iniciar una sesion y pasar lista son
+     * actos de quien estuvo en el salon, y un registro que puede escribir quien
+     * no estuvo deja de ser evidencia de lo que paso.
+     *
+     * Aqui pesa mas que en las promotorias, no menos: alli la clase la
+     * confirman despues los propios estudiantes, y esa es la garantia de
+     * verdad. Los inscritos de un taller no tienen cuenta con la que confirmar
+     * nada, asi que la unica firma que queda es la de quien oprimio el boton.
+     *
+     * A diferencia de una promotoria, una actividad SIEMPRE tiene responsable:
+     * el formulario lo exige. Asi que esto nunca deja una actividad sin nadie
+     * que pueda pasarle lista. Y si el responsable falta, direccion tiene la
+     * misma salida que en las promotorias: cambiarlo desde Gestion.
+     */
+    public static function dirigeLaActividad(Perfil $perfil, Actividad $actividad): bool
+    {
+        return $actividad->responsable_id === $perfil->id;
     }
 
     /**

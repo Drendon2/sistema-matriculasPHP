@@ -655,6 +655,187 @@ class ActividadTest extends TestCase
             ->assertSee('10/09/2026');
     }
 
+    // -----------------------------------------------------------------------
+    // El Panel de quien la dirige
+    // -----------------------------------------------------------------------
+
+    public function test_el_responsable_ve_las_suyas_y_no_las_ajenas(): void
+    {
+        $otro = $this->crearPerfil('otra', 'profesor');
+        $mia = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+        $ajena = $this->crearActividad(Actividad::PROYECCION, 'Coro institucional', [
+            'responsable_id' => $otro->id,
+        ]);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-actividades'))
+            ->assertOk()
+            ->assertSee('Banda sinfónica')
+            ->assertDontSee('Coro institucional');
+
+        // Y esconderla de la lista no cierra su URL.
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-actividad', $ajena))
+            ->assertNotFound();
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel-actividad', $mia))
+            ->assertOk();
+    }
+
+    public function test_direccion_ve_las_de_todos(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->director->user)
+            ->get(route('panel-actividad', $banda))
+            ->assertOk()
+            ->assertSee('Banda sinfónica');
+    }
+
+    public function test_un_estudiante_no_entra_al_panel_de_actividades(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->estudiante->user)
+            ->get(route('panel-actividad', $banda))
+            ->assertRedirect(route('post-login'));
+    }
+
+    public function test_iniciar_una_clase_guarda_la_hora_real_y_quien_la_abrio(): void
+    {
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $sesion = $curso->sesiones()->create(['fecha' => '2026-09-03']);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-iniciar', $sesion))
+            ->assertRedirect(route('panel-actividad', $curso));
+
+        $sesion->refresh();
+
+        // La fecha dice cuando TOCABA; `iniciada_en`, cuando paso. Son dos
+        // datos distintos y por eso hay dos columnas.
+        $this->assertNotNull($sesion->iniciada_en);
+        $this->assertSame($this->profesor->id, $sesion->iniciada_por_id);
+        $this->assertSame('2026-09-03', $sesion->fecha->toDateString());
+    }
+
+    public function test_el_aviso_concuerda_con_los_tres_nombres(): void
+    {
+        // Se vio en pantalla, no aqui: la version anterior decia «Taller
+        // iniciada», porque el participio concordaba con "clase" y las otras
+        // dos palabras son masculinas. Las pruebas de al lado no lo veian —
+        // miran la redireccion, no el texto.
+        $esperado = [
+            Actividad::CURSO => 'Empezó la clase.',
+            Actividad::TALLER => 'Empezó el taller.',
+            Actividad::PROYECCION => 'Empezó el ensayo.',
+        ];
+
+        foreach ($esperado as $tipo => $frase) {
+            $actividad = $this->crearActividad($tipo, "Prueba {$tipo}");
+            $sesion = $actividad->sesiones()->create(['fecha' => '2026-09-0'.count($esperado)]);
+
+            $this->actingAs($this->profesor->user)
+                ->post(route('panel-actividad-iniciar', $sesion))
+                ->assertSessionHas('success', fn (string $m) => str_starts_with($m, $frase));
+        }
+    }
+
+    public function test_volver_a_oprimir_iniciar_no_reescribe_la_hora(): void
+    {
+        // Volver a oprimir por si acaso es lo que hace cualquiera, y reescribir
+        // la hora borraria la de verdad.
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $sesion = $curso->sesiones()->create([
+            'fecha' => '2026-09-03',
+            'iniciada_en' => '2026-09-03 18:00:00',
+            'iniciada_por_id' => $this->profesor->id,
+        ]);
+
+        $this->actingAs($this->profesor->user)->post(route('panel-actividad-iniciar', $sesion));
+
+        $this->assertSame('2026-09-03 18:00:00', $sesion->fresh()->iniciada_en->toDateTimeString());
+    }
+
+    public function test_direccion_ve_la_pantalla_pero_no_inicia_lo_ajeno(): void
+    {
+        // La regla estrecha, la misma que separa gestionar una promotoria de
+        // dictarla: ver es cosa de direccion, iniciar es de quien estuvo.
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $sesion = $curso->sesiones()->create(['fecha' => '2026-09-03']);
+
+        $this->actingAs($this->director->user)
+            ->post(route('panel-actividad-iniciar', $sesion))
+            ->assertSessionHas('error');
+
+        $this->assertNull($sesion->fresh()->iniciada_en);
+    }
+
+    public function test_a_quien_no_dirige_no_se_le_pinta_el_boton(): void
+    {
+        // Pintar un boton que al pulsarlo rebota es peor que no pintarlo.
+        $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
+        $curso->sesiones()->create(['fecha' => '2026-09-03']);
+
+        $html = $this->actingAs($this->director->user)
+            ->get(route('panel-actividad', $curso))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(route('panel-actividad-iniciar', $curso->sesiones()->first()), $html);
+    }
+
+    public function test_un_ensayo_nace_al_oprimir_el_boton(): void
+    {
+        // Un grupo de proyeccion no tiene fechas puestas: la sesion nace al
+        // oprimir, como `Clase` del lado de las promotorias.
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-iniciar-hoy', $banda))
+            ->assertRedirect(route('panel-actividad', $banda));
+
+        $sesion = $banda->sesiones()->first();
+
+        $this->assertSame(Carbon::today()->toDateString(), $sesion->fecha->toDateString());
+        $this->assertNotNull($sesion->iniciada_en);
+    }
+
+    public function test_dos_toques_seguidos_dan_un_ensayo_y_no_dos(): void
+    {
+        $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->profesor->user)->post(route('panel-actividad-iniciar-hoy', $banda));
+
+        // Que no salgan DOS lo ataja el unico de la base por su cuenta. Lo que
+        // se comprueba aqui es lo otro: que el segundo toque devuelva una
+        // pantalla y no un error del motor. Sin `firstOrCreate` esta linea es
+        // un 500 —se comprobo— y la de abajo pasa igual, porque un 500 tampoco
+        // crea nada.
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-iniciar-hoy', $banda))
+            ->assertRedirect(route('panel-actividad', $banda));
+
+        $this->assertSame(1, $banda->sesiones()->count());
+    }
+
+    public function test_el_panel_no_ofrece_el_enlace_si_no_hay_ninguna(): void
+    {
+        // Mientras la institucion no use actividades, el enlace lleva a una
+        // pantalla vacia y solo estorba.
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel'))
+            ->assertOk()
+            ->assertDontSee(route('panel-actividades'));
+
+        $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('panel'))
+            ->assertSee(route('panel-actividades'));
+    }
+
     public function test_una_actividad_nace_abierta(): void
     {
         // El defecto lo pone la base, y el modelo en memoria no lo ha leido:

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\LoteNoCabe;
+use App\Models\Actividad;
 use App\Models\Clase;
 use App\Models\CupoPromotoria;
 use App\Models\DocumentoRequerido;
@@ -64,6 +65,16 @@ class PanelController extends Controller
         return view('panel.index', [
             'promotorias' => $promotorias,
             'pendientes' => $pendientes,
+            // Cuantos cursos, talleres o grupos de proyeccion tiene a la vista.
+            // Se cuenta para decidir si el enlace se pinta: mientras no haya
+            // ninguno, lleva a una pantalla vacia y solo estorba. Es un COUNT
+            // sin filas, no el listado.
+            'cuantasActividades' => Actividad::query()
+                ->when(
+                    ! in_array($perfil->rol, ['director', 'administrador'], true),
+                    fn ($q) => $q->where('responsable_id', $perfil->id)
+                )
+                ->count(),
         ]);
     }
 

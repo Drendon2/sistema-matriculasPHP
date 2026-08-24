@@ -208,6 +208,28 @@ class Actividad extends Model
         return self::ETIQUETA_SESION[$this->tipo] ?? 'sesión';
     }
 
+    /**
+     * Lo mismo, con su articulo delante.
+     *
+     * Existe porque las tres palabras no concuerdan igual: "clase" es femenina
+     * y "taller" y "ensayo" masculinos, asi que cualquier frase que las lleve
+     * con un participio detras sale mal en dos de los tres casos. Se vio en
+     * pantalla —decia «Taller iniciada»— y no en las pruebas, que miraban la
+     * redireccion y no el texto.
+     *
+     * Con el articulo delante la frase se construye al reves —«Empezo el
+     * taller»— y el participio deja de tener que concordar con nada.
+     */
+    public function etiquetaSesionConArticulo(): string
+    {
+        return match ($this->tipo) {
+            self::CURSO => 'la clase',
+            self::TALLER => 'el taller',
+            self::PROYECCION => 'el ensayo',
+            default => 'la sesión',
+        };
+    }
+
     /** Si lleva fechas propias, que es lo que separa un curso de una proyeccion. */
     public function llevaFechas(): bool
     {

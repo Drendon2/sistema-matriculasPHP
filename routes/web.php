@@ -17,6 +17,7 @@ use App\Http\Controllers\MiPerfilController;
 use App\Http\Controllers\MisClasesController;
 use App\Http\Controllers\MisCompanerosController;
 use App\Http\Controllers\MisMatriculasController;
+use App\Http\Controllers\PanelActividadController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PanelGrupoController;
 use App\Http\Controllers\RenovarController;
@@ -155,6 +156,17 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
         ->name('panel-pendientes-lote');
 
     // Grupos
+    // Cursos, talleres y grupos de proyeccion, del lado de quien los DA. Los
+    // crea Gestion; aqui se dirige lo que ya existe.
+    Route::get('/panel/actividades', [PanelActividadController::class, 'index'])
+        ->name('panel-actividades');
+    Route::get('/panel/actividades/{actividad}', [PanelActividadController::class, 'ver'])
+        ->name('panel-actividad');
+    Route::post('/panel/actividades/{actividad}/iniciar-hoy', [PanelActividadController::class, 'iniciarHoy'])
+        ->name('panel-actividad-iniciar-hoy');
+    Route::post('/panel/sesiones/{sesion}/iniciar', [PanelActividadController::class, 'iniciar'])
+        ->name('panel-actividad-iniciar');
+
     Route::get('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'crear'])
         ->name('panel-grupo-nuevo');
     Route::post('/panel/promotoria/{promotoria}/grupos/nuevo', [PanelGrupoController::class, 'guardar']);

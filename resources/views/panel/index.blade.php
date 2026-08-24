@@ -5,6 +5,19 @@
 @section('content')
 <h2>Panel de promotorías</h2>
 
+{{--
+  El enlace a las actividades se pinta solo si hay alguna a la vista. Mientras
+  la institución no use cursos ni grupos de proyección, lleva a una pantalla
+  vacía y solo estorba.
+--}}
+@if ($cuantasActividades)
+<p>
+  <a class="btn btn-blanco btn-sm" href="{{ route('panel-actividades') }}">
+    Cursos, talleres y grupos de proyección ({{ $cuantasActividades }})
+  </a>
+</p>
+@endif
+
 @if ($promotorias->isEmpty())
   <p class="vacio">No hay promotorías para mostrar todavía.</p>
 @else
