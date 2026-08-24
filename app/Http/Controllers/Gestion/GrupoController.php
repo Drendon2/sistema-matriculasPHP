@@ -267,6 +267,28 @@ class GrupoController extends RecursoController
         ];
     }
 
+    /**
+     * El mismo mensaje que da el Panel, y por el mismo motivo.
+     *
+     * Aqui llegaba el de Laravel —«Ya existe un registro con ese nombre»—, que
+     * no dice en que promotoria choca ni por que choca si el nivel es otro. Es
+     * exactamente la confusion que se llevo por delante a un profesor en
+     * produccion: creo dos grupos con el mismo nombre y distinto nivel, y leyo
+     * el rechazo como un tope de grupos.
+     *
+     * @return array<string, string>
+     */
+    protected function mensajes(Request $request, ?Model $objeto): array
+    {
+        $promotoria = Promotoria::find($request->input('promotoria_id'))?->nombre ?? 'Esta promotoría';
+
+        return [
+            'nombre.unique' => "{$promotoria} ya tiene un grupo con ese nombre, aunque sea de otro "
+                .'nivel: el nombre es lo que los distingue en las listas, así que no puede '
+                .'repetirse. Prueba con algo como «Martes tarde» o «Grupo A avanzado».',
+        ];
+    }
+
     protected function reglas(Request $request, ?Model $objeto): array
     {
         return [

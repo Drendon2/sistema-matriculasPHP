@@ -523,6 +523,123 @@ class HorarioTest extends TestCase
         }
     }
 
+    public function test_el_choque_de_nombre_explica_que_el_nivel_no_lo_salva(): void
+    {
+        // El caso REAL que se reporto desde produccion: un profesor creo dos
+        // grupos con el mismo nombre y distinto nivel, y leyo el rechazo como
+        // un tope de grupos. El mensaje tiene que responder a lo que esta
+        // pensando —«pero si son de niveles distintos»— o no sirve de nada.
+        $this->actingAs($this->profesor->user);
+
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Grupo A',
+            'nivel' => 'basico',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHas('success');
+
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Grupo A',
+            'nivel' => 'avanzado',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHasErrors('nombre');
+
+        $mensaje = session('errors')->get('nombre')[0];
+
+        $this->assertStringContainsString('aunque sea de otro nivel', $mensaje);
+        $this->assertStringContainsString('Violin', $mensaje);
+    }
+
+    public function test_gestion_da_el_mismo_mensaje_y_no_el_generico_de_laravel(): void
+    {
+        // Aqui llegaba «Ya existe un registro con ese nombre»: ni dice en que
+        // promotoria choca ni por que choca teniendo otro nivel.
+        $admin = $this->crearPerfil('admin', 'administrador');
+
+        $this->actingAs($admin->user);
+
+        $this->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Grupo A',
+            'nivel' => 'basico',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->post(route('grupo-nuevo'), [
+            'promotoria_id' => $this->violin->id,
+            'nombre' => 'Grupo A',
+            'nivel' => 'avanzado',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHasErrors('nombre');
+
+        $mensaje = session('errors')->get('nombre')[0];
+
+        $this->assertStringContainsString('aunque sea de otro nivel', $mensaje);
+        $this->assertStringNotContainsString('Ya existe un registro', $mensaje);
+    }
+
+    public function test_lunes_miercoles_y_sabado_es_un_horario_valido(): void
+    {
+        // El caso exacto que se reporto desde produccion. El sabado es el dia 6
+        // y es el ultimo del CHECK `dia_valido` (BETWEEN 1 AND 6): si alguna vez
+        // se cuela un off-by-one ahi, es este dia el que se cae y ningun otro.
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-grupo-nuevo', $this->violin), [
+                'nombre' => 'Lunes, miércoles y sábado',
+                'nivel' => 'basico',
+                'sesiones' => [
+                    1 => ['activo' => 1, 'desde' => '08:00', 'hasta' => '10:00'],
+                    3 => ['activo' => 1, 'desde' => '08:00', 'hasta' => '10:00'],
+                    6 => ['activo' => 1, 'desde' => '09:00', 'hasta' => '11:00'],
+                ],
+                'salon' => 'A1',
+                'cupo_maximo' => 10,
+            ])
+            ->assertSessionHas('success');
+
+        $grupo = Grupo::where('nombre', 'Lunes, miércoles y sábado')->first();
+
+        $this->assertSame([1, 3, 6], $grupo->sesiones()->pluck('dia')->all());
+    }
+
+    public function test_un_rechazo_se_anuncia_a_nivel_de_pagina(): void
+    {
+        // La causa de fondo de lo reportado: un error de campo, por bien puesto
+        // que este, no se ve si queda fuera de pantalla — y `acciones.js`
+        // restaura el scroll anterior, asi que tras un rechazo la persona sigue
+        // mirando exactamente el mismo sitio. Sin un aviso de pagina, el
+        // formulario parece no haber hecho nada.
+        $this->actingAs($this->profesor->user);
+
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Grupo A',
+            'nivel' => 'basico',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHas('success');
+
+        $this->post(route('panel-grupo-nuevo', $this->violin), [
+            'nombre' => 'Grupo A',
+            'nivel' => 'avanzado',
+            'sesiones' => [2 => ['activo' => 1, 'desde' => '16:00', 'hasta' => '18:00']],
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ])->assertSessionHasErrors('nombre');
+
+        $this->get(route('panel-grupo-nuevo', $this->violin))
+            ->assertOk()
+            ->assertSee('No se guardó.')
+            ->assertSee('Hay un campo por corregir');
+    }
+
     public function test_un_grupo_sin_ningun_dia_marcado_se_rechaza(): void
     {
         $this->actingAs($this->profesor->user)

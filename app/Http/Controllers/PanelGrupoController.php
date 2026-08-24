@@ -155,8 +155,9 @@ class PanelGrupoController extends Controller
             'salon' => ['required', 'string', 'max:40'],
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ], [
-            'nombre.unique' => "{$promotoria->nombre} ya tiene un grupo llamado así. "
-                .'Ponle otro nombre para poder distinguirlos.',
+            'nombre.unique' => "{$promotoria->nombre} ya tiene un grupo con ese nombre, aunque sea "
+                .'de otro nivel: el nombre es lo que los distingue en las listas, así que no puede '
+                .'repetirse. Prueba con algo como «Martes tarde» o «Grupo A avanzado».',
         ], [
             'nombre' => 'nombre',
             'nivel' => 'nivel',

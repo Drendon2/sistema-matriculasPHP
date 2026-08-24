@@ -49,8 +49,14 @@ class EncabezadoTest extends TestCase
 
         View::addLocation($this->carpeta);
 
-        Route::get('/prueba-con-titulo', fn () => view('con-titulo'));
-        Route::get('/prueba-sin-titulo', fn () => view('sin-titulo'));
+        // Con el grupo `web`, como cualquier pantalla de verdad. Sin el, la
+        // vista se pinta sin lo que ese grupo comparte —entre otras cosas
+        // `$errors`, que reparte `ShareErrorsFromSession`— y el layout se
+        // prueba en unas condiciones que no existen en la aplicacion.
+        Route::middleware('web')->group(function () {
+            Route::get('/prueba-con-titulo', fn () => view('con-titulo'));
+            Route::get('/prueba-sin-titulo', fn () => view('sin-titulo'));
+        });
     }
 
     protected function tearDown(): void

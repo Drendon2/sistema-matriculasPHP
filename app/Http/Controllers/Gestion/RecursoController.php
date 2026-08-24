@@ -53,6 +53,21 @@ abstract class RecursoController extends Controller
     abstract protected function reglas(Request $request, ?Model $objeto): array;
 
     /**
+     * Mensajes propios para esas reglas, cuando el de Laravel no basta.
+     *
+     * Vacio para casi todos: «Ya existe un registro con ese nombre» sirve
+     * cuando el nombre es lo unico que hay. Deja de servir en cuanto la regla
+     * tiene un porque —un grupo choca por nombre aunque el nivel sea otro— y
+     * quien la lee necesita saber cual, no solo que.
+     *
+     * @return array<string, string>
+     */
+    protected function mensajes(Request $request, ?Model $objeto): array
+    {
+        return [];
+    }
+
+    /**
      * Los campos del formulario, tal como hay que pintarlos.
      *
      * Se declaran aqui y no en la plantilla —que es una sola para los cuatro
@@ -144,7 +159,7 @@ abstract class RecursoController extends Controller
     public function guardar(Request $request): RedirectResponse
     {
         $modelo = $this->modelo();
-        $datos = $request->validate($this->reglas($request, null));
+        $datos = $request->validate($this->reglas($request, null), $this->mensajes($request, null));
         // Todo lo que pueda rechazar el formulario se comprueba ANTES de
         // escribir: si esto lanza, no queda un registro a medias en la base.
         $extra = $this->validarExtra($request, null);
@@ -174,7 +189,7 @@ abstract class RecursoController extends Controller
     public function actualizar(Request $request, string $id): RedirectResponse
     {
         $objeto = $this->buscar($id);
-        $datos = $request->validate($this->reglas($request, $objeto));
+        $datos = $request->validate($this->reglas($request, $objeto), $this->mensajes($request, $objeto));
         $extra = $this->validarExtra($request, $objeto);
 
         $objeto->fill($datos);

@@ -60,7 +60,25 @@
       viejo.parentNode.replaceChild(script, viejo);
     });
 
-    window.scrollTo(0, scroll);
+    // Un RECHAZO no restaura el scroll de antes.
+    //
+    // Restaurarlo es lo correcto cuando la accion salio bien —confirmar una
+    // matricula no debe saltar al principio de la lista— y es lo peor posible
+    // cuando el servidor devuelve el formulario con un error: el aviso queda
+    // arriba, fuera de pantalla, y la persona sigue mirando el mismo sitio con
+    // la impresion de que el boton no hizo nada.
+    //
+    // Eso se llevo por delante a un profesor en produccion: creo dos grupos con
+    // el mismo nombre y distinto nivel, no vio el mensaje que lo explicaba, y
+    // concluyo que el sistema tenia un tope de grupos.
+    var fallo = main.querySelector(".errorlist");
+
+    if (fallo) {
+      fallo.scrollIntoView({ block: "center" });
+    } else {
+      window.scrollTo(0, scroll);
+    }
+
     return true;
   }
 
