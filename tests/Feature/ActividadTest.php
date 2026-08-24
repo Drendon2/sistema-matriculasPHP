@@ -1027,6 +1027,25 @@ class ActividadTest extends TestCase
         $this->assertSame('asistio', $sesion->asistencias()->where('inscrito_id', $nuevo->id)->value('estado'));
     }
 
+    public function test_anadir_el_mismo_nombre_dos_veces_avisa_en_vez_de_duplicar(): void
+    {
+        // El unico de (actividad, documento) no ataja esto: quien se anade en
+        // clase entra sin documento, y en MariaDB los NULL no chocan. Pulsar
+        // dos veces creaba dos personas con el mismo nombre.
+        $sesion = $this->sesionEnMarcha(1);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => 'Pedro Nel Gómez'])
+            ->assertSessionHas('success');
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => 'Pedro Nel Gómez'])
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, $sesion->actividad->inscritos()
+            ->where('nombre_completo', 'Pedro Nel Gómez')->count());
+    }
+
     public function test_se_puede_anadir_a_varios_sin_documento(): void
     {
         // El unico de (actividad, documento) no puede chocar consigo mismo: en

@@ -21,9 +21,15 @@
   </p>
 @endif
 
+{{--
+  El conteo se pasa precalculado: `admiteInscripciones()` sin argumento lanza un
+  COUNT, y esta plantilla ya tiene los inscritos cargados. Es la misma forma que
+  usa el listado de Gestión.
+--}}
+@php($apuntados = $inscritos->count())
 <div class="card">
   <h3>El enlace para inscribirse</h3>
-  @if ($actividad->admiteInscripciones())
+  @if ($actividad->admiteInscripciones($apuntados))
     <p class="campo-info" style="margin-top:0;">
       Compártelo con quien quieras inscribir. No necesitan cuenta.
     </p>
@@ -119,7 +125,7 @@
 </div>
 
 <div class="card">
-  <h3>Inscritos <span class="cupo-cifra">{{ $inscritos->count() }}</span></h3>
+  <h3>Inscritos <span class="cupo-cifra">{{ $apuntados }}</span></h3>
 
   @if ($inscritos->isEmpty())
     <p class="vacio">Todavía no se ha inscrito nadie por el enlace.</p>

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Actividad;
 use App\Models\InscritoActividad;
+use App\Support\ErrorDeBaseDeDatos;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 /**
@@ -89,9 +91,31 @@ class InscripcionActividadController extends Controller
                 ]);
             });
         } catch (QueryException $e) {
-            // Aqui solo se llega por el unico de (actividad, documento): ya se
-            // habia apuntado. Se cuenta como buena noticia y no como error,
-            // porque para quien lo lee el resultado que queria ya esta puesto.
+            // SOLO el unico de (actividad, documento) significa "ya se habia
+            // apuntado", y eso si es buena noticia: el resultado que queria ya
+            // esta puesto.
+            //
+            // Cualquier otro fallo del motor NO puede contarse como exito.
+            // Antes este catch los tragaba todos y respondia "ya estabas
+            // inscrito" ante una base caida o un CHECK violado: la persona se
+            // iba creyendo que estaba dentro sin estarlo, y como aqui no hay
+            // cuenta ni correo, nadie volvia a saber de ella. Es el unico
+            // formulario publico que escribe, asi que era el peor sitio del
+            // sistema donde tener un catch ancho.
+            if (! ErrorDeBaseDeDatos::esInscripcionRepetida($e)) {
+                // Se registra ANTES de relanzar: sin esto, en produccion
+                // (`LOG_LEVEL=error`) queda la traza pero no de que actividad
+                // era ni con que documento, que es lo unico que permite avisar
+                // luego a quien se quedo fuera.
+                Log::error('Fallo una inscripcion por enlace', [
+                    'actividad_id' => $actividad->id,
+                    'documento' => $datos['documento'],
+                    'motivo' => $e->getMessage(),
+                ]);
+
+                throw $e;
+            }
+
             return redirect()
                 ->route('actividad-inscribirse', $token)
                 ->with('success', 'Ya estabas inscrito con ese documento. No hace falta hacer nada más.');

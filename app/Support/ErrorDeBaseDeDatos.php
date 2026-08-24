@@ -61,6 +61,12 @@ class ErrorDeBaseDeDatos
         return self::indiceViolado($e) === 'unica_matricula_por_periodo';
     }
 
+    /** ¿Esa persona ya estaba inscrita en la actividad, por su documento? */
+    public static function esInscripcionRepetida(QueryException $e): bool
+    {
+        return self::indiceViolado($e) === 'una_inscripcion_por_documento';
+    }
+
     /** ¿La promotoria ya tenia un grupo de ese nivel? */
     public static function esNivelRepetido(QueryException $e): bool
     {

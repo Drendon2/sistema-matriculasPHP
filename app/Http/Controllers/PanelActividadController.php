@@ -268,6 +268,24 @@ class PanelActividadController extends Controller
             ['nombre_completo' => 'nombre']
         );
 
+        // Un nombre que ya esta en la lista casi siempre es la misma persona
+        // apuntada dos veces: el boton se pulsa con la clase empezando y no hay
+        // un documento con el que distinguirlas. NO se bloquea —dos hermanos
+        // pueden llamarse casi igual, y quien esta delante sabe mejor que el
+        // sistema quien hay en el salon—, pero se dice, que es lo que evita la
+        // fila duplicada sin quitarle la decision a nadie.
+        $repetido = $actividad->inscritos()
+            ->where('nombre_completo', $datos['nombre_completo'])
+            ->exists();
+
+        if ($repetido) {
+            return $this->volverALista(
+                $sesion,
+                "Ya hay alguien con el nombre «{$datos['nombre_completo']}» en la lista. "
+                .'Si son dos personas distintas, escribe el nombre completo de cada una.'
+            );
+        }
+
         DB::transaction(function () use ($actividad, $sesion, $datos) {
             $inscrito = $actividad->inscritos()->create([
                 'nombre_completo' => $datos['nombre_completo'],

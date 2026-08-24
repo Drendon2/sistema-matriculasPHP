@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\RequiereRol;
 use App\Models\Area;
 use App\Models\Asistencia;
 use App\Models\Clase;
@@ -1002,5 +1003,27 @@ class EstudianteTest extends TestCase
         $this->actingAs($this->ana->user)
             ->get(route('descargar-documento', $datos))
             ->assertRedirect(route('post-login'));
+    }
+
+    public function test_el_documento_sigue_negado_aunque_se_afloje_la_ruta(): void
+    {
+        // La prueba de arriba la gana el middleware de la ruta, asi que no dice
+        // nada del controlador. Esta quita ese middleware a proposito para
+        // comprobar la SEGUNDA barrera: la que sigue en pie el dia que alguien
+        // edite `routes/web.php` y se deje un rol de mas.
+        //
+        // Es la convencion que el proyecto declara en media docena de sitios
+        // —no fiarse de que el enlace no se pintara—, y este es el dato mas
+        // protegido que guarda el sistema.
+        $datos = $this->ana->datosEstudiante;
+        $datos->copia_documento = 'documentos/x.pdf';
+        $datos->save();
+
+        $director = $this->crearPerfil('dire2', 'director');
+
+        $this->actingAs($director->user)
+            ->withoutMiddleware(RequiereRol::class)
+            ->get(route('descargar-documento', $datos))
+            ->assertNotFound();
     }
 }

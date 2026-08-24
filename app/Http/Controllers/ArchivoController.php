@@ -94,9 +94,20 @@ class ArchivoController extends Controller
      *
      * Va como descarga y no incrustada: es un documento de identidad, no una
      * imagen para mirar de paso.
+     *
+     * El rol se comprueba DOS veces, aqui y en la ruta (`rol:administrador`).
+     * No sobra: es la convencion que el resto del proyecto declara en media
+     * docena de sitios —no fiarse de que el enlace no se pintara— y este es el
+     * dato mas protegido que guarda el sistema, la cedula o el registro civil
+     * de un menor. Una ruta se edita en un renglon y el descuido no se ve;
+     * aqui, al lado de lo que entrega, si.
      */
-    public function documento(DatosEstudiante $datos): StreamedResponse
+    public function documento(Request $request, DatosEstudiante $datos): StreamedResponse
     {
+        // Un 404 y no un 403, igual que en `foto()`: que exista o no el
+        // documento de otra persona no es asunto de quien pregunta.
+        abort_unless($request->user()?->perfil?->rol === 'administrador', 404);
+
         abort_if($datos->copia_documento === '', 404);
 
         return Storage::disk('local')->download(
