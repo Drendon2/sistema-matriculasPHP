@@ -39,8 +39,15 @@ Thumbs.db
 # identidad y las respuestas de las encuestas. Nunca al repositorio.
 /respaldos
 
-# La auditoría de código: es un inventario de los puntos flojos del sistema, con
-# archivo y línea de cada uno. Publicarlo en el repositorio de la aplicación es
-# entregarle a cualquiera el mapa de por dónde entrar, y encima señalando lo que
-# todavía no está arreglado. Se queda en local.
+# Las auditorías de código: son un inventario de los puntos flojos del sistema,
+# con archivo y línea de cada uno. Publicarlo en el repositorio de la aplicación
+# es entregarle a cualquiera el mapa de por dónde entrar, y encima señalando lo
+# que todavía no está arreglado. Y este repositorio es PÚBLICO. Se quedan en
+# local.
+#
+# La regla vale para las dos y para las que vengan. La de 2026-08-24 llegó a
+# estar versionada por un descuido —el protocolo de esa auditoría pedía
+# escribirla en `docs/auditoria/` y nadie cruzó eso con esta regla—, y se sacó
+# antes de empujar nada.
 /reporte-auditoria.md
+/docs/auditoria/
