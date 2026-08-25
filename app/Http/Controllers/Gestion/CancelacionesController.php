@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Matricula;
+use App\Support\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,6 +85,17 @@ class CancelacionesController extends Controller
 
             $matricula->estado = Matricula::ACTIVA;
             $matricula->save();
+
+            // Rechazar no se deshace por pantalla: quien quiera salir tiene que
+            // volver a pedirlo. La RETIRADA la registra el propio modelo (ver
+            // `Matricula::booted`), pero por ahi no pasa lo que se NIEGA, y una
+            // salida negada a un menor es justo lo que alguien puede querer
+            // revisar despues.
+            Auditoria::registrar('cancelacion.rechazada', [
+                'matricula_id' => $matricula->id,
+                'estudiante_id' => $matricula->estudiante_id,
+                'promotoria_id' => $matricula->promotoria_id,
+            ], auth()->user()?->perfil);
 
             return $this->volver(
                 "Cancelación rechazada: {$nombre} sigue matriculado en {$matricula->promotoria}.",

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Models\Actividad;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\Auditoria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -87,6 +88,16 @@ abstract class ActividadController extends RecursoController
         $actividad = $this->buscar($id);
         $actividad->abierta = ! $actividad->abierta;
         $actividad->save();
+
+        // Cerrar el enlace deja fuera a quien llegue despues, y quien llega por
+        // un enlace no tiene cuenta: no hay a quien preguntarle luego si se
+        // quedo sin entrar. Se registra tambien la reapertura porque la
+        // pregunta que se hace de verdad es «¿cuanto tiempo estuvo cerrado?», y
+        // con un solo extremo no se responde.
+        Auditoria::registrar('actividad.enlace', [
+            'actividad_id' => $actividad->id,
+            'abierta' => $actividad->abierta,
+        ], auth()->user()?->perfil);
 
         return redirect()->route($this->textos()['ruta_lista'])->with(
             'success',

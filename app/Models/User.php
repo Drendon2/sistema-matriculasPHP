@@ -16,6 +16,13 @@ use Illuminate\Notifications\Notifiable;
  *
  * Los datos de la PERSONA (nombre, edad, telefono, foto) no estan aqui sino en
  * `Perfil`, que es 1:1 con esta tabla y lo comparten todos los roles.
+ *
+ * El perfil se anota ANULABLE, al reves que `Perfil::$user`, y la asimetria es
+ * correcta: `perfiles.user_id` es obligatorio --no hay perfil sin cuenta-- pero
+ * nada obliga a que una cuenta tenga perfil, y de hecho existe la ventana entre
+ * crear la una y el otro. Quien lea `$user->perfil` tiene que contar con null.
+ *
+ * @property-read Perfil|null $perfil
  */
 class User extends Authenticatable
 {

@@ -31,36 +31,6 @@ parameters:
 			path: app/Console/Commands/Simular.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ArchivoController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ArchivoController.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:esPersonal\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Controllers/ArchivoController.php
-
-		-
-			message: '#^Parameter \#1 \$solicitante of method App\\Http\\Controllers\\ArchivoController\:\:sonCompaneros\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/ArchivoController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Auth/PostLoginController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento_identidad\.$#'
 			identifier: property.notFound
 			count: 1
@@ -70,18 +40,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
-			message: '#^Parameter \#1 \$solicitante of static method App\\Support\\Permisos\:\:puedeCertificarMatricula\(\) expects App\\Models\\Perfil\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
-			message: '#^Parameter \#1 \$solicitante of static method App\\Support\\Permisos\:\:puedeCertificarTodo\(\) expects App\\Models\\Perfil\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
 			path: app/Http/Controllers/CertificadoController.php
 
 		-
@@ -487,13 +445,7 @@ parameters:
 			path: app/Http/Controllers/MiPerfilController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$datosEstudiante\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$encuesta\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documentos\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/MiPerfilController.php
@@ -517,80 +469,8 @@ parameters:
 			path: app/Http/Controllers/MiPerfilController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$preguntas_faltantes\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:certificables\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:estadisticas\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of static method App\\Support\\HorarioSemanal\:\:de\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of static method App\\Support\\ResumenAsistencia\:\:deEstudiante\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of static method App\\Support\\ResumenAsistencia\:\:deProfesor\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#1 \$perfil of static method App\\Support\\ResumenAsistencia\:\:navegacionDePeriodos\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarContacto\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarCorreo\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarDocumento\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarEncuesta\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarFoto\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Parameter \#2 \$perfil of method App\\Http\\Controllers\\MiPerfilController\:\:guardarPapel\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/MiPerfilController.php
 
@@ -695,12 +575,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/RenovarController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Middleware/RequiereRol.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estudiante\.$#'
@@ -1087,12 +961,6 @@ parameters:
 			path: tests/Feature/GestionTest.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
-			identifier: property.notFound
-			count: 2
-			path: tests/Feature/GestionTest.php
-
-		-
 			message: '#^Cannot call method toDateString\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 2
@@ -1105,19 +973,7 @@ parameters:
 			path: tests/Feature/InformeTest.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$datosEstudiante\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/InscripcionTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/InscripcionTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento_identidad\.$#'
 			identifier: property.notFound
 			count: 1
 			path: tests/Feature/InscripcionTest.php
@@ -1145,15 +1001,3 @@ parameters:
 			identifier: argument.type
 			count: 2
 			path: tests/Feature/RecursoVersionadoTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_completo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/RegistroTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$rol\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/RegistroTest.php

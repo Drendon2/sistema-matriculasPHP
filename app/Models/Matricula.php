@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Auditoria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -104,6 +105,39 @@ class Matricula extends Model
         // chocarian entre si.
         static::saving(function (self $matricula) {
             $matricula->colocarEnRanuraLibre();
+        });
+
+        /*
+         * Rastro de las matriculas retiradas (F-02).
+         *
+         * Va en el MODELO y no en los controladores porque hoy hay TRES caminos
+         * que retiran --el estudiante retirando una solicitud suya, aprobar una
+         * cancelacion, y aprobarlas en lote-- y escribirlo tres veces es la
+         * forma segura de que el cuarto se olvide. Es la misma leccion que dejo
+         * B-01 con la asistencia: la regla en un sitio, no una copia por
+         * pantalla.
+         *
+         * Se registra el estado ANTERIOR porque es lo que distingue los casos:
+         * `pendiente` es alguien que se echo atras antes de que lo confirmaran,
+         * y `cancelacion_solicitada` es una salida que alguien de direccion
+         * aprobo. Sin ese dato las dos se leen igual en el archivo.
+         *
+         * `auth()` puede no haber nadie: `php artisan simular` tambien retira, y
+         * ahi `quien` sale null a proposito, que es informacion correcta --lo
+         * hizo el sistema, no una persona--.
+         */
+        static::updated(function (self $matricula) {
+            if (! $matricula->wasChanged('estado') || $matricula->estado !== self::RETIRADA) {
+                return;
+            }
+
+            Auditoria::registrar('matricula.retirada', [
+                'matricula_id' => $matricula->id,
+                'estudiante_id' => $matricula->estudiante_id,
+                'promotoria_id' => $matricula->promotoria_id,
+                'periodo_id' => $matricula->periodo_id,
+                'desde' => $matricula->getOriginal('estado'),
+            ], auth()->user()?->perfil);
         });
     }
 

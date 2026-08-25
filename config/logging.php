@@ -73,6 +73,33 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+         * Rastro de las acciones que NO se pueden deshacer (F-02).
+         *
+         * Canal aparte y con NIVEL FIJO, y las dos cosas a proposito. En
+         * produccion `LOG_LEVEL=error` (.env.production.example), y todos los
+         * canales de arriba cuelgan de esa variable: un `Log::info` con el
+         * registro de una matricula retirada se descartaria justo en el unico
+         * sitio donde hace falta. Aqui el nivel esta escrito y no se lee del
+         * entorno, asi que este rastro llega siempre.
+         *
+         * Archivo propio y no el de la aplicacion porque responden preguntas
+         * distintas: `laravel.log` es «que se rompio» y este es «quien hizo
+         * que». Mezclarlos obligaria a subir el nivel del primero y a leer el
+         * ruido de los dos juntos.
+         *
+         * 180 dias y no 14: un periodo academico dura seis meses y la pregunta
+         * que motiva esto --«¿quien retiro esta matricula?»-- se hace al cerrar
+         * el periodo, no la semana siguiente.
+         */
+        'auditoria' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/auditoria.log'),
+            'level' => 'info',
+            'days' => env('LOG_AUDITORIA_DIAS', 180),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
