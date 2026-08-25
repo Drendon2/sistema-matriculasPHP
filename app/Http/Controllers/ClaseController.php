@@ -7,11 +7,11 @@ use App\Models\Clase;
 use App\Models\Grupo;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\PaseDeLista;
 use App\Support\Permisos;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -158,24 +158,14 @@ class ClaseController extends Controller
         }
 
         $matriculas = $clase->matriculasAPasar();
-        $marcados = 0;
 
-        DB::transaction(function () use ($request, $clase, $matriculas, &$marcados) {
-            foreach ($matriculas as $matricula) {
-                $estado = $request->input("estado_{$matricula->id}");
-
-                if (! array_key_exists($estado, Asistencia::ESTADOS)) {
-                    continue;
-                }
-
-                Asistencia::updateOrCreate(
-                    ['clase_id' => $clase->id, 'matricula_id' => $matricula->id],
-                    ['estado' => $estado]
-                );
-
-                $marcados++;
-            }
-        });
+        $marcados = PaseDeLista::guardar(
+            request: $request,
+            asistencias: Asistencia::class,
+            sesion: ['clase_id' => $clase->id],
+            quien: 'matricula_id',
+            ids: $matriculas->pluck('id'),
+        );
 
         $sinMarcar = $matriculas->count() - $marcados;
 

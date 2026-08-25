@@ -63,18 +63,12 @@
       @endif
     </span>
     <span class="asistencia-opciones">
-      @if ($dirige)
-        @foreach ($estados as $valor => $etiqueta)
-        <label class="asistencia-opcion asistencia-opcion-{{ $valor }}">
-          <input type="radio" name="estado_{{ $inscrito->id }}" value="{{ $valor }}"
-                 @checked($fila['estado'] === $valor)>{{ $etiqueta }}
-        </label>
-        @endforeach
-      @elseif ($fila['estado'])
-        <span class="estado">{{ $estados[$fila['estado']] }}</span>
-      @else
-        <span class="vacio">Sin marcar</span>
-      @endif
+      @include('partials.marcas-asistencia', [
+        'idDeQuien' => $inscrito->id,
+        'estado' => $fila['estado'],
+        'estados' => $estados,
+        'puedeMarcar' => $dirige,
+      ])
     </span>
   </div>
   @endforeach

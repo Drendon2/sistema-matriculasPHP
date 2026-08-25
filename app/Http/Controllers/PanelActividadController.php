@@ -7,6 +7,7 @@ use App\Models\AsistenciaActividad;
 use App\Models\InscritoActividad;
 use App\Models\Perfil;
 use App\Models\SesionActividad;
+use App\Support\PaseDeLista;
 use App\Support\Permisos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -206,26 +207,14 @@ class PanelActividadController extends Controller
         }
 
         $inscritos = $actividad->inscritos()->pluck('id');
-        $marcados = 0;
 
-        DB::transaction(function () use ($request, $sesion, $inscritos, &$marcados) {
-            foreach ($inscritos as $id) {
-                $estado = $request->input("estado_{$id}");
-
-                // Sin marcar es valido y se representa por la AUSENCIA de fila:
-                // saltarselo aqui es exactamente lo que hace falta.
-                if (! array_key_exists($estado, AsistenciaActividad::ESTADOS)) {
-                    continue;
-                }
-
-                AsistenciaActividad::updateOrCreate(
-                    ['sesion_id' => $sesion->id, 'inscrito_id' => $id],
-                    ['estado' => $estado]
-                );
-
-                $marcados++;
-            }
-        });
+        $marcados = PaseDeLista::guardar(
+            request: $request,
+            asistencias: AsistenciaActividad::class,
+            sesion: ['sesion_id' => $sesion->id],
+            quien: 'inscrito_id',
+            ids: $inscritos,
+        );
 
         $sinMarcar = $inscritos->count() - $marcados;
 

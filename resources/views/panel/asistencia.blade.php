@@ -81,18 +81,13 @@
         @if ($e['cancelacion'])<span class="estado estado-cancelacion_solicitada">Pidió cancelar</span>@endif
       </span>
       <span class="asistencia-opciones">
-        @if ($puedeMarcar)
-          @foreach ($estados as $valor => $etiqueta)
-          <label class="asistencia-opcion asistencia-opcion-{{ $valor }}">
-            <input type="radio" name="estado_{{ $e['matricula']->id }}" value="{{ $valor }}"
-                   @checked($e['estado'] === $valor)>{{ $etiqueta }}
-          </label>
-          @endforeach
-        @elseif ($e['estado'])
-          <span class="estado {{ $e['marca'] }}">{{ $e['marca_texto'] }}</span>
-        @else
-          <span class="vacio">Sin marcar</span>
-        @endif
+        @include('partials.marcas-asistencia', [
+          'idDeQuien' => $e['matricula']->id,
+          'estado' => $e['estado'],
+          'estados' => $estados,
+          'puedeMarcar' => $puedeMarcar,
+          'marca' => $e['marca'],
+        ])
       </span>
     </div>
     @endforeach
