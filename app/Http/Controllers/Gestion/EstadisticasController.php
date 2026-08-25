@@ -73,7 +73,26 @@ class EstadisticasController extends Controller
 
         [$baseRenovacion, $noRenovaron] = $this->renovacion($periodoActual, $periodoPrevio);
 
-        $encuestas = EncuestaDemografica::all();
+        // Solo las columnas que se cuentan, y como filas planas (`toBase`) en
+        // vez de modelos (C-02). Antes era `EncuestaDemografica::all()`: la
+        // tabla entera, con todas sus columnas, hidratada en un modelo de
+        // Eloquent por persona. Hoy son 227 filas y no se nota; crece con cada
+        // estudiante que llena la encuesta, y el techo lo pone la memoria de un
+        // hosting compartido.
+        //
+        // Lo que NO se hizo, y merece quedar escrito para no volver a
+        // plantearlo sin datos: dejarlo en nueve GROUP BY y no traer nada. Eso
+        // dejaria la memoria constante, que es mejor, pero cambia un recorrido
+        // de la tabla por nueve, y ya se decidio una vez ir en la direccion
+        // contraria por ese mismo motivo (ver `conteo()`). Lo que aquella
+        // decision daba por sentado --que la tabla se leia entera de todas
+        // formas, para las incompletas-- es justo lo que deja de ser cierto
+        // aqui abajo.
+        $encuestas = EncuestaDemografica::query()
+            ->select(array_keys(EncuestaDemografica::OPCIONES))
+            ->toBase()
+            ->get();
+
         $totalEncuestas = $encuestas->count();
 
         return view('gestion.estadisticas', [
@@ -98,11 +117,7 @@ class EstadisticasController extends Controller
             'totalPromotorias' => Promotoria::count(),
             'totalGrupos' => Grupo::count(),
             'totalEncuestas' => $totalEncuestas,
-            // Tener encuesta no es tenerla contestada. La cuenta se hace en PHP
-            // porque `estrato` es entero y un filtro de "vacio" que sirva para
-            // texto y para numero a la vez sale peor que recorrer una tabla que
-            // tiene una fila por persona.
-            'encuestasIncompletas' => $encuestas->reject(fn ($e) => $e->esta_completa)->count(),
+            'encuestasIncompletas' => $this->encuestasIncompletas(),
             'totalConRol' => Perfil::where('rol', '!=', '')->count(),
             // Genero y zona van en torta y no en barras: en las dos la pregunta
             // es que parte del total es cada opcion, y son pocas (4 y 3). El
@@ -538,15 +553,29 @@ class EstadisticasController extends Controller
      * motor. Diez pasadas por la misma tabla para pintar una pantalla.
      *
      * La alternativa contraria tambien valia: dejar los GROUP BY y contar las
-     * incompletas en SQL. Se eligio esta porque la de las incompletas es la que
-     * no tiene una version buena en SQL (`estrato` es entero y los demas texto,
-     * asi que un filtro de «vacio» que sirva para los dos sale peor que
-     * recorrer una tabla de una fila por persona), y hacer las dos cosas a la
-     * vez es justo lo que estaba mal.
+     * incompletas en SQL. Se eligio esta porque la de las incompletas parecia
+     * la que no tenia una version buena en SQL, y hacer las dos cosas a la vez
+     * es justo lo que estaba mal.
      *
      * De paso desaparece un `selectRaw` con el nombre de columna interpolado.
      *
-     * @param  Collection<int, EncuestaDemografica>  $encuestas
+     * ACTUALIZACION (C-02): aquella premisa era falsa. El motivo que se dio
+     * --«`estrato` es entero y los demas texto»-- no se sostiene: los cinco
+     * campos obligatorios son NOT NULL, asi que «sin responder» es la cadena
+     * vacia, y sobre un entero la comprobacion de cadena vacia no dispara nunca
+     * ni aqui ni antes. Las incompletas SI se cuentan en SQL, en
+     * `encuestasIncompletas()`.
+     *
+     * Lo que NO cambio es esto: se sigue contando en memoria y no con nueve
+     * GROUP BY, porque serian nueve recorridos de la tabla en vez de uno. Lo
+     * que cambio es lo que se trae: filas planas con las nueve columnas que se
+     * cuentan, en vez de la tabla entera hidratada en modelos. Nueve veces
+     * menos memoria, medido sobre los 227 registros de desarrollo.
+     *
+     * Por eso el parametro es una coleccion de `stdClass` y no de modelos: son
+     * las filas crudas de `toBase()`. `countBy` funciona igual sobre las dos.
+     *
+     * @param  Collection<int, \stdClass>  $encuestas
      * @return array<int|string, int>
      */
     private function conteo(Collection $encuestas, string $campo): array
@@ -689,6 +718,38 @@ class EstadisticasController extends Controller
             ->take($cuantos)
             ->values()
             ->all();
+    }
+
+    /**
+     * Cuantas encuestas existen pero estan a medias, contado en SQL (C-02).
+     *
+     * Antes se resolvia recorriendo la coleccion entera con el accesor
+     * `esta_completa`, y el comentario de `conteo()` sostenia que en SQL no
+     * habia version buena porque «`estrato` es entero y los demas texto». Al
+     * mirar el esquema resulta que los cinco campos obligatorios son NOT NULL:
+     * «sin responder» es la cadena vacia, no un nulo. Y sobre `estrato`, que es
+     * un entero, la comprobacion de cadena vacia del accesor NO PUEDE disparar
+     * nunca --un int nunca es identico a ''--, asi que ese campo no entra en la
+     * cuenta ni entraba antes. El filtro de aqui hace exactamente lo mismo que
+     * hacia el accesor, ni un caso mas ni uno menos.
+     *
+     * OJO, esto deja un hueco que ya existia y que NO se cierra aqui: si alguna
+     * vez se guardara una encuesta con `estrato` en 0 --el valor que pondria
+     * MySQL en una columna NOT NULL sin dato-- no la contaria ninguna de las
+     * dos versiones. Hoy no ocurre (los 227 registros van de 1 a 6) y
+     * arreglarlo cambiaria la cifra que ve direccion, que es otra conversacion.
+     */
+    private function encuestasIncompletas(): int
+    {
+        // `barrio` entra aunque no se cuente en ninguna grafica: es obligatorio,
+        // y lo que se mide es si la persona termino de contestar.
+        $obligatoriosDeTexto = ['genero', 'barrio', 'nivel_educativo', 'ocupacion'];
+
+        return EncuestaDemografica::where(function ($q) use ($obligatoriosDeTexto) {
+            foreach ($obligatoriosDeTexto as $campo) {
+                $q->orWhere($campo, '');
+            }
+        })->count();
     }
 
     /** @return array<string, int> */
