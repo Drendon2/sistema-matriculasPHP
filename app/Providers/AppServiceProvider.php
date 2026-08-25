@@ -27,10 +27,17 @@ class AppServiceProvider extends ServiceProvider
         /**
          * La marca de la institucion, disponible en TODAS las plantillas.
          *
-         * Equivale al context processor del original. Se resuelve una vez por
-         * peticion y con `View::composer('*')` en vez de `View::share()` para
-         * que no se consulte la base de datos en las peticiones que no pintan
-         * ninguna vista (los POST que solo redirigen, por ejemplo).
+         * Equivale al context processor del original. Va con `View::composer('*')`
+         * en vez de `View::share()` para que no se consulte la base de datos en
+         * las peticiones que no pintan ninguna vista (los POST que solo
+         * redirigen, por ejemplo).
+         *
+         * OJO: este comentario decia «se resuelve una vez por peticion» y era
+         * FALSO. El compositor corre una vez por VISTA, y una pagina son el
+         * layout mas sus parciales: eran cuatro consultas iguales por carga.
+         * Quien lo lea de aqui en adelante, que sepa que lo que garantiza la
+         * unica consulta es la memoria de `ConfiguracionInstitucion::actual()`,
+         * no esta linea.
          *
          * `ConfiguracionInstitucion::actual()` devuelve valores por defecto en
          * memoria si la tabla todavia no existe, asi que un proyecto recien

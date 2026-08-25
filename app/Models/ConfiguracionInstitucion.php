@@ -38,6 +38,9 @@ class ConfiguracionInstitucion extends Model
      */
     public const RANURA_MAXIMA_ABSOLUTA = 6;
 
+    /** Clave con la que la peticion en curso guarda la fila ya resuelta. */
+    private const MEMORIA = 'configuracion-institucion.actual';
+
     protected $table = 'configuracion_institucion';
 
     protected $fillable = [
@@ -91,14 +94,37 @@ class ConfiguracionInstitucion extends Model
      * existe (antes de migrar) devuelve una instancia en memoria con los
      * defaults: de esto cuelga el compositor de vistas que corre en CADA
      * pagina, y no debe tumbar el sitio.
+     *
+     * SE RESUELVE UNA SOLA VEZ POR PETICION. El compositor de vistas de
+     * `AppServiceProvider` dice eso en su comentario desde el principio, pero
+     * no era verdad: `View::composer('*')` corre una vez por VISTA pintada, y
+     * una pagina son el layout mas sus parciales. Eran cuatro `SELECT` iguales
+     * en cada carga de cada pantalla del sistema.
+     *
+     * La copia vive en el contenedor y no en una propiedad estatica de la
+     * clase. Es a proposito: el contenedor se construye de nuevo en cada
+     * peticion y en cada prueba, asi que la copia muere sola. Una estatica
+     * sobreviviria a toda la suite y devolveria la fila de la prueba anterior,
+     * que es la clase de error que se tarda un dia en encontrar.
      */
     public static function actual(): self
     {
+        if (app()->bound(self::MEMORIA)) {
+            return app()->make(self::MEMORIA);
+        }
+
         try {
-            return static::firstOrCreate(['id' => 1]);
+            $configuracion = static::firstOrCreate(['id' => 1]);
         } catch (Throwable) {
+            // Tabla sin migrar. NO se memoriza: es un estado que se arregla
+            // solo en cuanto alguien migre, y guardarlo obligaria a que la
+            // instancia suelta sobreviviera a la peticion que ya tiene tabla.
             return new static;
         }
+
+        app()->instance(self::MEMORIA, $configuracion);
+
+        return $configuracion;
     }
 
     /** Fila unica: cualquier guardado escribe sobre la misma. */
@@ -106,6 +132,15 @@ class ConfiguracionInstitucion extends Model
     {
         static::saving(function (self $configuracion) {
             $configuracion->id = 1;
+        });
+
+        // Cualquier guardado tira la copia de la peticion. Hoy todo el codigo
+        // llega por `actual()` y guarda sobre ESA instancia, asi que la copia
+        // ya saldria al dia; esto es para el dia que alguien cargue la fila por
+        // su cuenta y la guarde, que entonces la copia memorizada quedaria
+        // vieja y la pantalla seguiria pintando la marca anterior.
+        static::saved(function () {
+            app()->forgetInstance(self::MEMORIA);
         });
 
         // Sin configuracion el sistema se quedaria sin marca.
