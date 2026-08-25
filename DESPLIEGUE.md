@@ -168,6 +168,34 @@ Gestión solo entra un administrador, y todavía no hay ninguno. Así que el
 primero se crea por línea de comandos. **Es la única cuenta que nace así**; todas
 las demás salen ya de la propia aplicación.
 
+### El camino corto: `php artisan instalar`
+
+Este comando hace este paso **y los cinco primeros de la parte 2** de una
+sentada, preguntándote los datos por consola:
+
+```bash
+php artisan instalar
+```
+
+Pregunta la institución (nombre, color de acento, límite de promotorías,
+visibilidad del catálogo), los documentos que se le piden al estudiante, los
+departamentos, el periodo —y lo deja **en curso**—, y las **dos** cuentas de
+administrador. Las dos no son opcionales: es la trampa de arriba, y el comando no
+termina con una sola.
+
+No escribe nada hasta el final, así que un dedazo a mitad no deja media
+institución montada. Se niega a correr si la base ya tiene datos, y dice cuáles
+encontró.
+
+Si lo lanzas así, salta directo a **1.9** y luego a **2.7** (promotorías): lo de
+en medio ya está hecho. Vuelve a 2.4 cuando toque dar de alta a directores y
+profesores.
+
+> Necesita una consola de verdad. Con `--no-interaction`, o dentro de un guion
+> sin terminal, no instala: se planta y te lo dice.
+
+### El camino largo, a mano
+
 Abre la consola interactiva:
 
 ```bash
@@ -275,6 +303,13 @@ con el bash de Git.
 El sistema recién instalado está vacío: no hay departamentos, ni periodos, ni
 promotorías. **El orden de estos pasos importa**, porque cada uno necesita al
 anterior. Todo se hace desde el navegador, con la cuenta de administrador.
+
+> **Si usaste `php artisan instalar`**, del 2.1 al 2.6 ya están hechos —incluido
+> poner el periodo en curso, que es el que más se olvida—. Empieza en **2.4** si
+> tienes directores o profesores que dar de alta, y si no, directo a **2.7**.
+> Del 2.7 en adelante no lo cubre el comando a propósito: un grupo lleva horario
+> de rejilla semanal y un cupo depende del periodo, y esas pantallas lo resuelven
+> mejor que una consola.
 
 ## 2.1 La institución
 
@@ -575,8 +610,10 @@ y las plantillas.
 
 ## 3.11 Crear los dos administradores
 
-Igual que en el paso 1.8, por `php artisan tinker`, y **dos veces**: el tuyo y el
-de respaldo.
+Igual que en el paso 1.8. Lo más corto es `php artisan instalar` por SSH, que
+pide las dos cuentas y de paso monta institución, documentos, departamentos y el
+periodo en curso. Si prefieres hacerlo a mano, `php artisan tinker` y **dos
+veces**: el tuyo y el de respaldo.
 
 Después de esto, todas las demás cuentas se crean desde Gestión → Usuarios.
 

@@ -244,11 +244,35 @@ Completa las credenciales de tu base de datos en `.env` y luego:
 
 ```bash
 php artisan migrate
+php artisan instalar --ejemplo
 php artisan serve
 ```
 
-El repositorio no incluye datos de demostración: la base arranca vacía. Crea el
-primer usuario y el catálogo desde la propia aplicación.
+El repositorio no incluye datos de demostración: la base arranca vacía a
+propósito, porque sembrar datos de ejemplo significa sembrar contraseñas
+conocidas. Y una base vacía no deja abrir casi ninguna pantalla, así que
+`php artisan instalar --ejemplo` monta de un tirón lo mínimo para recorrerla:
+institución, documentos, departamentos, un periodo **en curso** con las
+matrículas abiertas y dos administradores. Las cuentas son `admin` y `admin.dos`,
+las dos con la contraseña `administrador`. Es una instalación de juguete: el
+comando se niega a correr si `APP_ENV=production`, sin bandera que lo salte.
+
+Para llenarla además de gente, clases y asistencia:
+
+```bash
+php artisan simular
+```
+
+**Para instalar de verdad, para una institución**, el mismo comando sin bandera
+pregunta los datos por consola —incluidas las dos cuentas de administrador, que
+no son opcionales— y no escribe nada hasta el final:
+
+```bash
+php artisan instalar
+```
+
+Cubre hasta dejar el periodo en curso; las promotorías, los cupos y los grupos se
+montan después desde Gestión. Se niega a correr si la base ya tiene datos.
 
 La zona horaria está en `America/Bogota` y de ella dependen dos reglas —si un
 grupo ya tiene clase registrada hoy, y el plazo de 48 horas para confirmarla—,
@@ -315,7 +339,7 @@ están:
 | | |
 |---|---|
 | `APP_DEBUG=false` | Con `true`, cualquiera que provoque un error 500 recibe la traza completa: credenciales de la base y el contenido de las consultas, que aquí incluye nombres, teléfonos y documentos de identidad de menores. |
-| `APP_ENV=production` | Además de la configuración, es lo único que impide que `php artisan simular` siembre 300 cuentas de prueba con contraseña conocida. |
+| `APP_ENV=production` | Además de la configuración, es lo único que impide que `php artisan simular` siembre 300 cuentas de prueba con contraseña conocida, y lo mismo con las dos que crea `php artisan instalar --ejemplo`. `simular` admite `--forzar` para saltárselo; `instalar --ejemplo` no admite nada. |
 | `SESSION_SECURE_COOKIE=true` | Sin ella la cookie de sesión viaja también por http plano. |
 | `LOG_LEVEL=error` | En `debug` se escribe cada consulta: llena la cuota de disco del plan compartido y deja datos personales en un archivo que nadie vigila. |
 
