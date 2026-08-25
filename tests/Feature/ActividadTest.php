@@ -95,6 +95,32 @@ class ActividadTest extends TestCase
     }
 
     /** @param  array<string, mixed>  $extra */
+    /**
+     * Las dos pantallas del enlace traen lo que el boton de copiar necesita.
+     *
+     * El BOTON lo crea `copiar-enlace.js` y por eso no se puede comprobar
+     * aqui: una prueba de servidor no ejecuta JavaScript. Lo que si se fija es
+     * el andamiaje sin el cual el boton no aparece --el envoltorio y el script
+     * en la pagina--, que es justo lo que se rompe al mover un bloque de sitio.
+     *
+     * Lo que hace el boton se comprobo en el navegador, que es donde se
+     * comprueba un boton. De ahi salio ademas su unico fallo: `writeText`
+     * RECHAZA la promesa cuando no puede copiar, no devuelve false, y sin un
+     * `catch` el boton no hacia nada de nada.
+     */
+    public function test_las_pantallas_del_enlace_traen_el_andamiaje_para_copiarlo(): void
+    {
+        $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón');
+
+        foreach ([route('panel-actividad', $taller), route('actividad-curso-lista')] as $url) {
+            $html = $this->actingAs($this->admin->user)->get($url)->assertOk()->getContent();
+
+            $this->assertStringContainsString('class="enlace-fila"', $html, "Falta el envoltorio en {$url}");
+            $this->assertMatchesRegularExpression('#js/copiar-enlace\.js\?v=\d+#', $html, "Falta el script en {$url}");
+            $this->assertStringContainsString($taller->enlace(), $html);
+        }
+    }
+
     private function crearActividad(string $tipo, string $nombre, array $extra = []): Actividad
     {
         return Actividad::create([

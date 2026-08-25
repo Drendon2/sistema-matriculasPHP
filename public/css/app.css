@@ -1162,8 +1162,28 @@
      un texto para que se seleccione de un tiron: esto acaba pegado en un
      WhatsApp, y arrastrar el raton por encima de una URL sin pasarse es
      justamente lo que no hay que pedirle a nadie. */
+  /* El enlace y su boton de copiar, en una fila. `flex-wrap` para que en un
+     celular estrecho el boton caiga debajo entero en vez de encogerse hasta no
+     poder pulsarlo: es el sitio donde mas falta hace. */
+  .enlace-fila {
+    display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+    margin: 0.35rem 0 0; max-width: 30rem;
+  }
+  /* El ancho maximo pasa a la FILA y el campo cede lo que haga falta. Con el
+     `width:100%` del campo suelto, el boton no cabia nunca en la misma linea y
+     caia debajo hasta en una pantalla ancha. El `min-width:0` es lo que permite
+     que un input encoja dentro de un flex: sin el trae su ancho por defecto y
+     vuelve a empujar. */
+  .enlace-fila .enlace-copiable { flex: 1 1 10rem; width: auto; max-width: none; min-width: 0; }
+  /* El boton no se encoge; lo que cede es el campo, que ya es solo informativo. */
+  .enlace-boton { flex: 0 0 auto; }
+  .enlace-boton.copiado {
+    color: var(--accent-dark); border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
   .enlace-copiable {
-    width: 100%; max-width: 26rem; margin: 0.35rem 0 0;
+    width: 100%; max-width: 26rem; margin: 0;
     padding: 0.25rem 0.4rem;
     font-family: var(--font-mono); font-size: 0.7rem;
     color: var(--ink-soft); background: var(--surface-alt);

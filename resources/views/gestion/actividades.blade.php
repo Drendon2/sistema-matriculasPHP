@@ -64,8 +64,10 @@
           el ratón por encima sin pasarse.
         --}}
         <label class="sr-solo" for="enlace_{{ $actividad->id }}">Enlace de {{ $actividad->nombre }}</label>
-        <input class="enlace-copiable" type="text" id="enlace_{{ $actividad->id }}"
-               readonly value="{{ $actividad->enlace() }}">
+        <div class="enlace-fila">
+          <input class="enlace-copiable" type="text" id="enlace_{{ $actividad->id }}"
+                 readonly value="{{ $actividad->enlace() }}">
+        </div>
       </td>
       <td>
         @if (\App\Support\Permisos::puedeVerFicha($yo, $actividad->responsable))
@@ -117,3 +119,7 @@
 </table>
 @endif
 @endsection
+
+@push('scripts')
+<script src="@recurso('js/copiar-enlace.js')" defer></script>
+@endpush

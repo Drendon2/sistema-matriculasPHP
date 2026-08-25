@@ -45,7 +45,10 @@
     </p>
   @endif
   <label class="sr-solo" for="enlace">Enlace de {{ $actividad->nombre }}</label>
-  <input class="enlace-copiable" type="text" id="enlace" readonly value="{{ $actividad->enlace() }}">
+  {{-- El boton de copiar lo añade `copiar-enlace.js`: sin JavaScript no serviría. --}}
+  <div class="enlace-fila">
+    <input class="enlace-copiable" type="text" id="enlace" readonly value="{{ $actividad->enlace() }}">
+  </div>
 </div>
 
 <div class="card">
@@ -176,3 +179,12 @@
   @endif
 </div>
 @endsection
+
+@push('scripts')
+{{--
+  Solo añade el botón de copiar al enlace. Se comparte por WhatsApp y casi
+  siempre desde el celular, donde seleccionar un texto largo a dedo es lo peor
+  de la pantalla.
+--}}
+<script src="@recurso('js/copiar-enlace.js')" defer></script>
+@endpush
