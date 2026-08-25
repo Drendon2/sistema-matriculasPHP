@@ -19,24 +19,50 @@ use Illuminate\View\View;
  */
 class CancelacionesController extends Controller
 {
-    public function index(): View
+    /**
+     * Cuantas solicitudes por pagina.
+     *
+     * La bandeja se vacia de a tandas y cada resolucion vuelve por `acciones.js`
+     * sin recargar, asi que la pagina se va quedando corta sola: 50 es holgado
+     * para una jornada de trabajo sin que la respuesta cargue el historico
+     * entero de solicitudes que nadie atendio.
+     */
+    public const POR_PAGINA = 50;
+
+    public function index(): View|RedirectResponse
     {
-        return view('gestion.cancelaciones', [
-            'pendientes' => Matricula::query()
-                ->where('estado', Matricula::CANCELACION_SOLICITADA)
-                ->with([
-                    'estudiante.datosEstudiante.acudiente',
-                    'promotoria.area',
-                    'periodo',
-                    'grupo',
-                ])
-                ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
-                ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
-                ->orderBy('periodos.fecha_inicio')
-                ->orderBy('promotorias.nombre')
-                ->select('matriculas.*')
-                ->get(),
-        ]);
+        $pendientes = Matricula::query()
+            ->where('estado', Matricula::CANCELACION_SOLICITADA)
+            ->with([
+                'estudiante.datosEstudiante.acudiente',
+                'promotoria.area',
+                'periodo',
+                'grupo',
+            ])
+            ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
+            ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
+            ->orderBy('periodos.fecha_inicio')
+            ->orderBy('promotorias.nombre')
+            // Desempate por id: dos solicitudes de la misma promotoria y el
+            // mismo periodo quedan en un orden que el motor no esta obligado a
+            // repetir, y al paginar eso reparte filas repetidas o perdidas
+            // entre una pagina y la siguiente. Sin prueba, y por la misma razon
+            // que su gemelo en UsuarioController: ver el comentario de alli.
+            ->orderBy('matriculas.id')
+            ->select('matriculas.*')
+            ->paginate(self::POR_PAGINA);
+
+        // Resolver una solicitud la SACA de esta lista, asi que vaciar la
+        // ultima pagina la hace desaparecer y deja la peticion apuntando mas
+        // alla del final. Sin esto se veria una bandeja vacia con «No hay
+        // cancelaciones pendientes» mientras quedan cincuenta en la pagina
+        // anterior. No hace falta en la lista de usuarios: alli desactivar a
+        // alguien le cambia el estado, no lo quita de la lista.
+        if ($pendientes->currentPage() > $pendientes->lastPage()) {
+            return redirect()->route('gestion-cancelaciones', ['page' => $pendientes->lastPage()]);
+        }
+
+        return view('gestion.cancelaciones', ['pendientes' => $pendientes]);
     }
 
     public function resolver(Matricula $matricula, string $decision): RedirectResponse
@@ -157,8 +183,20 @@ class CancelacionesController extends Controller
         );
     }
 
+    /**
+     * Vuelve a la bandeja, a LA MISMA pagina desde la que se resolvio.
+     *
+     * Era `route('gestion-cancelaciones')` a secas, que sin paginacion daba la
+     * misma URL y no se notaba. Con paginacion devolvia a la pagina 1 en cada
+     * resolucion: quien estuviera trabajando en la 2 tenia que volver a
+     * navegar hasta ella despues de cada clic, y esta pantalla se vacia de a
+     * tandas — es justo el trabajo que `acciones.js` existe para no romper.
+     *
+     * `back()` lee la ultima URL GET de la sesion, que durante estos POST por
+     * `fetch` sigue siendo la de la bandeja con su `?page=`.
+     */
     private function volver(string $mensaje, bool $exito = false): RedirectResponse
     {
-        return redirect()->route('gestion-cancelaciones')->with($exito ? 'success' : 'error', $mensaje);
+        return back()->with($exito ? 'success' : 'error', $mensaje);
     }
 }

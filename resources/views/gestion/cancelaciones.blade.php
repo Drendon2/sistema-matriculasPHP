@@ -109,6 +109,7 @@
     @endforeach
   </tbody>
 </table>
+{{ $pendientes->links() }}
 @endif
 @endsection
 

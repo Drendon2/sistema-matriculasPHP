@@ -39,6 +39,16 @@ class UsuarioController extends Controller
     public const ROL_PENDIENTE = '__sin__';
 
     /**
+     * Cuantos usuarios por pagina.
+     *
+     * Sin paginar, esta pantalla hidrataba los 308 perfiles con sus relaciones
+     * y TODAS sus matriculas en una sola respuesta. Hoy cabe; a cinco anos con
+     * 300 estudiantes por curso son ~1.500 perfiles y ~4.000 matriculas de
+     * golpe, en un hosting compartido con la memoria contada.
+     */
+    public const POR_PAGINA = 50;
+
+    /**
      * Listado de usuarios, filtrable por rol y por donde esta la persona.
      *
      * Los tres filtros de catalogo (departamento, promotoria, grupo) no se
@@ -63,7 +73,21 @@ class UsuarioController extends Controller
         $consulta = Perfil::query()
             ->with(['user', 'promotoriasDictadas.area'])
             ->orderBy('rol')
-            ->orderBy('nombre_completo');
+            ->orderBy('nombre_completo')
+            // Desempate por id, que es lo unico unico de la fila. Sin el, dos
+            // homonimos del mismo rol quedan en un orden que el motor no esta
+            // OBLIGADO a repetir entre consultas: al paginar, eso significa que
+            // uno puede salir al final de una pagina y otra vez al principio de
+            // la siguiente, o no salir en ninguna. Sin paginar no se notaba
+            // porque la lista venia entera de una sola consulta.
+            //
+            // Ojo con el estado de esto: NO hay prueba, y no por descuido. Se
+            // escribio una con sesenta homonimos y pasaba igual quitando esta
+            // linea, porque MariaDB devuelve aqui un orden estable aunque no
+            // este obligada. Se quito la prueba y se deja el desempate: es
+            // gratis y cubre el dia que cambie el plan de ejecucion, que es
+            // justo el dia en que nadie estaria mirando.
+            ->orderBy('id');
 
         if ($seleccion['rol'] === self::ROL_PENDIENTE) {
             $consulta->where('rol', '');
@@ -85,7 +109,10 @@ class UsuarioController extends Controller
             });
         }
 
-        $perfiles = $consulta->get();
+        // `withQueryString()` conserva los filtros en los enlaces: sin el,
+        // pasar de pagina limpiaba rol, departamento, promotoria y periodo, y
+        // la pagina 2 era la de TODOS los usuarios.
+        $perfiles = $consulta->paginate(self::POR_PAGINA)->withQueryString();
 
         // La columna "Promotorías" resuelve los dos vinculos de una vez. Se trae
         // aparte y no fila por fila porque, con doscientos usuarios, preguntarlo
@@ -261,16 +288,27 @@ class UsuarioController extends Controller
         // las tres pantallas que solo el abre.
         $this->exigirAccesoA($request, $usuario);
 
+        // Las dos salidas vuelven con `back()` y no a `route('usuario-lista')`.
+        // Sin paginacion las dos cosas eran la misma URL y daba igual; con
+        // paginacion, desactivar a alguien de la pagina 6 devolvia a la 1 y
+        // ademas sin el filtro puesto, asi que para desactivar a tres personas
+        // de la misma promotoria habia que volver a filtrar y a bajar tres
+        // veces. `back()` recupera la URL de la lista con su `?rol=` y su
+        // `?page=`, que durante estos POST por `fetch` sigue siendo la ultima
+        // GET de la sesion.
+        //
+        // Aqui no hace falta ajustar la pagina cuando se queda vacia, como si
+        // en Cancelaciones: desactivar una cuenta le cambia el estado y la deja
+        // en la lista, no la saca.
         if ($usuario->user_id === $request->user()->id) {
-            return redirect()->route('usuario-lista')
-                ->with('error', 'No puedes desactivar tu propia cuenta.');
+            return back()->with('error', 'No puedes desactivar tu propia cuenta.');
         }
 
         $user = $usuario->user;
         $user->activo = ! $user->activo;
         $user->save();
 
-        return redirect()->route('usuario-lista')->with(
+        return back()->with(
             'success',
             $user->activo ? 'Cuenta activada.' : 'Cuenta desactivada.'
         );

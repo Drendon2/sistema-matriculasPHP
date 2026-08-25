@@ -6,6 +6,7 @@ use App\Models\ConfiguracionInstitucion;
 use App\Support\Recurso;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -58,6 +59,10 @@ class AppServiceProvider extends ServiceProvider
         $this->limitarIntentos();
         $this->exigirContrasenaMinima();
         $this->declararRecursoVersionado();
+
+        // Las vistas que trae Laravel son de Tailwind y aqui no hay Tailwind:
+        // el CSS es de mano. Sin esto, cada `links()` saldria sin estilos.
+        Paginator::defaultView('partials.paginacion');
 
         // En Hostinger el SSL termina antes de PHP, asi que la aplicacion ve
         // http y generaria enlaces y formularios en http dentro de una pagina

@@ -82,7 +82,7 @@
 
 @if ($hayFiltros)
 <p class="filtros-nota">
-  {{ $perfiles->count() }} {{ $perfiles->count() == 1 ? 'usuario' : 'usuarios' }}
+  {{ $perfiles->total() }} {{ $perfiles->total() == 1 ? 'usuario' : 'usuarios' }}
   @if ($seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'])
     · matrículas de <strong>{{ $seleccion['periodo']?->nombre ?: 'ningún periodo' }}</strong>,
     sin contar las retiradas
@@ -195,5 +195,6 @@
     @endforeach
   </tbody>
 </table>
+{{ $perfiles->links() }}
 @endif
 @endsection

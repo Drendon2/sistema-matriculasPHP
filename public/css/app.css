@@ -944,6 +944,27 @@
   .filtro-acciones { flex-direction: row; gap: 0.4rem; }
   .filtros-nota { font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 0.9rem; }
 
+  /* Paginacion. El rango va en el centro y los dos controles a los lados
+     siempre en el mismo sitio: si el extremo inerte se ocultara en vez de
+     quedarse apagado, "Siguiente" saltaria de posicion al llegar a la ultima
+     pagina y habria que volver a buscarlo con la vista. */
+  .paginacion {
+    display: flex; align-items: center; justify-content: center;
+    gap: 1rem; margin: 1.2rem 0 0.4rem; flex-wrap: wrap;
+  }
+  .paginacion-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.36rem 0.9rem; font-size: 0.82rem; font-weight: 600;
+    color: var(--ink-soft); background: transparent; text-decoration: none;
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  }
+  .paginacion-btn:hover { background: var(--surface-alt); color: var(--ink); }
+  /* Apagado y sin cursor de mano: se ve que esta ahi y que no lleva a ningun
+     sitio. No es un boton deshabilitado, es un extremo del recorrido. */
+  .paginacion-btn-inerte { opacity: 0.45; border-style: dashed; }
+  .paginacion-btn-inerte:hover { background: transparent; color: var(--ink-soft); }
+  .paginacion-rango { font-size: 0.82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
   /* Historial de matrículas por periodo (lo suyo el estudiante, la trayectoria
      de otro el personal). Cada periodo es una hoja fechada de la cartelera: el
      nombre del periodo hace de encabezado y a su lado va o la marca de que
