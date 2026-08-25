@@ -412,11 +412,15 @@ class GestionTest extends TestCase
     /**
      * Cuantas LECTURAS cuesta abrir la pantalla de cupos, o guardarla.
      *
-     * Se cuentan solo los SELECT, no todas las consultas, y no es para maquillar
-     * la cifra: las escrituras de esta pantalla SI crecen con las filas —guardar
-     * dieciseis cupos son dieciseis escrituras, y no hay otra forma—, asi que
-     * meterlas en el mismo saco haria imposible ver lo unico que aqui esta mal,
-     * que es leer una vez por promotoria.
+     * Se cuentan solo los SELECT para que esta prueba juzgue una sola cosa: leer
+     * una vez por promotoria. Las escrituras tienen la suya
+     * (`test_guardar_los_cupos_no_escribe_una_vez_por_promotoria`) desde que
+     * dejaron de crecer.
+     *
+     * Aqui decia que meterlas en el mismo saco no valia porque «guardar
+     * dieciseis cupos son dieciseis escrituras, y no hay otra forma». Si la
+     * habia, y es C-05: un `upsert` masivo. El comentario razonaba sobre un
+     * limite que el codigo ya no tiene.
      */
     private function consultasDeCupos(bool $guardando = false): int
     {
@@ -440,6 +444,75 @@ class GestionTest extends TestCase
         DB::disableQueryLog();
 
         return $lecturas;
+    }
+
+    /**
+     * Guardar los cupos tampoco ESCRIBE una vez por promotoria (C-05).
+     *
+     * Es la otra mitad de la prueba de arriba, y la que faltaba: alli se
+     * sacaron los COUNT de dentro de la transaccion, aqui se sacan las
+     * escrituras de una en una. Importa por lo mismo y no por el reloj: cada
+     * fila que la transaccion toca queda bloqueada mientras dura, y el trigger
+     * de cupos lee esas filas en cada matricula que alguien intente — o sea
+     * justo el dia de abrir matriculas, cuando mas gente empuja contra ellas.
+     *
+     * Se comprueban los DOS caminos, porque son dos sentencias distintas y cada
+     * una crecia por su cuenta: poner tope (antes un `updateOrCreate` por
+     * promotoria, ahora un `upsert`) y quitarlo (antes un `delete` por
+     * promotoria, ahora uno con `whereIn`).
+     */
+    public function test_guardar_los_cupos_no_escribe_una_vez_por_promotoria(): void
+    {
+        $conTopeUna = $this->escriturasDeCupos(conTope: true);
+        $sinTopeUna = $this->escriturasDeCupos(conTope: false);
+
+        for ($i = 1; $i <= 15; $i++) {
+            Promotoria::create(['nombre' => "Taller {$i}", 'area_id' => $this->musica->id]);
+        }
+
+        $conTopeDieciseis = $this->escriturasDeCupos(conTope: true);
+        $sinTopeDieciseis = $this->escriturasDeCupos(conTope: false);
+
+        $this->assertSame(
+            $conTopeUna,
+            $conTopeDieciseis,
+            "Poner tope costo {$conTopeUna} escrituras con 1 promotoria y {$conTopeDieciseis} con 16."
+        );
+
+        $this->assertSame(
+            $sinTopeUna,
+            $sinTopeDieciseis,
+            "Quitar el tope costo {$sinTopeUna} escrituras con 1 promotoria y {$sinTopeDieciseis} con 16."
+        );
+    }
+
+    /**
+     * Cuantas ESCRITURAS contra `cupos_promotoria` cuesta guardar la pantalla.
+     *
+     * Se filtra por la tabla: lo demas que escriba la peticion no es lo que esta
+     * prueba juzga, y contarlo solo haria la cifra fragil.
+     */
+    private function escriturasDeCupos(bool $conTope): int
+    {
+        $campos = Promotoria::pluck('id')
+            ->mapWithKeys(fn (int $id) => ["cupo_{$id}" => $conTope ? '10' : ''])
+            ->all();
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($this->director->user)
+            ->post(route('gestion-cupos-periodo', $this->periodo), $campos)
+            ->assertRedirect();
+
+        $escrituras = collect(DB::getQueryLog())
+            ->filter(fn (array $registro) => ! str_starts_with(strtolower(ltrim((string) $registro['query'])), 'select'))
+            ->filter(fn (array $registro) => str_contains((string) $registro['query'], 'cupos_promotoria'))
+            ->count();
+
+        DB::disableQueryLog();
+
+        return $escrituras;
     }
 
     /** Un periodo que ya paso es historico: sus cupos no se editan. */

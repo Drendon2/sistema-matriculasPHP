@@ -59,29 +59,60 @@ class PaseDeLista
         string $quien,
         iterable $ids,
     ): int {
-        $marcados = 0;
+        // Una sola marca de tiempo para la hoja entera, y no un `now()` por
+        // fila: pasar lista es UN acto: que la primera y la ultima marca
+        // difieran en milisegundos no significaba nada y solo hacia el dato mas
+        // dificil de leer.
+        $ahora = now();
+        $filas = [];
 
-        DB::transaction(function () use ($request, $asistencias, $sesion, $quien, $ids, &$marcados) {
-            foreach ($ids as $id) {
-                $estado = $request->input(self::PREFIJO.$id);
+        foreach ($ids as $id) {
+            $estado = $request->input(self::PREFIJO.$id);
 
-                // Sin marcar es valido y se representa por la AUSENCIA de fila:
-                // saltarselo aqui es exactamente lo que hace falta. Tambien
-                // descarta lo que llegue inventado, porque la peticion entra
-                // igual si alguien la envia a mano.
-                if (! array_key_exists($estado, $asistencias::ESTADOS)) {
-                    continue;
-                }
-
-                $asistencias::updateOrCreate(
-                    $sesion + [$quien => $id],
-                    ['estado' => $estado]
-                );
-
-                $marcados++;
+            // Sin marcar es valido y se representa por la AUSENCIA de fila:
+            // saltarselo aqui es exactamente lo que hace falta. Tambien
+            // descarta lo que llegue inventado, porque la peticion entra
+            // igual si alguien la envia a mano.
+            if (! array_key_exists($estado, $asistencias::ESTADOS)) {
+                continue;
             }
+
+            $filas[] = $sesion + [
+                $quien => $id,
+                'estado' => $estado,
+                // Va explicito, y ES la trampa de este metodo. La ponia el
+                // `saving` del modelo --«se refresca en cada guardado: es la
+                // marca de la ultima correccion»-- y `upsert()` NO dispara
+                // eventos de Eloquent. Sin esta linea, una hoja nueva chocaria
+                // contra el NOT NULL de la columna, y una correccion se
+                // guardaria conservando la fecha de la primera vez: el dato
+                // seguiria ahi, mintiendo, sin que nada fallara.
+                //
+                // El `saving` del modelo SE QUEDA: hay otros dos caminos que
+                // crean asistencias de una en una (`Simular` y el «anadir a
+                // quien llego sin inscribirse» del panel de actividades) y esos
+                // si dependen de el.
+                'fecha_registro' => $ahora,
+            ];
+        }
+
+        if ($filas === []) {
+            return 0;
+        }
+
+        // La transaccion se queda aunque hoy envuelva una sola sentencia --que
+        // ya es atomica por si misma--. Es una de las tres cosas que esta clase
+        // promete unificar, dice el docblock, y quitarla ahorraria dos viajes a
+        // cambio de que la promesa dejara de ser verdad el dia que aqui haya
+        // una segunda escritura.
+        DB::transaction(function () use ($asistencias, $filas, $sesion, $quien) {
+            $asistencias::upsert(
+                $filas,
+                array_merge(array_keys($sesion), [$quien]),
+                ['estado', 'fecha_registro']
+            );
         });
 
-        return $marcados;
+        return count($filas);
     }
 }

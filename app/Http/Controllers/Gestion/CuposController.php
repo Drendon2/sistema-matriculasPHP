@@ -95,7 +95,6 @@ class CuposController extends Controller
         }
 
         $avisos = [];
-        $guardados = 0;
         $quitados = 0;
 
         // Las matriculas ya ocupando sitio se cuentan ANTES de abrir la
@@ -110,26 +109,45 @@ class CuposController extends Controller
         // transaccion solo tienen que quedar escrituras.
         $ocupados = Promotoria::ocupadosEnLote($periodo, $promotorias);
 
-        DB::transaction(function () use ($periodo, $promotorias, $nuevos, &$guardados, &$quitados) {
-            foreach ($promotorias as $promotoria) {
-                $cupo = $nuevos[$promotoria->id];
+        // El reparto se ARMA fuera y se escribe en dos sentencias, no en dos por
+        // promotoria (C-05). Importa mas aqui que en otras pantallas: mientras
+        // la transaccion esta abierta, las filas de `cupos_promotoria` que toca
+        // quedan bloqueadas, y el trigger de cupos las lee en cada matricula que
+        // alguien intente — o sea justo el dia que mas gente empuja contra
+        // ellas. Es la continuacion de haber sacado los COUNT de aqui.
+        $sinTope = [];
+        $conTope = [];
 
-                if ($cupo === null) {
-                    $borrados = CupoPromotoria::where('promotoria_id', $promotoria->id)
-                        ->where('periodo_id', $periodo->id)
-                        ->delete();
+        foreach ($promotorias as $promotoria) {
+            $cupo = $nuevos[$promotoria->id];
 
-                    $quitados += $borrados ? 1 : 0;
+            if ($cupo === null) {
+                $sinTope[] = $promotoria->id;
 
-                    continue;
-                }
+                continue;
+            }
 
-                CupoPromotoria::updateOrCreate(
-                    ['promotoria_id' => $promotoria->id, 'periodo_id' => $periodo->id],
-                    ['cupo_maximo' => $cupo]
-                );
+            $conTope[] = [
+                'promotoria_id' => $promotoria->id,
+                'periodo_id' => $periodo->id,
+                'cupo_maximo' => $cupo,
+            ];
+        }
 
-                $guardados++;
+        $guardados = count($conTope);
+
+        DB::transaction(function () use ($periodo, $sinTope, $conTope, &$quitados) {
+            if ($sinTope !== []) {
+                // Cuenta filas borradas, no promotorias pedidas, que es lo que
+                // contaba el bucle: `(promotoria, periodo)` es unico, asi que
+                // una promotoria que ya estaba sin tope no suma.
+                $quitados = CupoPromotoria::where('periodo_id', $periodo->id)
+                    ->whereIn('promotoria_id', $sinTope)
+                    ->delete();
+            }
+
+            if ($conTope !== []) {
+                CupoPromotoria::upsert($conTope, ['promotoria_id', 'periodo_id'], ['cupo_maximo']);
             }
         });
 

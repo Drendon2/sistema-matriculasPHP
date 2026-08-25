@@ -14,10 +14,12 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Models\SesionActividad;
 use App\Models\User;
 use App\Support\PaseDeLista;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -125,6 +127,100 @@ class PaseDeListaTest extends TestCase
         }
     }
 
+    /**
+     * Corregir una marca REFRESCA `fecha_registro`. Es la trampa de C-05.
+     *
+     * Esa columna la ponia el `saving` del modelo --«se refresca en cada
+     * guardado: es la marca de la ultima correccion»-- y el guardado masivo
+     * (`upsert`) NO dispara eventos de Eloquent. Sin escribirla a mano, una
+     * hoja nueva choca contra el NOT NULL y se ve enseguida; pero la
+     * CORRECCION no falla: guarda el estado nuevo conservando la fecha de la
+     * primera vez. El dato se queda ahi, mintiendo, y nada avisa.
+     *
+     * Ninguna prueba cubria esta columna antes: el `saving` del modelo llevaba
+     * desde el principio sin una sola.
+     */
+    public function test_la_fecha_de_registro_se_refresca_al_corregir_en_las_dos(): void
+    {
+        foreach ($this->hojas as $hoja) {
+            $campo = 'estado_'.$hoja['ids'][0];
+
+            Carbon::setTestNow('2026-09-03 10:00:00');
+            $this->actingAs($this->profesor->user)->post($hoja['url'], [$campo => 'asistio']);
+
+            Carbon::setTestNow('2026-09-03 18:30:00');
+            $this->actingAs($this->profesor->user)->post($hoja['url'], [$campo => 'excusa']);
+
+            Carbon::setTestNow();
+
+            $this->assertSame(
+                '2026-09-03 18:30:00',
+                ($hoja['fechaRegistro'])()->format('Y-m-d H:i:s'),
+                "{$hoja['nombre']}: la correccion no refresco la fecha de registro."
+            );
+        }
+    }
+
+    /**
+     * Marcar a dos cuesta las mismas consultas que marcar a uno (C-05).
+     *
+     * Se miden CONSULTAS y no segundos: lo que se arregla es el coste en
+     * hosting compartido y que deje de crecer con el tamano del grupo. Antes
+     * eran dos por persona --el `updateOrCreate` pregunta y luego escribe--,
+     * asi que una hoja de treinta eran sesenta viajes; ahora es una sentencia,
+     * marque a uno o a la clase entera.
+     *
+     * Comparar «uno» contra «dos» basta para distinguir las dos
+     * implementaciones y no depende de cuantas consultas cueste el resto de la
+     * peticion, que no es lo que esta prueba juzga.
+     */
+    public function test_marcar_a_dos_cuesta_lo_mismo_que_marcar_a_uno_en_las_dos(): void
+    {
+        foreach ($this->hojas as $hoja) {
+            $conUno = $this->consultasDeMarcar($hoja, [$hoja['ids'][0] => 'asistio']);
+
+            ($hoja['borrarFilas'])();
+
+            $conDos = $this->consultasDeMarcar($hoja, [
+                $hoja['ids'][0] => 'asistio',
+                $hoja['ids'][1] => 'falto',
+            ]);
+
+            $this->assertSame($conUno, $conDos, "{$hoja['nombre']}: el coste crece con la hoja.");
+        }
+    }
+
+    /**
+     * Cuantas consultas contra la tabla de asistencia cuesta marcar.
+     *
+     * Se filtra por la tabla y no se cuentan todas: el resto de la peticion
+     * --sesion, perfil, permisos-- es ruido que no cambia entre los dos casos y
+     * solo haria la cifra fragil.
+     *
+     * @param  array<int, string>  $marcas
+     */
+    private function consultasDeMarcar(array $hoja, array $marcas): int
+    {
+        $campos = [];
+
+        foreach ($marcas as $id => $estado) {
+            $campos['estado_'.$id] = $estado;
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($this->profesor->user)->post($hoja['url'], $campos);
+
+        $consultas = collect(DB::getQueryLog())
+            ->filter(fn (array $q) => str_contains($q['query'], $hoja['tabla']))
+            ->count();
+
+        DB::disableQueryLog();
+
+        return $consultas;
+    }
+
     /** Se marca a varios de una vez, que es como se usa de verdad. */
     public function test_se_marca_a_toda_la_hoja_de_una_vez_en_las_dos(): void
     {
@@ -225,6 +321,9 @@ class PaseDeListaTest extends TestCase
             'ids' => $matriculas,
             'filas' => fn () => Asistencia::where('clase_id', $clase->id)->count(),
             'estado' => fn () => Asistencia::where('clase_id', $clase->id)->value('estado'),
+            'tabla' => 'asistencias',
+            'fechaRegistro' => fn () => Asistencia::where('clase_id', $clase->id)->first()->fecha_registro,
+            'borrarFilas' => fn () => Asistencia::where('clase_id', $clase->id)->delete(),
         ];
     }
 
@@ -239,13 +338,22 @@ class PaseDeListaTest extends TestCase
 
         $inscritos = [];
         foreach ([1, 2] as $n) {
-            $inscritos[] = $taller->inscritos()->create([
+            /** @var InscritoActividad $inscrito */
+            $inscrito = $taller->inscritos()->create([
                 'nombre_completo' => "Inscrito {$n}",
                 'documento' => "100{$n}",
                 'origen' => InscritoActividad::ENLACE,
-            ])->id;
+            ]);
+
+            $inscritos[] = $inscrito->id;
         }
 
+        // Los @var son para PHPStan: `sesiones()` e `inscritos()` no declaran
+        // que devuelven, asi que la relacion sale como Model a secas y cada
+        // `->id` era una entrada en la linea base. Anotarlos aqui la deja a
+        // cero para este archivo, que es como el propio phpstan.neon dice que
+        // se vacia.
+        /** @var SesionActividad $sesion */
         $sesion = $taller->sesiones()->create([
             'fecha' => '2026-09-03',
             'iniciada_en' => now(),
@@ -258,6 +366,9 @@ class PaseDeListaTest extends TestCase
             'ids' => $inscritos,
             'filas' => fn () => AsistenciaActividad::where('sesion_id', $sesion->id)->count(),
             'estado' => fn () => AsistenciaActividad::where('sesion_id', $sesion->id)->value('estado'),
+            'tabla' => 'asistencias_actividad',
+            'fechaRegistro' => fn () => AsistenciaActividad::where('sesion_id', $sesion->id)->first()->fecha_registro,
+            'borrarFilas' => fn () => AsistenciaActividad::where('sesion_id', $sesion->id)->delete(),
         ];
     }
 
