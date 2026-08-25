@@ -27,6 +27,15 @@ use Illuminate\Support\Carbon;
  * una hoja de calculo. La puerta no cambio —sigue siendo solo el—, lo que cambio
  * es que a partir de ahi el dato ya no vive dentro del sistema. Fue una decision
  * de direccion, tomada a sabiendas, y la pantalla lo avisa antes de descargar.
+ *
+ * La cuenta NO es opcional y por eso se anota como `User` y no como `?User`:
+ * `perfiles.user_id` es obligatorio, con clave foranea y CASCADE (ver la
+ * migracion). No hay ni puede haber un perfil huerfano. La anotacion no es un
+ * parche para callar al analisis estatico: es que el tipo por defecto de la
+ * relacion --anulable-- describe peor la realidad que esta linea, y sin ella
+ * cada `actingAs($perfil->user)` de la suite se leia como un posible null.
+ *
+ * @property-read User $user
  */
 class Perfil extends Model
 {

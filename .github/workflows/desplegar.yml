@@ -87,6 +87,11 @@ jobs:
           sed -i 's/^DB_PORT=.*/DB_PORT=3306/'        .env
           sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=raiz/' .env
+          # La base del contenedor se llama como la de las pruebas. No afecta a
+          # `php artisan test` --phpunit.xml define DB_DATABASE y gana--, pero
+          # los guiones de database/ solo leen el .env, y sin esto apuntarian a
+          # `matriculas`, que en el contenedor no existe.
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=test_matriculas/' .env
 
       - name: Pruebas
         run: php artisan test
@@ -103,6 +108,43 @@ jobs:
       # Cuando se ponga en rojo, se arregla con `./vendor/bin/pint` y a seguir.
       - name: Formato (Pint)
         run: ./vendor/bin/pint --test
+
+      # Analisis estatico. Va DESPUES de Pint por lo mismo que Pint va despues
+      # de las pruebas: lo que mas importa se comprueba antes, para no hacer el
+      # viaje dos veces.
+      #
+      # `--memory-limit` no es opcional: con el limite por defecto de 128M el
+      # proceso se queda sin memoria a media pasada, informa «3 errores» que son
+      # los del propio crash, y avisa de que el resultado esta INCOMPLETO. Sale
+      # con codigo 1, asi que la puerta no se abre en falso, pero el mensaje
+      # despista a quien lo lea con prisa.
+      #
+      # Hay una linea base con la deuda que ya existia (phpstan-baseline.neon).
+      # Esto NO comprueba que el proyecto este limpio: comprueba que no se
+      # ensucie mas.
+      - name: Analisis estatico (PHPStan)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      # Las garantias que NO son de PHP: columnas generadas con indice unico,
+      # triggers que lanzan SIGNAL, CHECK de estado y de ranura, y los
+      # RESTRICT/CASCADE elegidos uno a uno. Las pruebas usan el esquema pero no
+      # comprueban que siga prometiendo lo que promete; esto si.
+      #
+      # Existe este paso porque el guion estuvo ROTO EN SILENCIO cuatro dias
+      # (N-02 del informe): la migracion que convirtio `grupos.horario` en filas
+      # de `sesiones_grupo` lo dejo insertando en una columna que ya no existia,
+      # y dos comprobaciones fallaban con un error de columna en vez de
+      # comprobar nada. Nadie se entero porque nada automatizado lo corria. Es
+      # decir: el guion que avisa cuando el esquema deja de cumplir lo que
+      # promete era, el mismo, lo que nadie estaba mirando.
+      #
+      # VACIA la base antes de empezar, y por eso va al final: lo que corre
+      # despues no puede contar con que haya datos. Las dos barreras del guion
+      # se cumplen aqui sin debilitarlas --`.env.example` ya trae APP_ENV=local
+      # y la bandera va explicita--, asi que esto NO abre la puerta que se
+      # cerro en N-01: en un servidor seguiria negandose.
+      - name: Garantias del esquema
+        run: php database/verificacion_esquema.php --borrar-datos
 
   desplegar:
     name: Desplegar

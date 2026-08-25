@@ -1,0 +1,45 @@
+# Analisis estatico. Hito 5 de la auditoria del 24/08 (E-01, segunda parte).
+#
+# Por que existe: 35.100 lineas de PHP sin red. El diagnostico lo sostenia por
+# argumento, y la fase 2 lo demostro --N-02: tres herramientas rotas en silencio
+# durante cuatro dias, todas por la misma migracion, porque nada automatizado
+# las corria--. Este es el hito que mas hallazgos FUTUROS previene, que es otra
+# cosa que cerrar los pasados.
+includes:
+    - vendor/larastan/larastan/extension.neon
+    # La deuda que ya habia, congelada. NO es «ya esta arreglado»: es «esto se
+    # queda quieto y lo nuevo no se suma». Empezo con 268 errores y solo deberia
+    # bajar; si un cambio la hace crecer, se ha metido deuda nueva y el CI no lo
+    # ve, porque la linea base es un archivo que se regenera a mano. Antes de
+    # regenerarla, mirar por que crecio.
+    #
+    # Casi todo son propiedades magicas de Eloquent que PHPStan no puede
+    # adivinar sin anotar los modelos. La forma de vaciarla es ir poniendo
+    # `@property` en los modelos, que ademas los documenta.
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - app
+        - database
+        - tests
+
+    # Nivel 5 y no mas, a proposito. Es donde PHPStan ya comprueba los tipos de
+    # los argumentos --que es de donde salen los errores que de verdad revientan
+    # en produccion-- sin exigir todavia genericos anotados en cada coleccion de
+    # Eloquent, que en un proyecto Laravel es la mayor parte del ruido y muy
+    # poca de la seguridad. Subir a 6 es una decision aparte y con su propia
+    # sesion: el informe pedia 5.
+    level: 5
+
+    # Los guiones de database/ son ejecutables sueltos, no clases: corren con
+    # `php database/verificacion_esquema.php` y viven fuera del autoload de
+    # Composer. `require` de un archivo que devuelve un PDO es un patron que
+    # PHPStan no puede seguir sin ayuda, y anotarlo no compraria nada: lo que
+    # verifica de verdad que esos guiones sirven es correrlos, y eso ya lo hace
+    # el CI desde este mismo hito.
+    excludePaths:
+        - database/conexion_verificacion.php
+        - database/verificacion_concurrencia.php
+        - database/verificacion_concurrencia_a.php
+        - database/verificacion_esquema.php
