@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Puerta local BARATA: el formato, y nada mas.
+#
+# E-04 de la auditoria del 24/08. El CI cubre lo importante, pero descubrir un
+# fallo de formato cuesta un push, esperar el CI y volver a empezar. Pint tarda
+# dos segundos y es el que mas veces ha mordido.
+#
+# Lo caro --PHPStan y las pruebas-- vive en `pre-push`, que corre mucho menos.
+#
+# Se salta con `git commit --no-verify` cuando haga falta de verdad.
+
+if [ ! -f vendor/bin/pint ]; then
+    echo "pre-commit: no encuentro vendor/bin/pint, me aparto." >&2
+    echo "            (¿falta un composer install?)" >&2
+    exit 0
+fi
+
+if ./vendor/bin/pint --test >/dev/null 2>&1; then
+    exit 0
+fi
+
+echo >&2
+echo "  El formato no pasa. Esto:" >&2
+echo >&2
+echo "      ./vendor/bin/pint" >&2
+echo >&2
+echo "  lo arregla solo. Revisa lo que cambió, añádelo y vuelve a comitear." >&2
+echo "  Si de verdad quieres comitear así: git commit --no-verify" >&2
+echo >&2
+
+./vendor/bin/pint --test >&2
+
+exit 1

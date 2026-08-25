@@ -304,6 +304,33 @@ niega y te dice cuántas filas ibas a perder. Además solo corren con
 `APP_ENV=local` — en un servidor no se conectan siquiera, y esa barrera cierra
 en falso: un `.env` sin `APP_ENV`, o con cualquier otro valor, tampoco pasa.
 
+### Las mismas puertas, antes de empujar
+
+Cada `push` a `main` dispara el CI, y si algo no pasa hay que esperar, mirar el
+log, arreglar y volver a empujar — con `main` en rojo mientras tanto. Hay dos
+hooks versionados en `.githooks/` que corren eso mismo en local. **Son
+opcionales y se activan a mano**, con una línea:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+| Hook | Qué corre | Cuánto tarda |
+|---|---|---|
+| `pre-commit` | Pint | ~2 s |
+| `pre-push` | Base de datos, pruebas, Pint y PHPStan | ~2 min 15 s |
+
+El `pre-push` no es rápido y conviene saberlo antes de activarlo: casi todo son
+las pruebas. Los dos se saltan con `--no-verify` cuando haga falta.
+
+**Lo que el `pre-push` NO corre es la verificación del esquema**, y es a
+propósito: ese guion vacía la base con la que se encuentre. Tiene su barrera
+(`APP_ENV=local` y `--borrar-datos`), pero un guion destructivo disparándose solo
+en cada push es justo la clase de automatismo que ya costó un susto aquí. Se
+queda a mano y en el CI, que corre contra una base de usar y tirar.
+
+Para desactivarlos: `git config --unset core.hooksPath`.
+
 ## Despliegue
 
 El *document root* del dominio tiene que apuntar a `public/`. Dejarlo en la raíz

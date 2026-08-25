@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# Puerta local CARA: lo mismo que el CI, menos lo destructivo.
+#
+# E-04 de la auditoria del 24/08. Un push que rompe el CI cuesta el viaje entero
+# --esperar, mirar el log, arreglar, volver a empujar-- y ademas deja `main` en
+# rojo mientras tanto. Esto lo evita, y cuesta unos DOS MINUTOS Y CUARTO
+# medidos en la maquina de desarrollo --las pruebas son casi todo--. No es poco:
+# quien empuja seguido lo va a notar, y para eso esta `--no-verify`.
+#
+# Corre las tres puertas de PHP del CI, EN EL MISMO ORDEN, que no es capricho:
+# las pruebas primero porque son las que de verdad dicen si algo se rompio.
+#
+# NO corre la cuarta, `verificacion_esquema.php --borrar-datos`, y es a
+# proposito: ese guion VACIA la base con la que se encuentre. Tiene su barrera
+# --exige APP_ENV=local-- pero un guion destructivo que se dispara solo en cada
+# push es exactamente la clase de automatismo que a este proyecto ya le costo un
+# susto. Se queda donde estaba: a mano y en el CI, que corre contra una base de
+# usar y tirar.
+#
+# Se salta con `git push --no-verify`.
+
+fallo() {
+    echo >&2
+    echo "  $1" >&2
+    echo "  Arreglalo, o empuja igual con: git push --no-verify" >&2
+    echo >&2
+    exit 1
+}
+
+if [ ! -f vendor/bin/pint ] || [ ! -f vendor/bin/phpstan ]; then
+    echo "pre-push: faltan las herramientas en vendor/bin, me aparto." >&2
+    echo "          (¿falta un composer install?)" >&2
+    exit 0
+fi
+
+# La base ANTES que las pruebas, y no por cortesia.
+#
+# MariaDB no es un servicio en la maquina de desarrollo: hay que levantarla a
+# mano. Sin ella `php artisan test` no falla rapido --cada prueba reintenta la
+# conexion por su cuenta--: medido, pasa de DIEZ MINUTOS antes de rendirse. Un
+# hook que se cuelga diez minutos para acabar diciendo «levanta la base» es peor
+# que no tener hook, porque quien lo sufra una vez lo desinstala.
+#
+# `db:show` tarda menos de un segundo con la base viva, y el `timeout` le pone
+# techo por si el fallo es de los lentos.
+echo "pre-push: base de datos..."
+if command -v timeout >/dev/null 2>&1; then
+    timeout 12 php artisan db:show >/dev/null 2>&1 ||         fallo "No hay base de datos. Levantala: arrancar-mariadb.ps1 (puerto 3307)."
+else
+    php artisan db:show >/dev/null 2>&1 ||         fallo "No hay base de datos. Levantala: arrancar-mariadb.ps1 (puerto 3307)."
+fi
+
+salida=$(mktemp)
+trap 'rm -f "$salida"' EXIT
+
+echo "pre-push: pruebas..."
+if ! php artisan test >"$salida" 2>&1; then
+    tail -25 "$salida" >&2
+
+    fallo "Las pruebas no pasan."
+fi
+
+echo "pre-push: formato..."
+./vendor/bin/pint --test >/dev/null 2>&1 || fallo "El formato no pasa. Corre: ./vendor/bin/pint"
+
+echo "pre-push: analisis estatico..."
+./vendor/bin/phpstan analyse --no-progress --memory-limit=1G >/dev/null 2>&1 \
+    || fallo "PHPStan encuentra errores. Miralos: ./vendor/bin/phpstan analyse --memory-limit=1G"
+
+echo "pre-push: las tres puertas en verde."
+
+exit 0
