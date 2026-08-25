@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Gestion\UsuarioController;
+use App\Http\Controllers\PanelActividadController;
+use App\Models\Actividad;
 use App\Models\Area;
+use App\Models\InscritoActividad;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
@@ -171,7 +174,83 @@ class PaginacionTest extends TestCase
             ->assertRedirect(route('gestion-cancelaciones', ['page' => 2]));
     }
 
+    /**
+     * La ficha de una actividad no crece con los inscritos (C-03).
+     *
+     * Un grupo de proyeccion institucional no tiene cupo que lo ate: puede
+     * llegar a cientos. Se miden las dos cosas que crecian, y la segunda no
+     * estaba en el hallazgo: la plantilla marca «Estudiante de la institucion»
+     * fila a fila preguntando `$inscrito->perfil`, que sin cargar era una
+     * consulta POR INSCRITO.
+     */
+    public function test_la_ficha_de_una_actividad_no_crece_con_los_inscritos(): void
+    {
+        $taller = $this->sembrarActividad(9);
+        [$pocas, $filasPocos] = $this->medir(route('panel-actividad', $taller));
+
+        $taller = $this->sembrarActividad(120);
+        [$muchas, $filasMuchos] = $this->medir(route('panel-actividad', $taller));
+
+        $this->assertSame($pocas, $muchas, 'La ficha lanza mas consultas con mas inscritos.');
+        $this->assertSame(9, $filasPocos);
+        $this->assertSame(PanelActividadController::INSCRITOS_POR_PAGINA, $filasMuchos);
+    }
+
+    /**
+     * El cupo se decide con el TOTAL, no con los de la pagina.
+     *
+     * De esta cifra cuelga si el enlace admite mas gente. Con la de la pagina,
+     * una actividad de 120 inscritos y cupo 60 se leeria como que tiene 50 y
+     * seguiria recibiendo gente pasada de cupo.
+     */
+    public function test_el_cupo_de_la_actividad_cuenta_a_todos_y_no_a_la_pagina(): void
+    {
+        $taller = $this->sembrarActividad(120, cupo: 60);
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('panel-actividad', $taller))
+            ->getContent();
+
+        $this->assertStringContainsString('>120<', $html);
+        $this->assertStringContainsString('se llenaron los cupos', $html);
+    }
+
     // -----------------------------------------------------------------------
+
+    private function sembrarActividad(int $inscritos, ?int $cupo = null): Actividad
+    {
+        $periodo = Periodo::firstOrCreate(
+            ['nombre' => '2026-1'],
+            ['fecha_inicio' => '2026-01-15', 'fecha_fin' => '2026-06-30', 'activo' => true, 'matriculas_abiertas' => true]
+        );
+
+        $taller = Actividad::create([
+            'tipo' => Actividad::TALLER,
+            'nombre' => 'Taller '.uniqid(),
+            'responsable_id' => $this->admin->id,
+            'periodo_id' => $periodo->id,
+            'cupo_maximo' => $cupo,
+        ]);
+
+        // Todos apuntan a un perfil, y eso NO es adorno del fixture: la
+        // plantilla marca «Estudiante de la institucion» preguntando
+        // `$inscrito->perfil`, y una relacion con la clave en null se resuelve
+        // sin consultar. Con inscritos sueltos --como estaban al principio-- el
+        // N+1 no llegaba a ocurrir y la prueba pasaba igual quitando el
+        // `with('perfil')`: no probaba lo que decia.
+        $suyo = $this->crearPerfil('inscrito-'.uniqid(), 'estudiante');
+
+        for ($i = 0; $i < $inscritos; $i++) {
+            $taller->inscritos()->create([
+                'nombre_completo' => 'Inscrito '.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'documento' => uniqid(),
+                'perfil_id' => $suyo->id,
+                'origen' => InscritoActividad::ENLACE,
+            ]);
+        }
+
+        return $taller;
+    }
 
     /**
      * Consultas lanzadas y filas de la tabla que llegan al HTML.

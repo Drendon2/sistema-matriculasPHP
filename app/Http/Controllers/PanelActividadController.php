@@ -53,6 +53,18 @@ class PanelActividadController extends Controller
         ]);
     }
 
+    /**
+     * Cuantos inscritos por pagina en la ficha.
+     *
+     * La ficha es de consulta: se abre para ver como va la cosa, no para
+     * recorrer a nadie de arriba abajo. Un grupo de proyeccion institucional
+     * puede tener cientos y no hay cupo que lo ate. Pasar lista SI trae la
+     * lista entera, y eso no es una excepcion olvidada: ahi hay que poder
+     * marcar a todos de una vez, y una hoja partida en paginas se guardaria a
+     * medias sin que nadie lo note.
+     */
+    public const INSCRITOS_POR_PAGINA = 50;
+
     public function ver(Request $request, Actividad $actividad): View
     {
         /** @var Perfil $perfil */
@@ -67,7 +79,24 @@ class PanelActividadController extends Controller
             // por sesion, y preguntar la asistencia dentro del bucle costaria
             // una consulta por fila.
             'sesiones' => $actividad->sesiones()->with('iniciadaPor')->withCount('asistencias')->get(),
-            'inscritos' => $actividad->inscritos()->orderBy('nombre_completo')->get(),
+            // `with('perfil')` y no dejarlo a la plantilla: la tabla marca
+            // «Estudiante de la institucion» fila a fila, y preguntarlo dentro
+            // del bucle era una consulta por inscrito.
+            //
+            // Desempate por id: dos personas con el mismo nombre --que aqui es
+            // corriente, porque se apuntan por un enlace y nadie normaliza--
+            // quedarian en un orden que el motor no esta obligado a repetir, y
+            // al paginar eso reparte filas repetidas o perdidas.
+            'inscritos' => $actividad->inscritos()
+                ->with('perfil')
+                ->orderBy('nombre_completo')
+                ->orderBy('id')
+                ->paginate(self::INSCRITOS_POR_PAGINA),
+            // El total va aparte: `$inscritos->count()` sobre un paginador son
+            // los de la pagina, y de esta cifra cuelga si el enlace admite mas
+            // gente. Con la de la pagina, una actividad de 200 inscritos se
+            // leeria como que tiene 50 y el enlace seguiria abierto.
+            'apuntados' => $actividad->inscritos()->count(),
             // Quien mira puede no ser quien dirige: direccion ve esta pantalla
             // en solo lectura. La plantilla necesita saberlo para no pintar un
             // boton que al pulsarlo rebota.

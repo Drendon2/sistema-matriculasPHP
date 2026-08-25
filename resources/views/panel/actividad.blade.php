@@ -22,11 +22,17 @@
 @endif
 
 {{--
-  El conteo se pasa precalculado: `admiteInscripciones()` sin argumento lanza un
-  COUNT, y esta plantilla ya tiene los inscritos cargados. Es la misma forma que
-  usa el listado de Gestión.
+  `$apuntados` llega del controlador y NO se saca de `$inscritos`.
+
+  Antes se calculaba aquí con `->count()`, correcto mientras la lista venía
+  entera. Desde que la ficha pagina, `count()` son los de la página: de esta
+  cifra cuelga si el enlace sigue admitiendo gente, así que una actividad con
+  200 inscritos se habría leído como que tiene 50 y el enlace habría seguido
+  abierto pasado el cupo.
+
+  Se sigue pasando precalculado por lo de siempre: `admiteInscripciones()` sin
+  argumento lanza un COUNT desde la plantilla, que es lo que cerró D-03.
 --}}
-@php($apuntados = $inscritos->count())
 <div class="card">
   <h3>El enlace para inscribirse</h3>
   @if ($actividad->admiteInscripciones($apuntados))
@@ -166,6 +172,7 @@
       @endforeach
     </tbody>
   </table>
+  {{ $inscritos->links() }}
   @endif
 </div>
 @endsection
