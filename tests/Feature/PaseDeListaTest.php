@@ -43,6 +43,8 @@ class PaseDeListaTest extends TestCase
 
     private Perfil $profesor;
 
+    private Perfil $director;
+
     private Periodo $periodo;
 
     /** @var array<int, array<string, mixed>> las dos hojas, ya montadas */
@@ -61,6 +63,7 @@ class PaseDeListaTest extends TestCase
         ]);
 
         $this->profesor = $this->crearPerfil('profe', 'profesor');
+        $this->director = $this->crearPerfil('dire', 'director');
 
         $this->hojas = [$this->hojaDePromotoria(), $this->hojaDeActividad()];
     }
@@ -151,6 +154,30 @@ class PaseDeListaTest extends TestCase
                 ->get($hoja['url'])
                 ->assertOk()
                 ->assertSee('name="'.PaseDeLista::PREFIJO.$hoja['ids'][0].'"', false);
+        }
+    }
+
+    /**
+     * El chip de solo lectura va coloreado IGUAL en las dos.
+     *
+     * Quien no puede marcar ve lo ya marcado como un chip, y ese chip toma su
+     * color del estado (`ResumenAsistencia::MARCA`: verde, rojo y ambar, los
+     * mismos que los estados de matricula). Antes lo calculaba el controlador
+     * de promotorias y se lo pasaba a la plantilla, y el de actividades no se
+     * lo pasaba: el mismo estado salia coloreado en una pantalla y gris en la
+     * otra. Ahora lo deriva el parcial, asi que no hay nada que acordarse de
+     * pasar.
+     */
+    public function test_el_chip_de_solo_lectura_va_coloreado_en_las_dos(): void
+    {
+        foreach ($this->hojas as $hoja) {
+            $this->actingAs($this->profesor->user)
+                ->post($hoja['url'], ['estado_'.$hoja['ids'][0] => 'asistio']);
+
+            $this->actingAs($this->director->user)
+                ->get($hoja['url'])
+                ->assertOk()
+                ->assertSee('class="estado estado-activa"', false);
         }
     }
 

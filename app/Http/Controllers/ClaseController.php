@@ -116,8 +116,6 @@ class ClaseController extends Controller
                 'cancelacion' => $matricula->cancelacion_pendiente,
                 // Para quien mira sin poder editar: lo mismo, pero como marcador
                 // de estado en vez de opcion marcable.
-                'marca' => ResumenAsistencia::MARCA[$estado] ?? '',
-                'marca_texto' => Asistencia::ESTADOS[$estado] ?? '',
             ];
         }
 

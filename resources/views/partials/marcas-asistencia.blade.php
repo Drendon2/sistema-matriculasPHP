@@ -8,20 +8,18 @@
     $estado      string  lo marcado hoy, '' si nadie lo ha marcado
     $estados     array   valor => etiqueta, del modelo de asistencia
     $puedeMarcar bool    si quien mira puede escribir en esta hoja
-    $marca       string  OPCIONAL, clase CSS del chip de solo lectura
 
   Las tres ramas son la misma decision de siempre: se pinta el control si esta
   persona puede marcar; si no, lo ya marcado; y si no hay nada, que no hay nada.
   «Sin marcar» va como texto y no como una cuarta opcion a proposito, porque no
   es un estado que nadie elija: es la ausencia de fila.
 
-  OJO CON $marca, que es la unica diferencia que queda entre las dos pantallas.
-  En promotorias el chip de solo lectura va coloreado (`ResumenAsistencia::MARCA`
-  lo mapea a los chips de estado de matricula: verde, rojo y ambar); en
-  actividades sale sin color, y no por decision sino porque nadie lo puso. Se
-  deja OPCIONAL para que este parcial no cambie como se ve ninguna de las dos:
-  unificarlo es tocar el aspecto de una pantalla que esta en produccion y esa no
-  es una decision que tome un refactor.
+  El color del chip de solo lectura se DERIVA del estado, aqui dentro. Antes lo
+  calculaba el controlador de promotorias y se lo pasaba al parcial, y el de
+  actividades no se lo pasaba: el mismo estado salia coloreado en una pantalla y
+  gris en la otra, no por decision sino porque nadie lo puso. Derivarlo aqui es
+  lo que hace que no puedan volver a separarse, porque ya no hay nada que
+  acordarse de pasar.
 --}}
 @if ($puedeMarcar)
   @foreach ($estados as $valor => $etiqueta)
@@ -31,7 +29,7 @@
   </label>
   @endforeach
 @elseif ($estado)
-  <span class="estado {{ $marca ?? '' }}">{{ $estados[$estado] ?? '' }}</span>
+  <span class="estado {{ \App\Support\ResumenAsistencia::MARCA[$estado] ?? '' }}">{{ $estados[$estado] ?? '' }}</span>
 @else
   <span class="vacio">Sin marcar</span>
 @endif

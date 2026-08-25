@@ -86,7 +86,6 @@
           'estado' => $e['estado'],
           'estados' => $estados,
           'puedeMarcar' => $puedeMarcar,
-          'marca' => $e['marca'],
         ])
       </span>
     </div>
