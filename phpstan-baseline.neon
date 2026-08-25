@@ -859,12 +859,6 @@ parameters:
 			path: database/migrations/2026_08_20_160100_convertir_horarios_a_sesiones.php
 
 		-
-			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Console\\Command\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: database/seeders/DemoSeeder.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$correo\.$#'
 			identifier: property.notFound
 			count: 1

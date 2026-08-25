@@ -39,6 +39,23 @@ parameters:
     # verifica de verdad que esos guiones sirven es correrlos, y eso ya lo hace
     # el CI desde este mismo hito.
     excludePaths:
+        # DemoSeeder NO se analiza, y esto costo una ejecucion de CI en rojo.
+        #
+        # Esta en .gitignore --siembra cuentas con contrasena conocida-- asi que
+        # existe en esta maquina y NO existe en el servidor de integracion. La
+        # linea base se genero aqui, con el archivo delante, y quedaron dentro
+        # sus errores; alla PHPStan encontro entradas que apuntaban a un archivo
+        # inexistente y se nego a seguir. Verde en local, rojo en CI, con el
+        # mismo commit.
+        #
+        # Va como PATRON (`*/`) y no como ruta literal a proposito: una ruta
+        # literal que no existe es tambien un error para PHPStan, asi que
+        # excluirlo por su nombre exacto habria cambiado un fallo por otro. Un
+        # patron que no casa con nada no molesta.
+        #
+        # La leccion, que es la de siempre en este proyecto: lo que solo existe
+        # en esta maquina no puede acabar dentro de un archivo que si se sube.
+        - */database/seeders/DemoSeeder.php
         - database/conexion_verificacion.php
         - database/verificacion_concurrencia.php
         - database/verificacion_concurrencia_a.php
