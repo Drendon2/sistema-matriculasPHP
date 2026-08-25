@@ -11,6 +11,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Rules\ImagenProcesable;
+use App\Support\Companeros;
 use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\ResumenAsistencia;
@@ -350,23 +351,13 @@ class MiPerfilController extends Controller
                 ->where('estado', Matricula::ACTIVA)
                 ->get(['promotoria_id', 'periodo_id']);
 
-            // "Companero" = misma promotoria Y periodo, con matricula activa; la
-            // misma regla que «Mis companeros».
-            $companeros = collect();
-
-            foreach ($activas as $matricula) {
-                $companeros = $companeros->merge(
-                    Matricula::where('promotoria_id', $matricula->promotoria_id)
-                        ->where('periodo_id', $matricula->periodo_id)
-                        ->where('estado', Matricula::ACTIVA)
-                        ->where('estudiante_id', '!=', $perfil->id)
-                        ->pluck('estudiante_id')
-                );
-            }
-
+            // "Companero" = misma promotoria Y periodo, con matricula activa. La
+            // regla vive en `Companeros` y no aqui: la escribian este metodo y
+            // «Mis companeros» por separado, cada uno preguntando una vez por
+            // matricula dentro de un bucle (C-04).
             return [
                 ['numero' => $activas->count(), 'etiqueta' => 'Matrículas activas'],
-                ['numero' => $companeros->unique()->count(), 'etiqueta' => 'Compañeros'],
+                ['numero' => Companeros::cuantos($perfil, $activas), 'etiqueta' => 'Compañeros'],
             ];
         }
 

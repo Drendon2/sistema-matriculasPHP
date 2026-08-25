@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Matricula;
 use App\Models\Perfil;
+use App\Support\Companeros;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -28,19 +29,17 @@ class MisCompanerosController extends Controller
             ->with(['promotoria.area', 'periodo'])
             ->get();
 
+        // El bucle recorre MIS matriculas para conservar su orden en la
+        // pantalla, pero ya no pregunta dentro: los companeros vienen resueltos
+        // de una vez, una lista por matricula (C-04).
+        $companerosDe = Companeros::porMatricula($perfil, $mias);
+
         $promotorias = [];
 
         foreach ($mias as $matricula) {
             $promotorias[] = [
                 'promotoria' => $matricula->promotoria,
-                'companeros' => Perfil::query()
-                    ->whereHas('matriculas', fn ($q) => $q
-                        ->where('promotoria_id', $matricula->promotoria_id)
-                        ->where('periodo_id', $matricula->periodo_id)
-                        ->where('estado', Matricula::ACTIVA))
-                    ->where('id', '!=', $perfil->id)
-                    ->orderBy('nombre_completo')
-                    ->get(),
+                'companeros' => $companerosDe[$matricula->id],
             ];
         }
 

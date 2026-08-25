@@ -6,6 +6,7 @@ use App\Http\Middleware\RequiereRol;
 use App\Models\Area;
 use App\Models\Asistencia;
 use App\Models\Clase;
+use App\Models\ConfiguracionInstitucion;
 use App\Models\DatosEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
@@ -19,6 +20,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -272,6 +274,192 @@ class EstudianteTest extends TestCase
         $respuesta->assertOk();
         $respuesta->assertSee('Samu');
         $respuesta->assertDontSee('Beto');
+    }
+
+    /**
+     * La pantalla cuesta lo mismo con una promotoria que con cuatro (C-04).
+     *
+     * Se miden CONSULTAS y no segundos a proposito: en local, con la base al
+     * lado, tres consultas de mas no mueven el reloj. Lo que se arregla es el
+     * coste en hosting compartido y que deje de crecer.
+     *
+     * El limite de promotorias se sube a 4 porque ES la condicion del hallazgo:
+     * con el valor por defecto de 2 el bucle hacia dos consultas y no se notaba,
+     * y por eso el hallazgo era Bajo. Subir el limite es un ajuste de una
+     * pantalla de Gestion, no una migracion, asi que el dia que alguien lo
+     * suba nadie relacionara una cosa con la otra.
+     */
+    public function test_los_companeros_no_cuestan_una_consulta_por_promotoria(): void
+    {
+        ConfiguracionInstitucion::actual()->update(['limite_promotorias_por_periodo' => 4]);
+
+        $area = Area::create(['nombre' => 'Escena']);
+        $teatro = Promotoria::create(['nombre' => 'Teatro', 'area_id' => $area->id]);
+        $canto = Promotoria::create(['nombre' => 'Canto', 'area_id' => $area->id]);
+
+        $samu = $this->crearEstudiante('samu');
+
+        foreach ([$this->violin, $this->danza, $teatro, $canto] as $promotoria) {
+            $this->inscribir($this->ana, $promotoria);
+            $this->inscribir($samu, $promotoria);
+        }
+
+        $conCuatro = $this->consultasDeCompaneros($this->ana);
+
+        // La misma pantalla, para alguien con UNA sola promotoria. Es la
+        // referencia: si la cifra de arriba fuera mayor, el coste crece con el
+        // catalogo de cada quien.
+        $beto = $this->crearEstudiante('beto');
+        $this->inscribir($beto, $this->violin);
+
+        $this->assertSame($this->consultasDeCompaneros($beto), $conCuatro);
+    }
+
+    /**
+     * Dos pares cruzados no son un par.
+     *
+     * Esta prueba existe por el atajo que parece obvio al quitar el N+1: dos
+     * `whereIn` sueltos, uno de promotorias y otro de periodos. Casan tambien
+     * las combinaciones CRUZADAS --mi promotoria de este periodo con el periodo
+     * pasado-- y devuelven como companeros a gente de otro semestre, que es
+     * exactamente lo que la regla prohibe. Hacen falta DOS pares para que
+     * muerda: con uno solo, el cruce coincide con el par de verdad.
+     */
+    public function test_no_son_companeros_los_del_cruce_de_mis_promotorias_y_mis_periodos(): void
+    {
+        $samu = $this->crearEstudiante('samu');
+
+        // Ana: Violin en el periodo en curso, Danza en el anterior.
+        $this->inscribir($this->ana, $this->violin);
+        $this->inscribir($this->ana, $this->danza, periodo: $this->anterior);
+
+        // Samu esta en Violin, pero en el periodo ANTERIOR: comparte promotoria
+        // con un par de Ana y periodo con el otro, y ninguno de los dos entero.
+        $this->inscribir($samu, $this->violin, periodo: $this->anterior);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('mis-companeros'))
+            ->assertOk()
+            ->assertDontSee('Samu');
+    }
+
+    /**
+     * Repetir promotoria al renovar no mezcla los companeros de los dos anos.
+     *
+     * Es el caso que casi se cuela al quitar el N+1, y no es raro: las
+     * matriculas NO se retiran al cerrar un periodo --se quedan en `activa`--
+     * asi que cualquiera que lleve dos anos en Violin tiene dos matriculas
+     * activas de Violin. La pantalla pinta una seccion por matricula, y
+     * agrupando los companeros por PROMOTORIA las dos secciones recibian la
+     * misma lista mezclada, con los de este semestre y los del pasado juntos y
+     * repetido quien estuvo en los dos.
+     *
+     * No lo veia ninguna prueba: el resto usa una promotoria por periodo, donde
+     * agrupar por promotoria y agrupar por el par dan lo mismo.
+     */
+    public function test_la_misma_promotoria_en_dos_periodos_no_mezcla_sus_companeros(): void
+    {
+        $samu = $this->crearEstudiante('samu');
+        $beto = $this->crearEstudiante('beto');
+
+        $this->inscribir($this->ana, $this->violin);
+        $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
+        $this->inscribir($samu, $this->violin);
+        $this->inscribir($beto, $this->violin, periodo: $this->anterior);
+
+        $respuesta = $this->actingAs($this->ana->user)->get(route('mis-companeros'));
+
+        $respuesta->assertOk();
+
+        // Ordenadas por su contenido: en que orden salgan las dos secciones no
+        // es lo que se afirma aqui --la consulta de MIS matriculas no lleva
+        // `orderBy`-- y atarlo haria fallar la prueba por algo que no es el
+        // error que busca.
+        $listas = collect($respuesta->viewData('promotorias'))
+            ->map(fn (array $seccion) => collect($seccion['companeros'])
+                ->pluck('nombre_completo')
+                ->all())
+            ->sortBy(fn (array $lista) => implode(',', $lista))
+            ->values()
+            ->all();
+
+        // Dos secciones de Violin, cada una con SU gente y sin repetidos.
+        $this->assertSame([['Beto'], ['Samu']], $listas);
+    }
+
+    /**
+     * Sin matriculas activas, cero companeros. No todos.
+     *
+     * Cubre el caso vacio, que es donde una condicion construida a partir de una
+     * lista se vuelve peligrosa: una lista de pares vacia no filtra NADA, y la
+     * consulta pasa de «quien comparte conmigo» a «quien tenga matricula
+     * activa», o sea la institucion entera.
+     *
+     * **Va contra «Mi perfil» y no contra «Mis companeros», y esa es la prueba.**
+     * Escrita primero contra la pantalla de companeros pasaba igual con el corte
+     * quitado: alli el controlador recorre MIS matriculas para pintar, asi que
+     * con cero no dibuja nada aunque la consulta de debajo devuelva a todo el
+     * mundo. La barrera que la hacia pasar era otra. En la tarjeta del perfil el
+     * numero se pinta siempre, y sin corte sale el total de la casa.
+     */
+    public function test_quien_no_tiene_matricula_activa_tiene_cero_companeros(): void
+    {
+        $samu = $this->crearEstudiante('samu');
+        $this->inscribir($samu, $this->violin);
+        $this->inscribir($this->ana, $this->danza);
+
+        $sinNada = $this->crearEstudiante('nadie');
+
+        $respuesta = $this->actingAs($sinNada->user)->get(route('mi-perfil'));
+
+        $respuesta->assertOk();
+
+        $companeros = collect($respuesta->viewData('estadisticas'))
+            ->firstWhere('etiqueta', 'Compañeros');
+
+        $this->assertSame(0, $companeros['numero']);
+    }
+
+    /**
+     * La cifra del perfil cuenta PERSONAS, no coincidencias.
+     *
+     * Es la otra mitad de C-04: la tarjeta de «Mi perfil» calculaba la misma
+     * regla por su cuenta, con su propio bucle. Quien comparta dos promotorias
+     * es un companero, no dos, y esta prueba es la que ata las dos pantallas a
+     * la misma definicion.
+     */
+    public function test_la_cifra_de_companeros_no_cuenta_dos_veces_a_quien_comparte_dos(): void
+    {
+        $samu = $this->crearEstudiante('samu');
+
+        $this->inscribir($this->ana, $this->violin);
+        $this->inscribir($this->ana, $this->danza);
+        $this->inscribir($samu, $this->violin);
+        $this->inscribir($samu, $this->danza);
+
+        $respuesta = $this->actingAs($this->ana->user)->get(route('mi-perfil'));
+
+        $respuesta->assertOk();
+
+        $estadisticas = collect($respuesta->viewData('estadisticas'))
+            ->firstWhere('etiqueta', 'Compañeros');
+
+        $this->assertSame(1, $estadisticas['numero']);
+    }
+
+    /** Cuantas consultas cuesta pintarle a alguien su pantalla de companeros. */
+    private function consultasDeCompaneros(Perfil $perfil): int
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($perfil->user)->get(route('mis-companeros'))->assertOk();
+
+        $consultas = count(DB::getQueryLog());
+
+        DB::disableQueryLog();
+
+        return $consultas;
     }
 
     /** Haber coincidido el semestre pasado no lo hace companero de este. */
