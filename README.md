@@ -195,6 +195,12 @@ Se camina entre periodos con flechas (o deslizando el dedo en el móvil), lo mis
 que el panel de asistencia de cada perfil. Solo se ofrecen los periodos donde esa
 persona tiene algo: una flecha que lleva a un panel vacío no informa de nada.
 
+**Qué se mueve con la flecha y qué no**, porque es la lectura equivocada más
+probable de esa pantalla: el periodo mueve las matrículas —«Estudiantes activos»
+incluido—, el mapa de actividad y los dos rankings. El catálogo (promotorías y
+grupos) y la encuesta demográfica son de toda la institución y no cambian. La
+pantalla lo dice en prosa encima de las cifras.
+
 ## Seguridad
 
 Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
@@ -212,7 +218,12 @@ Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
   pide. Las fotos se re-codifican a WebP con GD, lo que destruye cualquier carga
   útil incrustada.
 - **CSRF** en todos los formularios que cambian estado, y consultas siempre por
-  el ORM: no hay una sola concatenación de SQL con datos del usuario.
+  el ORM: no hay una sola concatenación de SQL con datos del usuario. Cuando el
+  testigo caduca —la cookie de sesión vive dos horas y en un celular la pestaña
+  del login se queda abierta días— **se vuelve al formulario con el aviso
+  puesto**, no a la página «419 Page Expired» de Laravel, que está en inglés y no
+  ofrece salida. El rechazo es el mismo; lo que cambia es lo que ve quien lo
+  sufre. Mismo trato que el límite de intentos.
 - **Celdas de CSV neutralizadas**: un valor que empieza por `=`, `+`, `-` o `@`
   lo ejecutaría Excel al abrir el archivo, y aquí los nombres y los barrios los
   escribe el público.
