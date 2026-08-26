@@ -111,7 +111,27 @@ class EstadisticasController extends Controller
             'minimoConstancia' => self::MINIMO_CLASES_CONSTANCIA,
             'gruposPorCurso' => Grafica::conPorcentaje($this->gruposPorNivel()),
             'estudiantesPorPeriodo' => Grafica::conPorcentaje($this->porPeriodo()),
-            'totalEstudiantesActivos' => Matricula::where('estado', Matricula::ACTIVA)
+            // Acotado al periodo que se esta MIRANDO, no a todos. Sin el filtro
+            // contaba a quien estuvo activo en cualquier periodo: 251 contra
+            // 231 en la base de desarrollo, y la diferencia crece con cada
+            // periodo que pasa. La cifra se lee bajo la barra de navegacion,
+            // que promete tres lineas mas arriba que «el periodo mueve las
+            // matriculas», y esta es una cifra de matriculas.
+            //
+            // No es una matricula RETIRADA lo que sobraba: son activas de
+            // periodos cerrados, que la aplicacion ya ensena como «Finalizada»
+            // en todas partes (`Matricula::estado_visible`). El estado no se
+            // toca al cerrar un periodo A PROPOSITO --de ahi cuelgan la
+            // renovacion, los certificados y la antiguedad--, asi que quien
+            // pregunte «cuantos hay ahora» tiene que acotar por periodo, que es
+            // lo que hacen las demas consultas de esta pantalla.
+            //
+            // Se aparta del Django, que cuenta igual sin filtro
+            // (`views_gestion.py:634,769`). Es la etiqueta la que decide: dice
+            // «Estudiantes activos», no «han cursado alguna vez».
+            'totalEstudiantesActivos' => $periodoActual === null ? 0 : Matricula::query()
+                ->where('estado', Matricula::ACTIVA)
+                ->where('periodo_id', $periodoActual->id)
                 ->distinct()
                 ->count('estudiante_id'),
             'totalPromotorias' => Promotoria::count(),

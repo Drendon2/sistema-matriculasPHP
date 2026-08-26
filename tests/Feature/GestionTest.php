@@ -1090,6 +1090,68 @@ class GestionTest extends TestCase
     }
 
     /**
+     * «Estudiantes activos» cuenta el periodo que se mira, no la historia.
+     *
+     * La distincion no la inventa esta prueba: la pantalla la promete en prosa
+     * tres lineas encima de la cifra --«el periodo mueve las matriculas»-- y
+     * esta es una cifra de matriculas. Sin el filtro contaba a quien estuvo
+     * activo en CUALQUIER periodo, y la diferencia crece con cada periodo que
+     * pasa.
+     *
+     * La matricula del periodo viejo se queda en `activa` y eso es correcto: la
+     * aplicacion la ensena como «Finalizada» por `estado_visible`, y de que el
+     * estado NO cambie al cerrar un periodo cuelgan la renovacion, los
+     * certificados y la antiguedad. Lo que estaba mal era preguntar sin acotar.
+     */
+    public function test_los_estudiantes_activos_son_los_del_periodo_que_se_mira(): void
+    {
+        $viejo = Periodo::create([
+            'nombre' => '2025-2',
+            'fecha_inicio' => '2025-07-15',
+            'fecha_fin' => '2025-12-15',
+            'activo' => false,
+            'matriculas_abiertas' => false,
+        ]);
+
+        // DOS en el periodo cerrado y UNA en el de ahora, y personas distintas
+        // en cada uno. Los dos detalles compran una barrera cada uno:
+        //
+        //  - Personas distintas, porque con la misma en ambos el `distinct()`
+        //    devolveria 1 con filtro y sin el.
+        //  - Conteos distintos (2 y 1), porque con uno en cada periodo los dos
+        //    lados de la prueba valen 1 y la segunda mitad no discrimina nada.
+        //    Comprobado: atando la consulta al periodo EN CURSO fijo --que es
+        //    el error que la segunda mitad existe para atrapar-- la prueba
+        //    pasaba igual antes de desequilibrar los conteos.
+        foreach (['pedro', 'lucia'] as $nombre) {
+            $antiguo = $this->crearEstudiante($nombre);
+            $matriculaVieja = new Matricula([
+                'estudiante_id' => $antiguo->id,
+                'promotoria_id' => $this->violin->id,
+                'periodo_id' => $viejo->id,
+                'estado' => Matricula::ACTIVA,
+            ]);
+            $matriculaVieja->save();
+        }
+
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $respuesta = $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk();
+
+        // Uno, no tres: los dos del periodo cerrado siguen en `activa` y no se
+        // cuentan aqui.
+        $this->assertSame(1, $respuesta->viewData('totalEstudiantesActivos'));
+
+        // Y al retroceder con la flecha, la cifra se mueve con ella.
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas-periodo', $viejo))
+            ->assertOk()
+            ->assertViewHas('totalEstudiantesActivos', 2);
+    }
+
+    /**
      * La encuesta se agrega en memoria, no con nueve GROUP BY.
      *
      * La tabla se lee entera de todas formas —hace falta para contar las
