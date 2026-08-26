@@ -8,6 +8,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Session\Middleware\AuthenticateSession;
+use Illuminate\Session\TokenMismatchException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -71,6 +73,60 @@ return Application::configure(basePath: dirname(__DIR__))
          * sigue recibiendo su 429 con la cabecera `Retry-After`, que es lo
          * correcto para algo que no es un navegador.
          */
+        /**
+         * La sesion caducada devuelve al formulario, no a la pagina 419.
+         *
+         * Es el mismo trato que el 429 de aqui abajo y por la misma razon: la
+         * pagina de Laravel dice "Page Expired" en ingles, sin explicacion y sin
+         * salida, y quien la ve no sabe si se rompio el sistema. Pasa a diario
+         * en el celular: se deja el login abierto en una pestana --y ahi se
+         * quedan abiertas semanas--, la cookie de sesion muere a las dos horas
+         * (`SESSION_LIFETIME`), y al escribir la contrasena al dia siguiente el
+         * formulario manda un testigo que el servidor ya olvido.
+         *
+         * NO se debilita el CSRF: el rechazo sigue siendo el mismo y ocurre
+         * antes de mirar credenciales. Lo unico que cambia es lo que ve quien lo
+         * sufre. El remedio que la gente encontraba sola --darle a Atras-- ya
+         * funcionaba por accidente: la aplicacion manda `Cache-Control:
+         * no-cache`, asi que volver atras vuelve a pedir la pagina y con ella un
+         * testigo nuevo.
+         *
+         * La contrasena NO se devuelve, igual que en el 429: se reescribe. El
+         * usuario si, que es lo tedioso de teclear en un telefono.
+         *
+         * `fallback` hace falta de verdad y no es defensivo: si la cookie murio,
+         * la sesion que atiende esta peticion es NUEVA y no recuerda ninguna
+         * pagina anterior, asi que `back()` depende del `Referer` --que algunos
+         * navegadores no mandan--. Sin el, ese caso aterriza en la raiz.
+         *
+         * Sirve tambien al camino de `acciones.js`, que sigue redirecciones y
+         * repinta: hoy recibe la pagina de error, no encuentra `<main>` y navega
+         * a ella. Con el redirect, pinta el formulario con el aviso.
+         */
+        $exceptions->render(function (HttpException $e, Request $request) {
+            // Se engancha al 419 y NO a `TokenMismatchException`, aunque sea esa
+            // la que se lanza: el manejador de Laravel llama a
+            // `prepareException()` --que la convierte en un `HttpException` de
+            // 419-- ANTES de consultar estos renderizadores
+            // (`Handler::render()`, lineas 616 y 618). Un gancho sobre la clase
+            // original se registra sin protestar y no se ejecuta nunca.
+            //
+            // El `getPrevious()` no es adorno: en esa conversion Laravel pasa la
+            // excepcion original como anterior, asi que preguntar por ella
+            // acota esto al CSRF y deja en paz a cualquier otro 419.
+            if (! $e->getPrevious() instanceof TokenMismatchException) {
+                return null;
+            }
+
+            if ($request->expectsJson()) {
+                return null;
+            }
+
+            return back(fallback: route('login'))
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->with('error', 'Tu sesión caducó por inactividad. Vuelve a intentarlo.');
+        });
+
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
             if ($request->expectsJson()) {
                 return null;
