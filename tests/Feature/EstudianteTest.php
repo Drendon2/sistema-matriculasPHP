@@ -115,6 +115,23 @@ class EstudianteTest extends TestCase
         return $perfil;
     }
 
+    /**
+     * Otro grupo de una promotoria.
+     *
+     * El nivel va como parametro y no fijo porque `un_nivel_por_promotoria` es
+     * unico: dos grupos de la misma promotoria no pueden compartirlo.
+     */
+    private function crearGrupo(Promotoria $promotoria, string $nombre, string $nivel = 'intermedio'): Grupo
+    {
+        return Grupo::create([
+            'promotoria_id' => $promotoria->id,
+            'nombre' => $nombre,
+            'nivel' => $nivel,
+            'salon' => 'B2',
+            'cupo_maximo' => 10,
+        ]);
+    }
+
     private function inscribir(Perfil $perfil, Promotoria $promotoria, ?Grupo $grupo = null, ?Periodo $periodo = null): Matricula
     {
         $matricula = new Matricula([
@@ -260,20 +277,70 @@ class EstudianteTest extends TestCase
     // Mis companeros
     // -----------------------------------------------------------------------
 
-    public function test_los_companeros_son_los_de_la_misma_promotoria_y_periodo(): void
+    /**
+     * Companero es quien comparte GRUPO, no promotoria.
+     *
+     * Beto es la mitad que importa: esta en Violin igual que Ana, y en el mismo
+     * periodo, pero en el grupo de los jueves. Hasta el 27/08 salia en la lista
+     * --y el Django lo sigue ensenando (`views.py:716`)-- y la institucion pidio
+     * que no: quien va otro dia no comparte clase con uno.
+     *
+     * Zoe cubre el otro lado, el de siempre: otra promotoria, ni de lejos.
+     */
+    public function test_los_companeros_son_los_del_mismo_grupo(): void
     {
+        $jueves = $this->crearGrupo($this->violin, 'Jueves 6 p. m.');
+
         $samu = $this->crearEstudiante('samu');
         $beto = $this->crearEstudiante('beto');
+        $zoe = $this->crearEstudiante('zoe');
 
-        $this->inscribir($this->ana, $this->violin);
-        $this->inscribir($samu, $this->violin);
-        $this->inscribir($beto, $this->danza);
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+        $this->inscribir($beto, $this->violin, $jueves);
+        $this->inscribir($zoe, $this->danza);
 
         $respuesta = $this->actingAs($this->ana->user)->get(route('mis-companeros'));
 
         $respuesta->assertOk();
         $respuesta->assertSee('Samu');
         $respuesta->assertDontSee('Beto');
+        $respuesta->assertDontSee('Zoe');
+    }
+
+    /**
+     * Sin grupo asignado no hay companeros, y la pantalla lo dice por su nombre.
+     *
+     * Es la regla que pidio la institucion, tomada a sabiendas: quien esta
+     * matriculado y sin repartir no ve a nadie, ni siquiera cuando la promotoria
+     * no tiene ni un grupo creado y es ella misma la clase.
+     *
+     * Lo que la pantalla NO puede decir es «no tienes companeros», que seria
+     * mentira y no dice que esperar. Por eso se afirman las dos cosas: el aviso
+     * que habla del grupo que falta, y que la lista viene vacia.
+     *
+     * **La lista se mira en los DATOS y no en el HTML**, y eso es la prueba: un
+     * `assertDontSee('Samu')` pasa igual con la regla vieja puesta, porque la
+     * vista corta antes --sin grupo no pinta la lista, la tenga o no--. La
+     * barrera que lo hacia pasar era otra, y asi la sonda no enrojece nunca.
+     */
+    public function test_sin_grupo_asignado_no_hay_companeros(): void
+    {
+        $samu = $this->crearEstudiante('samu');
+
+        $this->inscribir($this->ana, $this->violin);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+
+        $respuesta = $this->actingAs($this->ana->user)->get(route('mis-companeros'));
+
+        $respuesta->assertOk();
+        $respuesta->assertSee('Todavía no tienes grupo en esta promotoría', false);
+
+        $listas = collect($respuesta->viewData('clases'))
+            ->map(fn (array $seccion) => collect($seccion['companeros'])->count())
+            ->all();
+
+        $this->assertSame([0], $listas);
     }
 
     /**
@@ -299,9 +366,16 @@ class EstudianteTest extends TestCase
 
         $samu = $this->crearEstudiante('samu');
 
+        // Con grupo, y no sueltas: desde que companero significa mismo grupo,
+        // cuatro matriculas sin repartir no llegan a la consulta que se esta
+        // midiendo --se cortan antes-- y esto mediria el camino vacio.
         foreach ([$this->violin, $this->danza, $teatro, $canto] as $promotoria) {
-            $this->inscribir($this->ana, $promotoria);
-            $this->inscribir($samu, $promotoria);
+            $grupo = $promotoria->is($this->violin)
+                ? $this->grupo
+                : $this->crearGrupo($promotoria, 'Unico', 'basico');
+
+            $this->inscribir($this->ana, $promotoria, $grupo);
+            $this->inscribir($samu, $promotoria, $grupo);
         }
 
         $conCuatro = $this->consultasDeCompaneros($this->ana);
@@ -310,7 +384,7 @@ class EstudianteTest extends TestCase
         // referencia: si la cifra de arriba fuera mayor, el coste crece con el
         // catalogo de cada quien.
         $beto = $this->crearEstudiante('beto');
-        $this->inscribir($beto, $this->violin);
+        $this->inscribir($beto, $this->violin, $this->grupo);
 
         $this->assertSame($this->consultasDeCompaneros($beto), $conCuatro);
     }
@@ -319,23 +393,26 @@ class EstudianteTest extends TestCase
      * Dos pares cruzados no son un par.
      *
      * Esta prueba existe por el atajo que parece obvio al quitar el N+1: dos
-     * `whereIn` sueltos, uno de promotorias y otro de periodos. Casan tambien
-     * las combinaciones CRUZADAS --mi promotoria de este periodo con el periodo
-     * pasado-- y devuelven como companeros a gente de otro semestre, que es
-     * exactamente lo que la regla prohibe. Hacen falta DOS pares para que
-     * muerda: con uno solo, el cruce coincide con el par de verdad.
+     * `whereIn` sueltos, uno de grupos y otro de periodos. Casan tambien las
+     * combinaciones CRUZADAS --mi grupo de este periodo con el periodo pasado--
+     * y devuelven como companeros a gente de otro semestre, que es exactamente
+     * lo que la regla prohibe. Hacen falta DOS pares para que muerda: con uno
+     * solo, el cruce coincide con el par de verdad.
      */
-    public function test_no_son_companeros_los_del_cruce_de_mis_promotorias_y_mis_periodos(): void
+    public function test_no_son_companeros_los_del_cruce_de_mis_grupos_y_mis_periodos(): void
     {
+        $deDanza = $this->crearGrupo($this->danza, 'Unico', 'basico');
+
         $samu = $this->crearEstudiante('samu');
 
         // Ana: Violin en el periodo en curso, Danza en el anterior.
-        $this->inscribir($this->ana, $this->violin);
-        $this->inscribir($this->ana, $this->danza, periodo: $this->anterior);
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($this->ana, $this->danza, $deDanza, $this->anterior);
 
-        // Samu esta en Violin, pero en el periodo ANTERIOR: comparte promotoria
-        // con un par de Ana y periodo con el otro, y ninguno de los dos entero.
-        $this->inscribir($samu, $this->violin, periodo: $this->anterior);
+        // Samu esta en el grupo de Violin, pero en el periodo ANTERIOR: comparte
+        // grupo con un par de Ana y periodo con el otro, y ninguno de los dos
+        // entero.
+        $this->inscribir($samu, $this->violin, $this->grupo, $this->anterior);
 
         $this->actingAs($this->ana->user)
             ->get(route('mis-companeros'))
@@ -344,28 +421,30 @@ class EstudianteTest extends TestCase
     }
 
     /**
-     * Repetir promotoria al renovar no mezcla los companeros de los dos anos.
+     * Repetir grupo al renovar no mezcla los companeros de los dos anos.
      *
      * Es el caso que casi se cuela al quitar el N+1, y no es raro: las
      * matriculas NO se retiran al cerrar un periodo --se quedan en `activa`--
      * asi que cualquiera que lleve dos anos en Violin tiene dos matriculas
-     * activas de Violin. La pantalla pinta una seccion por matricula, y
-     * agrupando los companeros por PROMOTORIA las dos secciones recibian la
-     * misma lista mezclada, con los de este semestre y los del pasado juntos y
+     * activas de Violin. Un grupo, ademas, cuelga de la promotoria y NO del
+     * periodo, asi que el mismo grupo existe semestre tras semestre y las dos
+     * matriculas apuntan al mismo. La pantalla pinta una seccion por matricula,
+     * y agrupando los companeros por GRUPO las dos secciones recibirian la misma
+     * lista mezclada, con los de este semestre y los del pasado juntos y
      * repetido quien estuvo en los dos.
      *
-     * No lo veia ninguna prueba: el resto usa una promotoria por periodo, donde
-     * agrupar por promotoria y agrupar por el par dan lo mismo.
+     * No lo veia ninguna prueba: el resto usa un grupo por periodo, donde
+     * agrupar por grupo y agrupar por el par dan lo mismo.
      */
-    public function test_la_misma_promotoria_en_dos_periodos_no_mezcla_sus_companeros(): void
+    public function test_el_mismo_grupo_en_dos_periodos_no_mezcla_sus_companeros(): void
     {
         $samu = $this->crearEstudiante('samu');
         $beto = $this->crearEstudiante('beto');
 
-        $this->inscribir($this->ana, $this->violin);
-        $this->inscribir($this->ana, $this->violin, periodo: $this->anterior);
-        $this->inscribir($samu, $this->violin);
-        $this->inscribir($beto, $this->violin, periodo: $this->anterior);
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($this->ana, $this->violin, $this->grupo, $this->anterior);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+        $this->inscribir($beto, $this->violin, $this->grupo, $this->anterior);
 
         $respuesta = $this->actingAs($this->ana->user)->get(route('mis-companeros'));
 
@@ -375,7 +454,7 @@ class EstudianteTest extends TestCase
         // es lo que se afirma aqui --la consulta de MIS matriculas no lleva
         // `orderBy`-- y atarlo haria fallar la prueba por algo que no es el
         // error que busca.
-        $listas = collect($respuesta->viewData('promotorias'))
+        $listas = collect($respuesta->viewData('clases'))
             ->map(fn (array $seccion) => collect($seccion['companeros'])
                 ->pluck('nombre_completo')
                 ->all())
@@ -383,7 +462,7 @@ class EstudianteTest extends TestCase
             ->values()
             ->all();
 
-        // Dos secciones de Violin, cada una con SU gente y sin repetidos.
+        // Dos secciones del mismo grupo, cada una con SU gente y sin repetidos.
         $this->assertSame([['Beto'], ['Samu']], $listas);
     }
 
@@ -404,9 +483,14 @@ class EstudianteTest extends TestCase
      */
     public function test_quien_no_tiene_matricula_activa_tiene_cero_companeros(): void
     {
+        // Los otros dos CON grupo: si estuvieran sueltos no serian companeros de
+        // nadie, y entonces el cero de abajo saldria igual con el corte quitado
+        // --que es justo lo que esta prueba tiene que atrapar.
+        $deDanza = $this->crearGrupo($this->danza, 'Unico', 'basico');
+
         $samu = $this->crearEstudiante('samu');
-        $this->inscribir($samu, $this->violin);
-        $this->inscribir($this->ana, $this->danza);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+        $this->inscribir($this->ana, $this->danza, $deDanza);
 
         $sinNada = $this->crearEstudiante('nadie');
 
@@ -424,18 +508,20 @@ class EstudianteTest extends TestCase
      * La cifra del perfil cuenta PERSONAS, no coincidencias.
      *
      * Es la otra mitad de C-04: la tarjeta de «Mi perfil» calculaba la misma
-     * regla por su cuenta, con su propio bucle. Quien comparta dos promotorias
-     * es un companero, no dos, y esta prueba es la que ata las dos pantallas a
-     * la misma definicion.
+     * regla por su cuenta, con su propio bucle. Quien comparta dos grupos es un
+     * companero, no dos, y esta prueba es la que ata las dos pantallas a la
+     * misma definicion.
      */
     public function test_la_cifra_de_companeros_no_cuenta_dos_veces_a_quien_comparte_dos(): void
     {
+        $deDanza = $this->crearGrupo($this->danza, 'Unico', 'basico');
+
         $samu = $this->crearEstudiante('samu');
 
-        $this->inscribir($this->ana, $this->violin);
-        $this->inscribir($this->ana, $this->danza);
-        $this->inscribir($samu, $this->violin);
-        $this->inscribir($samu, $this->danza);
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($this->ana, $this->danza, $deDanza);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+        $this->inscribir($samu, $this->danza, $deDanza);
 
         $respuesta = $this->actingAs($this->ana->user)->get(route('mi-perfil'));
 
@@ -1174,12 +1260,60 @@ class EstudianteTest extends TestCase
         $samu->save();
         Storage::disk('local')->put('fotos_perfil/x.webp', 'x');
 
-        $this->inscribir($this->ana, $this->violin);
-        $this->inscribir($samu, $this->violin);
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($samu, $this->violin, $this->grupo);
 
         $this->actingAs($this->ana->user)
             ->get(route('ver-foto', $samu))
             ->assertOk();
+    }
+
+    /**
+     * La foto de otro grupo de MI promotoria tampoco se entrega.
+     *
+     * Es la prueba que ata la puerta a la pantalla. Hasta el 27/08 la regla
+     * estaba escrita dos veces --aqui y en `Companeros`-- y al estrechar «quien
+     * es companero» al grupo, una puerta con su propia copia habria seguido
+     * sirviendo la cara de quien la pantalla ya no ensena. No falla nada, no se
+     * ve nada: solo hay que pedir la direccion a mano.
+     *
+     * Por eso no basta con la de arriba: aquella pasa igual con las dos reglas.
+     */
+    public function test_la_foto_de_otro_grupo_de_mi_promotoria_no_se_entrega(): void
+    {
+        Storage::fake('local');
+
+        $jueves = $this->crearGrupo($this->violin, 'Jueves 6 p. m.');
+
+        $beto = $this->crearEstudiante('beto');
+        $beto->foto_perfil = 'fotos_perfil/x.webp';
+        $beto->save();
+        Storage::disk('local')->put('fotos_perfil/x.webp', 'x');
+
+        $this->inscribir($this->ana, $this->violin, $this->grupo);
+        $this->inscribir($beto, $this->violin, $jueves);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('ver-foto', $beto))
+            ->assertNotFound();
+    }
+
+    /** Sin grupo asignado no se es companero de nadie, tampoco para la foto. */
+    public function test_la_foto_no_se_entrega_a_quien_no_tiene_grupo(): void
+    {
+        Storage::fake('local');
+
+        $samu = $this->crearEstudiante('samu');
+        $samu->foto_perfil = 'fotos_perfil/x.webp';
+        $samu->save();
+        Storage::disk('local')->put('fotos_perfil/x.webp', 'x');
+
+        $this->inscribir($this->ana, $this->violin);
+        $this->inscribir($samu, $this->violin, $this->grupo);
+
+        $this->actingAs($this->ana->user)
+            ->get(route('ver-foto', $samu))
+            ->assertNotFound();
     }
 
     public function test_el_documento_es_solo_del_administrador(): void

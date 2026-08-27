@@ -347,11 +347,16 @@ class MiPerfilController extends Controller
     private function estadisticas(Perfil $perfil): array
     {
         if ($perfil->rol === 'estudiante') {
+            // `grupo_id` en la seleccion, y no sobra: es la columna con la
+            // que `Companeros` empareja, y una que no se pide llega NULA sin
+            // que nada se queje. Con ella fuera, la cifra sale 0 para todo el
+            // mundo --que es un numero creible, y por eso el descuido se
+            // quedaria puesto.
             $activas = Matricula::where('estudiante_id', $perfil->id)
                 ->where('estado', Matricula::ACTIVA)
-                ->get(['promotoria_id', 'periodo_id']);
+                ->get(['grupo_id', 'periodo_id']);
 
-            // "Companero" = misma promotoria Y periodo, con matricula activa. La
+            // "Companero" = mismo GRUPO y periodo, con matricula activa. La
             // regla vive en `Companeros` y no aqui: la escribian este metodo y
             // «Mis companeros» por separado, cada uno preguntando una vez por
             // matricula dentro de un bucle (C-04).

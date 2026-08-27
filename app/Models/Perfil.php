@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * la capa de permisos. Este modelo solo define los DATOS.
  *
  * Recordatorio de visibilidad (se implementa en los controladores, no aqui):
- *     nombre, foto ...... admin, director, profesor, companeros de la MISMA promotoria
+ *     nombre, foto ...... admin, director, profesor, companeros del MISMO GRUPO
  *     telefono,
  *     acudiente ......... admin, director, profesor (profesor solo de SUS promotorias)
  *     edad .............. como el telefono, PERO solo la de un ESTUDIANTE
@@ -36,6 +36,12 @@ use Illuminate\Support\Carbon;
  *
  * Se aparta del Django a proposito, que en `detalle_usuario.html` la pinta para
  * cualquier rol.
+ *
+ * El primer renglon dice GRUPO desde el 27/08 y antes decia promotoria: quien va
+ * a Guitarra los martes no comparte clase con quien va los jueves. Quien es
+ * companero --y con ello quien ve el nombre y la cara de quien-- lo decide
+ * `App\Support\Companeros`, que es el unico sitio donde esta escrito; de ahi
+ * cuelgan las dos pantallas y la puerta de la foto.
  *
  * La linea de la encuesta sigue siendo cierta, pero desde que existe el informe
  * completo (`InformeController::institucion`) conviene leerla entera: el

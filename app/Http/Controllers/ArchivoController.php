@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DatosEstudiante;
-use App\Models\Matricula;
 use App\Models\Perfil;
+use App\Support\Companeros;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -65,10 +65,15 @@ class ArchivoController extends Controller
     /**
      * La foto de perfil de alguien, con la regla de visibilidad del modelo:
      *
-     *     nombre, foto ... admin, director, profesor, companeros de la MISMA
-     *                      promotoria
+     *     nombre, foto ... admin, director, profesor, companeros del MISMO
+     *                      grupo
      *
      * Sumado a que cualquiera puede ver la suya.
+     *
+     * Quien es companero lo dice `Companeros`, y no una copia de aqui. Lo era
+     * hasta el 27/08, cuando la regla se estrecho de la promotoria al grupo: una
+     * puerta con su propia version de la regla habria seguido entregando la foto
+     * de quien la pantalla ya no ensena, sin que fallara nada.
      */
     public function foto(Request $request, Perfil $perfil): StreamedResponse
     {
@@ -79,7 +84,7 @@ class ArchivoController extends Controller
         $permitido = $solicitante->id === $perfil->id || $solicitante->esPersonal();
 
         if (! $permitido) {
-            $permitido = $this->sonCompaneros($solicitante, $perfil);
+            $permitido = Companeros::sonCompaneros($solicitante, $perfil);
         }
 
         // Un 404 y no un 403 en los dos casos: que exista o no la foto de otra
@@ -114,30 +119,6 @@ class ArchivoController extends Controller
             $datos->copia_documento,
             basename($datos->copia_documento)
         );
-    }
-
-    /**
-     * ¿Comparten promotoria Y periodo, los dos con matricula activa?
-     *
-     * Las dos cosas juntas: haber coincidido en Guitarra el semestre pasado no
-     * da acceso a la foto de este.
-     */
-    private function sonCompaneros(Perfil $solicitante, Perfil $objetivo): bool
-    {
-        $suyas = Matricula::where('estudiante_id', $objetivo->id)
-            ->where('estado', Matricula::ACTIVA)
-            ->get(['promotoria_id', 'periodo_id'])
-            ->map(fn (Matricula $m) => "{$m->promotoria_id}:{$m->periodo_id}")
-            ->all();
-
-        if ($suyas === []) {
-            return false;
-        }
-
-        return Matricula::where('estudiante_id', $solicitante->id)
-            ->where('estado', Matricula::ACTIVA)
-            ->get(['promotoria_id', 'periodo_id'])
-            ->contains(fn (Matricula $m) => in_array("{$m->promotoria_id}:{$m->periodo_id}", $suyas, true));
     }
 
     private function entregar(string $ruta): StreamedResponse
