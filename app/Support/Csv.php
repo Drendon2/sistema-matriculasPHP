@@ -30,6 +30,26 @@ class Csv
 
     private const SEPARADOR = ';';
 
+    /** El entrecomillado de siempre. Se nombra para poder llegar al de abajo. */
+    private const COMILLA = '"';
+
+    /**
+     * SIN caracter de escape, y escrito a mano por dos razones distintas.
+     *
+     * La de forma: en PHP 8.4 no pasarlo esta obsoleto, porque en PHP 9 el valor
+     * por defecto cambia de la barra invertida a este mismo. Quien no lo escriba
+     * se encontrara el cambio hecho sin haberlo decidido.
+     *
+     * La de fondo, que es la que importa: el defecto viejo ESTROPEA celdas. Con
+     * la barra invertida de escape, una celda que traiga una barra pegada a una
+     * comilla sale sin duplicar la comilla, y quien abre el archivo recibe otra
+     * cosa --«La Loma \" y ya» vuelve como «La Loma \ y ya"», con la comilla
+     * mudada al final--. Aqui los nombres y los barrios los escribe el publico,
+     * asi que la celda rara la manda alguien de fuera. Con el escape vacio esto
+     * es CSV del RFC 4180 y la celda vuelve tal como entro.
+     */
+    private const SIN_ESCAPE = '';
+
     /**
      * Descarga en streaming: las filas salen segun se generan.
      *
@@ -51,10 +71,10 @@ class Csv
 
             echo self::BOM;
 
-            fputcsv($salida, $cabecera, self::SEPARADOR);
+            fputcsv($salida, $cabecera, self::SEPARADOR, self::COMILLA, self::SIN_ESCAPE);
 
             foreach ($filas as $fila) {
-                fputcsv($salida, $fila, self::SEPARADOR);
+                fputcsv($salida, $fila, self::SEPARADOR, self::COMILLA, self::SIN_ESCAPE);
             }
 
             fclose($salida);

@@ -548,6 +548,41 @@ class InformeTest extends TestCase
     }
 
     /**
+     * Una celda con una barra invertida pegada a una comilla vuelve tal cual.
+     *
+     * Es el caso que estropeaba el escape por defecto de `fputcsv` --la barra
+     * invertida--, que no duplicaba esa comilla y se la mudaba al final: «La
+     * Loma \" y ya» llegaba como «La Loma \ y ya"». Aqui los nombres los
+     * escribe el publico, asi que la celda rara la manda alguien de fuera.
+     *
+     * El nombre se arma con `chr(92)` a proposito: escrito a mano, entre las
+     * comillas de PHP y las del CSV, no hay quien lea cuantas barras hay.
+     */
+    public function test_una_celda_con_barra_y_comilla_vuelve_igual(): void
+    {
+        $raro = 'Ana '.chr(92).'" Ruiz';
+
+        $ana = $this->crearEstudiante('ana');
+        $ana->nombre_completo = $raro;
+        $ana->save();
+        $this->matricular($ana, $this->violin);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->admin->user)->get(route('informe-estudiantes'))
+        );
+
+        // Se relee como lo relee cualquier programa: CSV del RFC 4180, sin
+        // caracter de escape. Con el escape viejo esta vuelta no coincide.
+        $filas = array_map(
+            fn (string $linea) => str_getcsv($linea, ';', '"', ''),
+            array_values(array_filter(explode("\n", trim($csv))))
+        );
+
+        // La columna «Estudiante» es la septima de la cabecera.
+        $this->assertSame($raro, $filas[1][6]);
+    }
+
+    /**
      * Una celda que empieza por `=` la ejecuta Excel al abrir el archivo.
      *
      * Los nombres y los barrios los escribe el publico, asi que es una via real
