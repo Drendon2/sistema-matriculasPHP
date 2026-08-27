@@ -286,6 +286,49 @@ class InformeTest extends TestCase
         $this->assertStringContainsString('Primaria completa', $csv);
     }
 
+    /**
+     * La columna «Edad» sale VACIA para el personal y llena para el estudiante.
+     *
+     * Misma regla que la ficha, y aqui pesa mas: esto es un archivo que sale del
+     * sistema y ya no vuelve. La columna no se quita de la cabecera porque para
+     * el estudiante hace falta, y una hoja con las columnas cambiando segun la
+     * fila no la abre ningun programa.
+     *
+     * Se mira la CELDA y no el archivo entero: con «47» suelto la prueba pasaria
+     * por cualquier telefono o documento que lo contenga.
+     */
+    public function test_el_informe_completo_no_lleva_la_edad_del_personal(): void
+    {
+        $this->profesor->fecha_nacimiento = Carbon::today()->subYears(47)->subDays(3);
+        $this->profesor->save();
+
+        $ana = $this->crearEstudiante('ana');
+        $ana->fecha_nacimiento = Carbon::today()->subYears(14)->subDays(3);
+        $ana->save();
+        $this->matricular($ana, $this->violin);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->admin->user)->get(route('informe-institucion'))
+        );
+
+        $this->assertSame('', $this->celdaDeEdad($csv, 'Profe Apellido'));
+        $this->assertSame('14', $this->celdaDeEdad($csv, 'Ana Apellido'));
+    }
+
+    /**
+     * La cuarta columna --«Edad»-- de la fila de alguien, buscada por su nombre.
+     */
+    private function celdaDeEdad(string $csv, string $nombre): string
+    {
+        foreach (explode("\n", $csv) as $linea) {
+            if (str_contains($linea, $nombre)) {
+                return explode(';', trim($linea))[3];
+            }
+        }
+
+        $this->fail("El informe no trae ninguna fila de {$nombre}.");
+    }
+
     /** Quien no cursa nada sale igual, con las columnas de promotoria vacias. */
     public function test_el_personal_sin_promotoria_tambien_sale(): void
     {

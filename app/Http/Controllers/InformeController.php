@@ -342,14 +342,28 @@ class InformeController extends Controller
         }
     }
 
-    /** @return list<string|int|null> */
+    /**
+     * Rol, identidad y contacto de una persona, sea cual sea su rol.
+     *
+     * La edad sale VACIA para el personal, y esa es la unica columna que
+     * distingue una fila de otra. Es un dato del estudiante --de ahi salen la
+     * minoria de edad, el acudiente obligatorio y el nivel del grupo-- y en un
+     * profesor no lo usa nadie. Aqui pesa mas que en la ficha: esto es un
+     * archivo que sale del sistema y ya no vuelve.
+     *
+     * La columna no se quita de la cabecera porque para el estudiante sigue
+     * haciendo falta, y una hoja con las columnas cambiando segun la fila no la
+     * abre ningun programa.
+     *
+     * @return list<string|int|null>
+     */
     private function columnasDePersona(Perfil $perfil): array
     {
         return [
             $perfil->rol === '' ? 'Pendiente de rol' : (Perfil::ROLES[$perfil->rol] ?? $perfil->rol),
             $perfil->nombre_completo,
             $perfil->user->username,
-            $perfil->edad,
+            $perfil->esPersonal() ? null : $perfil->edad,
             $perfil->telefono,
             $perfil->user->email,
         ];

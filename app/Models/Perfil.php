@@ -16,10 +16,26 @@ use Illuminate\Support\Carbon;
  *
  * Recordatorio de visibilidad (se implementa en los controladores, no aqui):
  *     nombre, foto ...... admin, director, profesor, companeros de la MISMA promotoria
- *     edad, telefono,
+ *     telefono,
  *     acudiente ......... admin, director, profesor (profesor solo de SUS promotorias)
+ *     edad .............. como el telefono, PERO solo la de un ESTUDIANTE
  *     encuesta .......... solo el dueno de la cuenta y el administrador
  *     copia_documento ... solo el administrador
+ *
+ * El renglon de la edad es el unico que separa al estudiante del personal, y no
+ * es una omision: del `esPersonal()` de mas abajo no se muestra la edad a nadie,
+ * ni en su ficha ni en el informe de la institucion. En un estudiante el dato
+ * TRABAJA --de el salen la minoria de edad, el acudiente obligatorio y el nivel
+ * que le toca-- y en un profesor no lo usa nadie para nada; en Colombia,
+ * ademas, exhibir la edad de un adulto se lee como una falta de respeto. La suya
+ * la sigue viendo cada quien en Mi perfil, que es donde se queda.
+ *
+ * La fecha de nacimiento SI se sigue pidiendo en Gestion -> Usuarios: es un
+ * campo obligatorio del alta y de ahi sale la cuenta. Lo que se cierra es donde
+ * se EXHIBE, no donde se captura.
+ *
+ * Se aparta del Django a proposito, que en `detalle_usuario.html` la pinta para
+ * cualquier rol.
  *
  * La linea de la encuesta sigue siendo cierta, pero desde que existe el informe
  * completo (`InformeController::institucion`) conviene leerla entera: el

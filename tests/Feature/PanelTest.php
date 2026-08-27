@@ -990,6 +990,50 @@ class PanelTest extends TestCase
             ->assertDontSee('3000000000');
     }
 
+    /**
+     * La edad del PERSONAL no la ve nadie, ni el administrador.
+     *
+     * Es un dato del estudiante --de el salen la minoria de edad, el acudiente
+     * obligatorio y el nivel del grupo-- y en un profesor no lo usa nadie. La
+     * suya la sigue viendo cada quien en Mi perfil.
+     *
+     * DIVERGENCIA DELIBERADA del original: `detalle_usuario.html` del Django la
+     * pinta para cualquier rol. Esta prueba existe para que no vuelva por
+     * descuido al portar algo.
+     *
+     * El telefono se comprueba en la misma pasada a proposito: la edad y el
+     * contacto son dos puertas distintas, y esconder la edad apagando
+     * `$veContacto` dejaria al personal sin telefono, que si hace falta.
+     */
+    public function test_la_ficha_no_ensena_la_edad_del_personal(): void
+    {
+        $this->profesor->fecha_nacimiento = Carbon::today()->subYears(47)->subDays(3);
+        $this->profesor->save();
+
+        $admin = $this->crearPerfil('admin', 'administrador');
+
+        $this->actingAs($admin->user)
+            ->get(route('detalle-usuario', $this->profesor))
+            ->assertOk()
+            ->assertSee('Profe')
+            ->assertDontSee('<th>Edad</th>', false)
+            ->assertDontSee('47 años', false)
+            ->assertSee('3000000000');
+    }
+
+    /** Y en un estudiante sigue estando, que es donde el dato trabaja. */
+    public function test_la_ficha_de_un_estudiante_si_ensena_la_edad(): void
+    {
+        $this->estudiante->fecha_nacimiento = Carbon::today()->subYears(14)->subDays(3);
+        $this->estudiante->save();
+
+        $this->actingAs($this->director->user)
+            ->get(route('detalle-usuario', $this->estudiante))
+            ->assertOk()
+            ->assertSee('<th>Edad</th>', false)
+            ->assertSee('14 años', false);
+    }
+
     public function test_solo_el_administrador_abre_la_ficha_con_documento(): void
     {
         $this->actingAs($this->director->user)

@@ -41,7 +41,19 @@
 <h3>Contacto</h3>
 @if ($veContacto)
 <table style="max-width:520px;">
+  {{--
+    La edad es un dato DEL ESTUDIANTE y solo de él: de ahí salen la minoría de
+    edad, la exigencia de acudiente y el nivel que le corresponde a un grupo.
+    En el personal no la usa nadie para nada y preguntarla, o exhibirla, se lee
+    aquí como una falta de respeto. Su propia edad la sigue viendo cada quien en
+    Mi perfil, que es el único sitio donde queda.
+
+    Se aparta del Django a propósito: `detalle_usuario.html` la pinta para
+    cualquier rol.
+  --}}
+  @if (! $objetivo->esPersonal())
   <tr><th>Edad</th><td>{{ $objetivo->edad }} años</td></tr>
+  @endif
   <tr><th>Teléfono</th><td>{{ $objetivo->telefono }}</td></tr>
   {{--
     El correo va con el resto del contacto y bajo la misma puerta: es un dato de

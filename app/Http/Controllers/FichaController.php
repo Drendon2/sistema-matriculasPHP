@@ -34,6 +34,12 @@ class FichaController extends Controller
      * para direccion, y para el profesor SOLO si ese estudiante cursa alguna de
      * sus promotorias. Que un profesor pueda abrir la ficha no le da acceso a
      * los datos de contacto de cualquiera.
+     *
+     * La edad tiene ademas un limite propio, y no viaja con el resto del
+     * contacto: la del PERSONAL no se muestra, ni siquiera al administrador.
+     * El porque esta en la matriz de `Perfil`. Por eso la esconde la plantilla y
+     * no `$veContacto`: son dos puertas distintas y juntarlas en una bandera
+     * dejaria sin telefono a quien solo hay que dejar sin edad.
      */
     public function usuario(Request $request, Perfil $usuario): View|RedirectResponse
     {
