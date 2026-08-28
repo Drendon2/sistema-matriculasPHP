@@ -593,6 +593,62 @@ class PanelTest extends TestCase
         ]);
     }
 
+    /**
+     * La lista de estudiantes de un grupo va PLEGADA, y su encabezado no.
+     *
+     * Lo pidio la institucion: con tres grupos de veinte, una promotoria abierta
+     * eran sesenta filas antes de llegar a «Sin grupo asignado», que es donde de
+     * verdad se trabaja al empezar un periodo.
+     *
+     * Se afirman las TRES cosas que definen el arreglo, y no solo que exista un
+     * <details>:
+     *
+     * 1. Que la tabla este DENTRO del <details> --si quedara fuera el desplegable
+     *    saldria vacio y la pagina igual de llena, que es el fallo silencioso de
+     *    este cambio: se ve un triangulo y todo lo demas parece correcto--.
+     * 2. Que NO traiga `open`, porque plegado es el estado de partida y es todo
+     *    el punto.
+     * 3. Que el encabezado con sus acciones siga a la vista: «Iniciar clase» es
+     *    lo que se pulsa a diario y esconderlo cambiaria un problema de sitio por
+     *    uno de pasos.
+     *
+     * El `id` se comprueba aparte porque no es decorativo: es lo que permite que
+     * el grupo siga abierto tras un repintado (ver `public/js/panel.js`).
+     */
+    public function test_la_lista_de_un_grupo_va_plegada(): void
+    {
+        $grupo = $this->crearGrupo();
+        $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+
+        $html = $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            '<details class="grupo-lista" id="grupo-'.$grupo->id.'" data-grupo>',
+            (string) $html
+        );
+
+        // Plegado de partida: un `open` aqui vaciaria el cambio de contenido.
+        $this->assertStringNotContainsString('data-grupo open', (string) $html);
+
+        // La tabla, DENTRO del desplegable.
+        $desde = strpos((string) $html, 'id="grupo-'.$grupo->id.'"');
+        $hasta = strpos((string) $html, '</details>', $desde);
+        $dentro = substr((string) $html, $desde, $hasta - $desde);
+
+        $this->assertStringContainsString('<table>', $dentro);
+        $this->assertStringContainsString($this->estudiante->nombre_completo, $dentro);
+
+        // Y el encabezado del grupo FUERA, con sus acciones.
+        $antes = substr((string) $html, 0, $desde);
+        $this->assertStringContainsString('grupo-cabecera', $antes);
+        $this->assertStringContainsString('Iniciar clase', $antes);
+    }
+
     public function test_se_asigna_un_estudiante_a_un_grupo(): void
     {
         $grupo = $this->crearGrupo();

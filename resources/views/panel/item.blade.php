@@ -185,6 +185,26 @@
   @if (! $g['estudiantes'])
     <p class="vacio">Sin estudiantes en este grupo.</p>
   @else
+  {{--
+    La lista va PLEGADA. Con tres grupos de veinte, una promotoría abierta eran
+    sesenta filas antes de llegar a «Sin grupo asignado», que es la sección donde
+    de verdad se trabaja al empezar un periodo.
+
+    Lo que NO se pliega es el encabezado de arriba con sus acciones: «Iniciar
+    clase» es lo que se pulsa a diario, y esconderlo detrás de un clic habría
+    cambiado un problema de sitio por uno de pasos.
+
+    El id no es decorativo, igual que en la promotoría: es lo que permite que el
+    grupo siga abierto después de quitar a alguien. Ver public/js/panel.js — y no
+    `acciones.js`, que restaura los suyos ANTES de que este cuerpo se haya
+    pedido, cuando estos <details> todavía no existen.
+  --}}
+  @php($cuantos = count($g['estudiantes']))
+  <details class="grupo-lista" id="grupo-{{ $g['grupo']->id }}" data-grupo>
+    <summary class="grupo-lista-resumen">
+      {{ $cuantos }} {{ $cuantos == 1 ? 'estudiante' : 'estudiantes' }}
+      <svg class="perfil-seccion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
   <table>
     <thead>
       <tr>
@@ -217,6 +237,7 @@
       @endforeach
     </tbody>
   </table>
+  </details>
   @endif
 @endforeach
 

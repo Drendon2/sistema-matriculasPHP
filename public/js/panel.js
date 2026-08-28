@@ -48,6 +48,7 @@
       .then(function (html) {
         destino.innerHTML = html;
         destino.dataset.cargado = "si";
+        reabrirGrupos(destino);
         refrescarLotes(destino);
       })
       .catch(function () {
@@ -81,5 +82,47 @@
   // ponga al dia la cuenta y los botones de esa promotoria.
   function refrescarLotes(raiz) {
     document.dispatchEvent(new CustomEvent("lote:refrescar", { detail: { raiz: raiz } }));
+  }
+
+  /* ---------------------------------------------------------------------
+     2. Las listas de grupo abiertas, que sobreviven al repintado
+     --------------------------------------------------------------------- */
+
+  /*
+   * Las listas de estudiantes de cada grupo van plegadas y se abren a mano. Al
+   * quitar a alguien de un grupo, `acciones.js` repinta <main> sin recargar y
+   * la lista que estabas mirando se cerraria sola.
+   *
+   * Y NO lo arregla `acciones.js`, aunque ya guarde y reponga los <details> con
+   * id: los repone JUSTO despues de reemplazar <main>, y en ese momento el
+   * cuerpo de la promotoria todavia dice «Cargando…» — estos <details> no
+   * existen aun, asi que no hay nada que reponer. Se piden despues, y para
+   * entonces `acciones.js` ya termino.
+   *
+   * De ahi que el recuerdo viva AQUI, que es quien inyecta ese cuerpo y sabe
+   * cuando esta puesto. En memoria y no en `sessionStorage` a proposito: es una
+   * comodidad de un rato, no un ajuste; al recargar la pagina se vuelve al
+   * estado de partida, que es plegado.
+   *
+   * Sobrevive a los repintados porque este archivo se carga UNA vez y fuera de
+   * <main> (ver la cabecera): la variable sigue ahi cuando el HTML se rehace.
+   */
+  var gruposAbiertos = {};
+
+  document.addEventListener(
+    "toggle",
+    function (evento) {
+      var detalle = evento.target;
+      if (detalle.matches && detalle.matches("details[data-grupo][id]")) {
+        gruposAbiertos[detalle.id] = detalle.open;
+      }
+    },
+    true
+  );
+
+  function reabrirGrupos(raiz) {
+    raiz.querySelectorAll("details[data-grupo][id]").forEach(function (detalle) {
+      if (gruposAbiertos[detalle.id]) { detalle.open = true; }
+    });
   }
 })();

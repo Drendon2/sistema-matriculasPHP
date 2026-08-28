@@ -751,6 +751,27 @@
   .grupo-cabecera { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
   .grupo-cabecera .acciones { font-size: 0.8rem; display: flex; gap: 0.6rem; }
 
+  /* La lista de estudiantes de un grupo, plegada. Se pliega SOLO la tabla: el
+     encabezado de arriba y sus acciones se quedan a la vista porque «Iniciar
+     clase» es lo que se pulsa a diario.
+
+     `width: fit-content` no es cosmético: sin él el <summary> ocupa el ancho de
+     la página y el clic cae a un palmo del texto, sobre lo que parece un hueco
+     vacío. Con la mano en un ratón eso se descubre solo cuando molesta. */
+  .grupo-lista { margin: 0 0 0.5rem; }
+  .grupo-lista-resumen {
+    display: flex; align-items: center; gap: 0.35rem;
+    width: fit-content; cursor: pointer; list-style: none;
+    font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft); padding: 0.3rem 0;
+  }
+  .grupo-lista-resumen::-webkit-details-marker { display: none; }
+  .grupo-lista-resumen:hover { color: var(--ink); }
+  /* El chevron compartido trae `margin-left: auto` para empujarse al final de
+     una fila ancha; aquí la fila mide lo que el texto y eso lo separaría. */
+  .grupo-lista-resumen .perfil-seccion-chevron { margin-left: 0; }
+
   /* Cupo de la promotoría en el periodo: una cifra (mono, es un dato) más el
      control para cambiarla. Lo ve todo el panel; solo lo edita quien gestiona. */
   .cupo-fila {
