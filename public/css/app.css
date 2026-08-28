@@ -733,6 +733,21 @@
     font-variant-numeric: tabular-nums;
   }
   .lote-barra + table { margin-top: 0; }
+
+  /* El envoltorio de la barra y SU tabla. No pinta nada: existe para acotar
+     hasta dónde se pega la barra. `sticky` se suelta al acabar su bloque
+     contenedor, y sin esto la barra y la tabla eran hermanas sueltas dentro de
+     la sección entera — la barra se quedaba flotando sobre lo que viniera
+     después. En el Panel tapaba dos encabezados de grupo, con sus botones. */
+  .lote-bloque { min-width: 0; }
+
+  /* El desplegable se dimensiona por su contenido, y su contenido es el rótulo
+     entero de un grupo: «Grupo A · Básico · Sábado 9:00 a. m. a 11:00 a. m.
+     (7/19)». Medido en un ancho de teléfono daba 456 px dentro de 375, y con eso
+     se desplazaba de lado el DOCUMENTO entero — no la tabla, que ya se contiene
+     sola. El tope va en `max-width` y no en `width` para que en pantalla ancha
+     siga midiendo lo que su contenido pide, igual que `.filtro select`. */
+  .lote-barra select { width: auto; max-width: 100%; margin: 0; }
   /* Deshabilitado es el estado de reposo aquí —sin nadie marcado no hay nada
      que hacer—, así que no puede parecer un error: se atenúa, no se tacha. */
   .lote-barra button[disabled] { opacity: 0.45; cursor: default; }
@@ -1309,6 +1324,14 @@
     .filtro { flex: 1 1 100%; }
     .filtro select { max-width: none; width: 100%; }
     .filtro-acciones { margin-left: 0; }
+    /* Y el de la barra de acciones en bloque, por lo mismo: a media fila no se
+       lee de qué grupo se trata. */
+    .lote-barra select { max-width: none; width: 100%; }
+    /* Pegada al borde. No hay cabecera fija que esquivar —la de este sitio se
+       va con el scroll—, así que esos 3.6rem no estaban dejando sitio a nada:
+       en un teléfono eran 58 px de pantalla regalados encima de una barra que
+       ya mide 105. */
+    .lote-barra { top: 0; }
     /* Pasar lista se hace de pie y con el celular en la mano: el nombre ocupa
        su propio renglón y las tres opciones caen debajo alineadas a la
        izquierda —con `margin-left:auto` quedarían pegadas al borde derecho— y

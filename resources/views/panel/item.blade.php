@@ -77,6 +77,16 @@
   sola, y anidar formularios es HTML inválido.
 --}}
 @php($lotePendientes = 'lote-pendientes-' . $item['promotoria']->id)
+{{--
+  El envoltorio NO es decorativo: acota hasta dónde se pega la barra de acciones
+  en bloque. `position: sticky` se suelta al acabar su bloque contenedor, y sin
+  esto la barra y la tabla son hermanas sueltas, así que el bloque es toda la
+  sección: la barra se queda flotando encima de lo que venga después. En el
+  Panel eso tapaba los encabezados de grupo —dos a la vez, medido en un ancho de
+  teléfono— y con ellos sus botones. Con el envoltorio la barra no puede salir
+  de su propia tabla, que es lo que se quería desde el principio.
+--}}
+<div class="lote-bloque">
 @if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
 <form action="{{ route('panel-pendientes-lote', $item['promotoria']) }}" method="post"
       id="{{ $lotePendientes }}" class="lote-barra">
@@ -147,6 +157,7 @@
     @endforeach
   </tbody>
 </table>
+</div>
 @endif
 
 @foreach ($item['grupos'] as $g)
@@ -247,6 +258,16 @@
 @else
 
 @php($conLote = $item['puede_gestionar'] && $item['grupos'])
+{{--
+  El envoltorio NO es decorativo: acota hasta dónde se pega la barra de acciones
+  en bloque. `position: sticky` se suelta al acabar su bloque contenedor, y sin
+  esto la barra y la tabla son hermanas sueltas, así que el bloque es toda la
+  sección: la barra se queda flotando encima de lo que venga después. En el
+  Panel eso tapaba los encabezados de grupo —dos a la vez, medido en un ancho de
+  teléfono— y con ellos sus botones. Con el envoltorio la barra no puede salir
+  de su propia tabla, que es lo que se quería desde el principio.
+--}}
+<div class="lote-bloque">
 @if ($conLote)
 {{--
   Repartir es la tarea del principio de periodo y casi todos van al mismo
@@ -260,7 +281,7 @@
       id="lote-{{ $item['promotoria']->id }}" class="lote-barra" data-lote>
   @csrf
   <span class="lote-cuenta" data-lote-cuenta>Ninguno marcado</span>
-  <select name="grupo_id" style="width:auto;" required>
+  <select name="grupo_id" required>
     <option value="">-- elegir grupo --</option>
     @foreach ($item['grupos'] as $g)
       <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nombre_con_nivel }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
@@ -323,4 +344,5 @@
     @endforeach
   </tbody>
 </table>
+</div>
 @endif

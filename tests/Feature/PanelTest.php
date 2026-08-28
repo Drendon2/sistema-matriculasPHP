@@ -649,6 +649,68 @@ class PanelTest extends TestCase
         $this->assertStringContainsString('Iniciar clase', $antes);
     }
 
+    /**
+     * Cada barra de acciones en bloque va con SU tabla dentro del mismo
+     * envoltorio.
+     *
+     * La barra es `position: sticky`, y sticky se suelta al acabar su bloque
+     * contenedor. Sueltas como hermanas, el bloque era la seccion entera y la
+     * barra se quedaba flotando sobre lo que viniera despues: en un ancho de
+     * telefono tapaba dos encabezados de grupo con sus botones, medido el
+     * 28/08/2026.
+     *
+     * Esto se prueba porque es lo que un cambio futuro rompe SIN QUE FALLE NADA.
+     * Sacar la tabla del `<div>` no da error, no cambia ninguna cifra y no se ve
+     * en pantalla ancha; solo vuelve a tapar cosas en un celular, que es desde
+     * donde entra la mayoria. El CSS por si solo no puede garantizarlo: la
+     * acotacion es del marcado.
+     */
+    public function test_cada_barra_de_lote_va_con_su_tabla_en_un_envoltorio(): void
+    {
+        // Dos pendientes para que salga la barra de confirmar, y un grupo con
+        // dos sin repartir para que salga la de asignar. Con uno solo de cada
+        // cosa el marcado no pinta ninguna barra y la prueba no miraria nada.
+        $this->crearGrupo();
+        $this->matricular($this->violin, $this->crearEstudiante('uno'), Matricula::PENDIENTE);
+        $this->matricular($this->violin, $this->crearEstudiante('dos'), Matricula::PENDIENTE);
+        $this->matricular($this->violin, $this->crearEstudiante('tres'), Matricula::ACTIVA);
+        $this->matricular($this->violin, $this->crearEstudiante('cuatro'), Matricula::ACTIVA);
+
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->getContent();
+
+        $doc = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="utf-8"?><div>'.$html.'</div>');
+        libxml_clear_errors();
+
+        $xpath = new \DOMXPath($doc);
+        $barras = $xpath->query('//*[contains(@class, "lote-barra")]');
+
+        // Que haya barras es parte de la afirmacion: sin ellas el resto pasaria
+        // en vacio y la prueba diria que todo esta bien sin haber mirado nada.
+        $this->assertSame(2, $barras->length, 'Se esperaban las dos barras de lote.');
+
+        foreach ($barras as $barra) {
+            $envoltorio = $barra->parentNode;
+
+            $this->assertInstanceOf(\DOMElement::class, $envoltorio);
+            $this->assertStringContainsString(
+                'lote-bloque',
+                (string) $envoltorio->getAttribute('class'),
+                'Una barra de lote quedo fuera de su envoltorio: el sticky vuelve a escaparse.'
+            );
+
+            $this->assertGreaterThan(
+                0,
+                $xpath->query('.//table', $envoltorio)->length,
+                'El envoltorio de una barra de lote no contiene su tabla.'
+            );
+        }
+    }
+
     public function test_se_asigna_un_estudiante_a_un_grupo(): void
     {
         $grupo = $this->crearGrupo();

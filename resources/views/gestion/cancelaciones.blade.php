@@ -25,6 +25,16 @@
   recomendado — en verde de acción, «Rechazar» empujaría a negar la salida de un
   niño, y esa decisión no la debe inclinar el sistema.
 --}}
+{{--
+  El envoltorio NO es decorativo: acota hasta dónde se pega la barra de acciones
+  en bloque. `position: sticky` se suelta al acabar su bloque contenedor, y sin
+  esto la barra y la tabla son hermanas sueltas, así que el bloque es toda la
+  sección: la barra se queda flotando encima de lo que venga después. En el
+  Panel eso tapaba los encabezados de grupo —dos a la vez, medido en un ancho de
+  teléfono— y con ellos sus botones. Con el envoltorio la barra no puede salir
+  de su propia tabla, que es lo que se quería desde el principio.
+--}}
+<div class="lote-bloque">
 @if (count($pendientes) > 1)
 <form action="{{ route('gestion-cancelaciones-lote') }}" method="post" id="lote-cancelaciones" class="lote-barra">
   @csrf
@@ -109,6 +119,7 @@
     @endforeach
   </tbody>
 </table>
+</div>
 {{ $pendientes->links() }}
 @endif
 @endsection
