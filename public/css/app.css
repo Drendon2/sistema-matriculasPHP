@@ -748,6 +748,13 @@
      sola. El tope va en `max-width` y no en `width` para que en pantalla ancha
      siga midiendo lo que su contenido pide, igual que `.filtro select`. */
   .lote-barra select { width: auto; max-width: 100%; margin: 0; }
+
+  /* El desplegable de «asignar a» dentro de una fila: ancho por contenido en
+     pantalla ancha, como cualquier control en linea. Llevaba `width:auto` en el
+     atributo `style` para escaparse de la regla base `select { width: 100% }`;
+     esta ahi para lo mismo, pero sin el atributo, que en movil no habia forma de
+     anular — y en movil la ficha lo quiere a ancho completo. */
+  .tabla-personas td select { width: auto; max-width: 100%; margin: 0; }
   /* Deshabilitado es el estado de reposo aquí —sin nadie marcado no hay nada
      que hacer—, así que no puede parecer un error: se atenúa, no se tacha. */
   .lote-barra button[disabled] { opacity: 0.45; cursor: default; }
@@ -1339,6 +1346,87 @@
     .asistencia-nombre { flex: 1 1 100%; }
     .asistencia-opciones { margin-left: 0; }
     .asistencia-opcion { padding: 0.5rem 0.7rem; }
+
+    /* ------------------------------------------------------------------
+       Las tablas de personas del Panel dejan de ser tablas.
+
+       Con `overflow-x` la tabla cabía, pero el trabajo no: medido a 375 px,
+       confirmar una matrícula pedía arrastrar 380 px de lado para alcanzar el
+       botón, y repartir a alguien en un grupo, 741 px — tres pantallas. Los
+       datos se veían; las ACCIONES estaban todas fuera. Una tabla que hay que
+       arrastrar para pulsar el botón no es una tabla estrecha, es un formulario
+       escondido.
+
+       Así que cada fila pasa a ser una ficha: la persona encabeza, sus datos van
+       etiquetados debajo, y los botones caen al final a ancho completo, donde el
+       pulgar llega. El `data-label` de cada celda es lo que sustituye a la
+       cabecera de la tabla, que aquí se retira — sin él, «15» y «3001234567»
+       quedarían sin decir qué son.
+
+       Se hace SOLO en las tablas de personas del Panel y no en `table` a secas:
+       el horario de un grupo o el calendario de asistencia son rejillas de
+       verdad, donde la posición de la celda ES el dato, y convertirlas en
+       fichas las destruiría.
+
+       Sin borde de color al costado: es el tic que delata una interfaz armada de
+       plantilla, y aquí no aporta nada que no aporte ya el propio borde.
+       ------------------------------------------------------------------ */
+    .tabla-personas,
+    .tabla-personas tbody,
+    .tabla-personas tr,
+    .tabla-personas td { display: block; }
+    /* Deshace el arrastre lateral que la regla general pone a toda tabla: ya no
+       hay nada ancho que arrastrar. */
+    .tabla-personas { overflow-x: visible; border-collapse: separate; }
+    .tabla-personas thead { display: none; }
+
+    .tabla-personas tr {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.5rem;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--surface); padding: 0.8rem 0.9rem; margin: 0 0 0.7rem;
+    }
+    .tabla-personas td {
+      flex: 1 1 100%; border: none; padding: 0.22rem 0;
+      display: flex; align-items: baseline; gap: 0.6rem;
+    }
+    /* La marca, la foto y el nombre comparten el primer renglón: es la fila de
+       identidad, y separarla en tres deja la ficha empezando por un hueco. */
+    .tabla-personas td[data-celda="marca"],
+    .tabla-personas td[data-celda="foto"] { flex: 0 0 auto; padding: 0; }
+    .tabla-personas td[data-celda="foto"]:empty { display: none; }
+    .tabla-personas td[data-celda="nombre"] {
+      flex: 1 1 auto; font-weight: 700; font-size: 1.02rem;
+      padding-bottom: 0.45rem;
+    }
+    /* `.vacio` trae `padding: 1rem 0`, pensado para un párrafo suelto de «no hay
+       nada». Dentro de una ficha es solo un guion, y ese relleno le doblaba el
+       alto al renglón: 61 px contra los 29 de sus vecinos. */
+    .tabla-personas td .vacio { padding: 0; }
+    .tabla-personas td[data-label]::before {
+      content: attr(data-label);
+      flex: 0 0 5.6rem;
+      font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--ink-soft);
+    }
+    /* Las acciones al final, separadas por una línea: cierran la ficha en vez
+       de mezclarse con los datos. A ancho completo y con aire, que es donde el
+       pulgar acierta. */
+    .tabla-personas td[data-celda="accion"] {
+      margin-top: 0.5rem; padding-top: 0.6rem;
+      border-top: 1px solid var(--border);
+    }
+    .tabla-personas td[data-celda="accion"] ~ td[data-celda="accion"] {
+      margin-top: 0; border-top: none; padding-top: 0.15rem;
+    }
+    .tabla-personas td[data-celda="accion"] .accion-fila,
+    .tabla-personas td[data-celda="accion"] form { flex-wrap: wrap; gap: 0.5rem; }
+    .tabla-personas td[data-celda="accion"] .btn { flex: 1 1 auto; }
+    /* `min-width: 0` no sobra: un elemento flexible no encoge por debajo de su
+       contenido sin esto, y el contenido aquí es el rótulo entero de un grupo. */
+    .tabla-personas td[data-celda="accion"] select {
+      flex: 1 1 100%; width: 100%; max-width: none; min-width: 0;
+    }
   }
 
   /* ---------------------------------------------------------------------

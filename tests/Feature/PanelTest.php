@@ -640,7 +640,7 @@ class PanelTest extends TestCase
         $hasta = strpos((string) $html, '</details>', $desde);
         $dentro = substr((string) $html, $desde, $hasta - $desde);
 
-        $this->assertStringContainsString('<table>', $dentro);
+        $this->assertStringContainsString('<table class="tabla-personas">', $dentro);
         $this->assertStringContainsString($this->estudiante->nombre_completo, $dentro);
 
         // Y el encabezado del grupo FUERA, con sus acciones.
@@ -665,6 +665,73 @@ class PanelTest extends TestCase
      * donde entra la mayoria. El CSS por si solo no puede garantizarlo: la
      * acotacion es del marcado.
      */
+    /**
+     * Toda celda de una tabla de personas dice QUE es.
+     *
+     * En un telefono esas tablas dejan de ser tablas: cada fila se pinta como
+     * una ficha y la cabecera se retira, asi que lo unico que identifica a un
+     * valor es su `data-label`. Una celda sin el sale como un numero desnudo
+     * —«11» sin decir que es la edad— y las que tienen papel propio (la foto, el
+     * nombre, la casilla, los botones) se marcan con `data-celda` para que la
+     * ficha sepa donde colocarlas.
+     *
+     * Se prueba porque es EXACTAMENTE lo que se rompe al anadir una columna: en
+     * pantalla ancha la cabecera de la tabla sigue explicandola y todo parece
+     * correcto; el hueco solo aparece en el celular, que es desde donde entra la
+     * mayoria. Nada falla, nada se ve raro en el sitio donde se programa.
+     *
+     * Medido antes de este cambio, a 375 px: confirmar una matricula pedia
+     * arrastrar 380 px de lado para alcanzar el boton, y repartir a alguien en
+     * un grupo, 741 px.
+     */
+    public function test_las_celdas_de_las_fichas_dicen_que_son(): void
+    {
+        $grupo = $this->crearGrupo();
+
+        // Las tres tablas a la vez: pendientes, la de un grupo y la de sin
+        // repartir. Con una sola la prueba dejaria las otras dos sin mirar.
+        $this->matricular($this->violin, $this->crearEstudiante('uno'), Matricula::PENDIENTE);
+        $this->matricular($this->violin, $this->crearEstudiante('dos'), Matricula::PENDIENTE);
+        $this->matricular($this->violin, $this->crearEstudiante('tres'), Matricula::ACTIVA);
+
+        $conGrupo = $this->matricular($this->violin, $this->crearEstudiante('cuatro'), Matricula::ACTIVA);
+        $conGrupo->grupo_id = $grupo->id;
+        $conGrupo->save();
+
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->getContent();
+
+        $doc = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="utf-8"?><div>'.$html.'</div>');
+        libxml_clear_errors();
+
+        $xpath = new \DOMXPath($doc);
+        $tablas = $xpath->query('//table[contains(@class, "tabla-personas")]');
+
+        // Que existan las tres es parte de lo que se afirma: sin esto la prueba
+        // pasaria en vacio el dia que alguien le quite la clase a una tabla.
+        $this->assertSame(3, $tablas->length, 'Se esperaban las tres tablas de personas del Panel.');
+
+        foreach ($tablas as $tabla) {
+            foreach ($xpath->query('.//tbody//td', $tabla) as $celda) {
+                $this->assertInstanceOf(\DOMElement::class, $celda);
+
+                $etiqueta = (string) $celda->getAttribute('data-label');
+                $papel = (string) $celda->getAttribute('data-celda');
+
+                $this->assertTrue(
+                    $etiqueta !== '' || $papel !== '',
+                    'Una celda de una tabla de personas no lleva ni `data-label` ni `data-celda`, '
+                    .'asi que en un telefono saldria sin decir que es. Contenido: "'.
+                    trim(preg_replace('/\s+/', ' ', (string) $celda->textContent)).'"'
+                );
+            }
+        }
+    }
+
     public function test_cada_barra_de_lote_va_con_su_tabla_en_un_envoltorio(): void
     {
         // Dos pendientes para que salga la barra de confirmar, y un grupo con

@@ -101,7 +101,7 @@
 </form>
 @endif
 
-<table @if ($item['puede_gestionar'] && count($item['pendientes']) > 1) data-lote-tabla="{{ $lotePendientes }}" @endif>
+<table class="tabla-personas" @if ($item['puede_gestionar'] && count($item['pendientes']) > 1) data-lote-tabla="{{ $lotePendientes }}" @endif>
   <thead>
     <tr>
       @if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
@@ -118,26 +118,26 @@
     @foreach ($item['pendientes'] as $e)
     <tr>
       @if ($item['puede_gestionar'] && count($item['pendientes']) > 1)
-      <td>
+      <td data-celda="marca">
         <input type="checkbox" name="matricula_ids[]" value="{{ $e['matricula']->id }}"
                form="{{ $lotePendientes }}" data-lote-fila
                aria-label="Marcar la solicitud de {{ $e['perfil']->nombre_completo }}">
       </td>
       @endif
-      <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
-      <td>@include('panel.nombre', ['e' => $e])</td>
-      <td>
+      <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
+      <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
+      <td data-label="Trayectoria">
         @if ($e['renovacion'])
           <span class="trayectoria trayectoria-renovacion">Renovación</span>
         @else
           <span class="trayectoria trayectoria-nuevo">Nuevo aquí</span>
         @endif
       </td>
-      <td>{{ $e['perfil']->edad }}</td>
-      <td>{{ $e['perfil']->telefono }}</td>
-      <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
+      <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+      <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
+      <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
-      <td>
+      <td data-celda="accion">
         <span class="accion-fila">
         <form action="{{ route('panel-confirmar-matricula', $e['matricula']) }}" method="post" style="display:inline;">
           @csrf
@@ -151,7 +151,7 @@
       </td>
       @endif
       @if ($esAdministrador)
-      <td><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
+      <td data-celda="accion"><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
       @endif
     </tr>
     @endforeach
@@ -216,7 +216,7 @@
       {{ $cuantos }} {{ $cuantos == 1 ? 'estudiante' : 'estudiantes' }}
       <svg class="perfil-seccion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
-  <table>
+  <table class="tabla-personas">
     <thead>
       <tr>
         <th></th><th>Nombre</th><th>Edad</th><th>Teléfono</th><th>Acudiente</th>
@@ -227,13 +227,13 @@
     <tbody>
       @foreach ($g['estudiantes'] as $e)
       <tr>
-        <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
-        <td>@include('panel.nombre', ['e' => $e])</td>
-        <td>{{ $e['perfil']->edad }}</td>
-        <td>{{ $e['perfil']->telefono }}</td>
-        <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
+        <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
+        <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
+        <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+        <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
+        <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
         @if ($item['puede_gestionar'])
-        <td>
+        <td data-celda="accion">
           <form action="{{ route('panel-asignar-grupo', $e['matricula']) }}" method="post">
             @csrf
             <input type="hidden" name="grupo_id" value="">
@@ -242,7 +242,7 @@
         </td>
         @endif
         @if ($esAdministrador)
-        <td><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
+        <td data-celda="accion"><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
         @endif
       </tr>
       @endforeach
@@ -291,7 +291,7 @@
 </form>
 @endif
 
-<table data-lote-tabla="lote-{{ $item['promotoria']->id }}">
+<table class="tabla-personas" data-lote-tabla="lote-{{ $item['promotoria']->id }}">
   <thead>
     <tr>
       @if ($conLote)
@@ -308,23 +308,23 @@
     @foreach ($item['sin_grupo'] as $e)
     <tr>
       @if ($conLote)
-      <td>
+      <td data-celda="marca">
         <input type="checkbox" name="matricula_ids[]" value="{{ $e['matricula']->id }}"
                form="lote-{{ $item['promotoria']->id }}" data-lote-fila
                aria-label="Marcar a {{ $e['perfil']->nombre_completo }}">
       </td>
       @endif
-      <td>@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
-      <td>@include('panel.nombre', ['e' => $e])</td>
-      <td>{{ $e['perfil']->edad }}</td>
-      <td>{{ $e['perfil']->telefono }}</td>
-      <td>@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
+      <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
+      <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
+      <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+      <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
+      <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
-      <td>
+      <td data-celda="accion">
         @if ($item['grupos'])
         <form action="{{ route('panel-asignar-grupo', $e['matricula']) }}" method="post" style="display:flex;gap:0.4rem;">
           @csrf
-          <select name="grupo_id" style="width:auto;">
+          <select name="grupo_id">
             <option value="">-- elegir grupo --</option>
             @foreach ($item['grupos'] as $g)
               <option value="{{ $g['grupo']->id }}">{{ $g['grupo']->nombre_con_nivel }} · {{ $g['grupo']->horario }} ({{ count($g['estudiantes']) }}/{{ $g['grupo']->cupo_maximo }})</option>
@@ -338,7 +338,7 @@
       </td>
       @endif
       @if ($esAdministrador)
-      <td><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
+      <td data-celda="accion"><a href="{{ route('detalle-estudiante', $e['perfil']) }}">Ver detalle</a></td>
       @endif
     </tr>
     @endforeach
