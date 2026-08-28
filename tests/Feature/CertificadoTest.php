@@ -10,6 +10,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Models\SesionGrupo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -284,6 +285,129 @@ class CertificadoTest extends TestCase
     // -----------------------------------------------------------------------
     // El PDF sigue saliendo cuando falta algo
     // -----------------------------------------------------------------------
+
+    /**
+     * El certificado cabe en UNA hoja, con logo, firma y todo puesto.
+     *
+     * Es la prueba que faltaba el 27/08/2026, cuando la institucion imprimio uno
+     * y la firma salio sola en la segunda hoja. Ninguna prueba lo veia: todas
+     * comprobaban que el PDF se genera y empieza por `%PDF-`, y un PDF de dos
+     * hojas cumple las dos cosas.
+     *
+     * **El caso que fallaba era el de UNA promotoria, que es el corriente.** Con
+     * dos o mas el documento usa una tabla compacta; con una usa una ficha de
+     * seis filas etiqueta/valor, que es mas alta. Medido: 799 pt de contenido en
+     * una carta de 792. Se pasaba por siete puntos, unos dos milimetros y medio.
+     *
+     * Se prueban los DOS diseños y el maximo de promotorias que el sistema
+     * permite (`RANURA_MAXIMA_ABSOLUTA`), porque son tres alturas distintas y la
+     * que menos holgura tiene es la ultima.
+     *
+     * Con firma y con documento a proposito: son las dos piezas que mas alto
+     * ocupan, y probar sin ellas mediria un certificado que nadie imprime.
+     */
+    public function test_el_certificado_cabe_en_una_hoja(): void
+    {
+        Storage::fake('local');
+
+        $configuracion = ConfiguracionInstitucion::actual();
+        $configuracion->limite_promotorias_por_periodo = 6;
+        $configuracion->nombre_institucion = 'Casa de la Cultura Luis Norberto Gómez';
+        $configuracion->firmante_nombre = 'Ricardo León Castro Castaño';
+        $configuracion->firmante_cargo = 'Secretario de Cultura, Patrimonio y Turismo.';
+        $configuracion->save();
+
+        $firma = UploadedFile::fake()->image('firma.png', 1000, 298);
+        Storage::disk('local')->putFileAs('institucion', $firma, 'firma.png');
+        $configuracion->firma = 'institucion/firma.png';
+        $configuracion->save();
+
+        [, $profesor] = $this->crearPerfil('profe', 'profesor');
+
+        $area = Area::create(['nombre' => 'Escena']);
+        $matriculas = [];
+
+        foreach (['Violín', 'Danza folclórica', 'Teatro', 'Guitarra', 'Pintura', 'Canto'] as $i => $nombre) {
+            $promotoria = Promotoria::create([
+                'nombre' => $nombre,
+                'area_id' => $area->id,
+                'profesor_id' => $profesor->id,
+            ]);
+
+            $grupo = Grupo::create([
+                'promotoria_id' => $promotoria->id,
+                'nombre' => 'Grupo '.($i + 1),
+                'nivel' => ['basico', 'intermedio', 'avanzado'][$i % 3],
+                'salon' => 'Salón '.($i + 1),
+                'cupo_maximo' => 20,
+            ]);
+
+            // Con horario: sale de las sesiones, y sin ellas la fila del grupo
+            // queda corta y la prueba mediria un certificado que no existe.
+            SesionGrupo::create([
+                'grupo_id' => $grupo->id,
+                'dia' => 5,
+                'hora_inicio' => '16:00',
+                'hora_fin' => '17:00',
+            ]);
+
+            $matricula = $this->matricular($promotoria, Matricula::ACTIVA);
+            $matricula->grupo_id = $grupo->id;
+            $matricula->save();
+
+            $matriculas[] = $matricula;
+        }
+
+        // 1. El de UNA matricula, que es el diseño de ficha y el que fallaba.
+        $this->assertHojas(
+            1,
+            $this->actingAs($this->userAna)->get(route('certificado-matricula', $matriculas[0])),
+            'el certificado de una matrícula'
+        );
+
+        // 2. El reunido con las seis, que es el diseño de tabla y el mas alto
+        //    que el sistema puede llegar a producir.
+        $this->assertHojas(
+            1,
+            $this->actingAs($this->userAna)->get(route('certificado-todo', $this->ana)),
+            'el certificado reunido con seis promotorías'
+        );
+
+        // 3. El reunido con dos, que es lo que hay en produccion.
+        foreach (array_slice($matriculas, 2) as $sobra) {
+            $sobra->estado = Matricula::RETIRADA;
+            $sobra->save();
+        }
+
+        $this->assertHojas(
+            1,
+            $this->actingAs($this->userAna)->get(route('certificado-todo', $this->ana)),
+            'el certificado reunido con dos promotorías'
+        );
+    }
+
+    /**
+     * Cuantas hojas tiene el PDF que acaba de llegar.
+     *
+     * Se cuentan los objetos `/Type /Page` del PDF, excluyendo `/Type /Pages`
+     * —que es el nodo padre y hay uno solo—. Es la forma de contar hojas sin
+     * meter una libreria de lectura de PDF en `composer.json` para una sola
+     * afirmacion.
+     */
+    private function assertHojas(int $esperadas, TestResponse $respuesta, string $cual): void
+    {
+        $respuesta->assertOk();
+
+        $hojas = preg_match_all('#/Type\s*/Page[^s]#', (string) $respuesta->getContent());
+
+        $this->assertSame(
+            $esperadas,
+            $hojas,
+            "Se esperaba que {$cual} ocupara {$esperadas} hoja(s) y ocupa {$hojas}. ".
+            'Si la firma cae sola en la siguiente, el documento crecio: mide cuanto '.
+            'con la sonda descrita en la plantilla antes de subir ningun margen.'
+        );
+    }
 
     /**
      * Sin firma cargada el certificado se genera igual, con el hueco en blanco

@@ -24,17 +24,20 @@
      porque ahi va el pie fijo. */
   @page { margin: 1.7cm 2cm 2.2cm 2cm; }
 
+  /* El interlineado es lo primero que se toca cuando hay que ganar alto, y lo
+     que menos se nota: de 1.55 a 1.45 no cambia como se lee un parrafo de tres
+     lineas y devuelve unos 9 pt en el documento entero. */
   body {
     font-family: DejaVu Sans, sans-serif;
     font-size: 10.5pt;
-    line-height: 1.55;
+    line-height: 1.45;
     color: #1a1a1a;
   }
 
   .cabecera { width: 100%; border-bottom: 1.2pt solid #8a8a8a; padding-bottom: 8pt; }
   .cabecera td { vertical-align: middle; }
-  .cabecera-logo { width: 70pt; }
-  .cabecera-logo img { width: 60pt; }
+  .cabecera-logo { width: 56pt; }
+  .cabecera-logo img { width: 46pt; }
   .cabecera-nombre { font-size: 15pt; font-weight: bold; color: #333; }
 
   h1 {
@@ -42,43 +45,52 @@
     letter-spacing: 1.5pt;
     text-align: center;
     text-transform: uppercase;
-    margin: 24pt 0 20pt;
+    margin: 16pt 0 13pt;
   }
 
   .cuerpo { text-align: justify; }
-  .destacado { text-align: center; margin: 16pt 0; }
+  .destacado { text-align: center; margin: 11pt 0; }
   .destacado .nombre { font-size: 13pt; font-weight: bold; text-transform: uppercase; }
   .destacado .documento { font-size: 10pt; color: #444; }
 
-  .detalle { width: 100%; border-collapse: collapse; margin: 16pt 0 6pt; }
+  .detalle { width: 100%; border-collapse: collapse; margin: 11pt 0 4pt; }
   .detalle th {
     background: #eee;
     color: #333;
     font-size: 9pt;
     text-align: left;
-    padding: 5pt 7pt;
+    padding: 4pt 7pt;
     border-bottom: 0.8pt solid #8a8a8a;
   }
-  .detalle td { border-bottom: 0.6pt solid #ddd; padding: 5pt 7pt; font-size: 9.5pt; }
+  .detalle td { border-bottom: 0.6pt solid #ddd; padding: 2.8pt 7pt; font-size: 9.5pt; }
 
-  .ficha { width: 100%; border-collapse: collapse; margin: 14pt 0 6pt; }
+  .ficha { width: 100%; border-collapse: collapse; margin: 9pt 0 4pt; }
   .ficha th {
     width: 30%;
     text-align: left;
     font-weight: normal;
     color: #555;
-    padding: 4pt 0;
+    padding: 2.5pt 0;
     vertical-align: top;
   }
-  .ficha td { padding: 4pt 0; font-weight: bold; }
+  .ficha td { padding: 2.5pt 0; font-weight: bold; }
 
   /* El bloque de la firma tiene que caber entero en la misma hoja que el
      texto: un certificado cuya firma cae sola en la pagina siguiente no lo
-     acepta nadie en ventanilla. De ahi que este margen sea holgado pero
-     contado, y que el resto del documento vaya compacto. */
-  .firma { margin-top: 30pt; page-break-inside: avoid; }
-  .firma-imagen { height: 46pt; }
-  .firma-hueco { height: 46pt; }
+     acepta nadie en ventanilla. De ahi el `page-break-inside: avoid`.
+
+     OJO: ese `avoid` es tambien lo que produce el sintoma cuando NO cabe. No
+     parte el bloque, lo MUEVE entero, asi que un certificado que se pasa por
+     tres milimetros saca una segunda hoja con la firma sola. Eso fue
+     exactamente lo que paso el 27/08/2026, y la causa no era este margen sino
+     que el documento medido pedia 799 pt en una carta de 792. Se midio con una
+     sonda que busca la hoja minima donde cabe; los numeros y el metodo estan en
+     `CertificadoTest`. Antes de subir cualquiera de estas medidas, vuelve a
+     medir: la holgura de aqui no es de sobra, es lo que separa el documento de
+     partirse en dos. */
+  .firma { margin-top: 20pt; page-break-inside: avoid; }
+  .firma-imagen { height: 40pt; }
+  .firma-hueco { height: 40pt; }
   .firma-linea { border-top: 0.8pt solid #333; width: 210pt; padding-top: 4pt; }
   .firma-nombre { font-weight: bold; }
   .firma-cargo { font-size: 9.5pt; color: #444; }
