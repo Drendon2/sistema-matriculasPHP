@@ -49,7 +49,7 @@
           {{ $e['perfil']->nombre_completo }}
         @endif
       </td>
-      <td>{{ $e['perfil']->edad }}</td>
+      <td>{{ $e['perfil']->edad }} años</td>
       <td>{{ $e['perfil']->telefono }}</td>
       <td>@include('panel.acudiente', ['acudiente' => $e['acudiente']])</td>
       @if ($yo->rol === 'administrador')

@@ -133,7 +133,7 @@
           <span class="trayectoria trayectoria-nuevo">Nuevo aquí</span>
         @endif
       </td>
-      <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+      <td data-label="Edad">{{ $e['perfil']->edad }} años</td>
       <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
       <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
@@ -229,7 +229,7 @@
       <tr>
         <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
         <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
-        <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+        <td data-label="Edad">{{ $e['perfil']->edad }} años</td>
         <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
         <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
         @if ($item['puede_gestionar'])
@@ -316,7 +316,7 @@
       @endif
       <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
       <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
-      <td data-label="Edad">{{ $e['perfil']->edad }}</td>
+      <td data-label="Edad">{{ $e['perfil']->edad }} años</td>
       <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
       <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
