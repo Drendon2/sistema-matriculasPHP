@@ -195,6 +195,13 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
         ->name('detalle-usuario');
     Route::get('/panel/estudiante/{usuario}/historial', [FichaController::class, 'historial'])
         ->name('historial-estudiante');
+    // Corregir la promotoria de una matricula: el estudiante se inscribio en la
+    // que no era. Vive aqui y no en el Panel porque se hace desde la
+    // trayectoria, que es donde se ven todas sus matriculas a la vez; quien
+    // puede usarla lo comprueba el controlador (direccion, no el profesor).
+    Route::post('/panel/matriculas/{matricula}/corregir-promotoria',
+        [FichaController::class, 'corregirPromotoria'])
+        ->name('corregir-promotoria');
 });
 
 // La ficha con encuesta y documento es solo del administrador: va en su propio

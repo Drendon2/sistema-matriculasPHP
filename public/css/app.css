@@ -1097,6 +1097,42 @@
     padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); white-space: nowrap;
   }
   .historial-fechas { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-faint); }
+  /* Corregir la promotoría de una matrícula. Plegado, y con el mismo rótulo
+     pequeño en monoespaciada que ya abre la lista de un grupo: es una acción
+     rara —un dato mal puesto— y no puede pesar como el certificado de al lado,
+     que se pide a diario. */
+  .historial-corregir { width: 1%; white-space: nowrap; }
+  /* Con el panel abierto la fila crece, y como las celdas van centradas en
+     vertical el resto del renglon —promotoría, profesor, estado— se quedaba
+     flotando a media altura, lejos del dato que se está corrigiendo. Abierto,
+     todo sube: la fila se lee como una fila que se desplegó y no como cinco
+     celdas sueltas. */
+  tr:has(.corregir[open]) td { vertical-align: top; }
+  .corregir-abrir {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    width: fit-content; cursor: pointer; list-style: none;
+    font-family: var(--font-mono); font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft); padding: 0.3rem 0;
+  }
+  .corregir-abrir::-webkit-details-marker { display: none; }
+  .corregir-abrir:hover { color: var(--accent); }
+  .corregir-abrir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* El panel abierto se sale del ancho de su celda a proposito: la columna mide
+     lo que el rotulo plegado, y un desplegable de promotorias no cabe ahi. Con
+     `position: absolute` se saldria de la tabla que se desplaza en horizontal;
+     asi empuja la fila hacia abajo, que en una tabla es el sitio que hay. */
+  .corregir-form {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem;
+    white-space: normal; width: 15rem; max-width: 100%;
+    margin-top: 0.4rem; padding-top: 0.7rem;
+    border-top: 1px solid var(--border);
+  }
+  .corregir-form select { margin: 0; font-size: 0.9rem; padding: 0.45rem 0.55rem; }
+  .corregir-aviso {
+    margin: 0; font-size: 0.78rem; line-height: 1.4; color: var(--ink-soft);
+  }
+
   /* El Área acompaña al nombre de la promotoría sin competir con él: el punto de
      color ya la identifica, este texto solo la nombra para quien no se sepa el
      código de colores. */
@@ -1491,6 +1527,17 @@
     .tabla-personas td[data-celda="accion"] select {
       flex: 1 1 100%; width: 100%; max-width: none; min-width: 0;
     }
+    /* Las dos celdas de accion del historial traen `width: 1%` y alineacion a
+       la derecha, que es lo que necesitan DENTRO de la tabla para no estirarla.
+       Convertidas en ficha estorban: el ancho ya lo pone la ficha y lo que se
+       quiere es el boton a la izquierda, donde empieza a leerse la fila. */
+    .tabla-personas td.historial-certificado,
+    .tabla-personas td.historial-corregir {
+      width: auto; white-space: normal; text-align: left;
+    }
+    /* El panel de corregir a ancho completo: en la ficha hay sitio, y a 15rem
+       fijos se quedaba corto contra el borde. */
+    .tabla-personas .corregir-form { width: 100%; }
   }
 
   /* ---------------------------------------------------------------------

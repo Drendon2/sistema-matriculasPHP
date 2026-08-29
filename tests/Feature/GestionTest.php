@@ -9,6 +9,7 @@ use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\ConfirmacionClase;
+use App\Models\CupoPromotoria;
 use App\Models\DatosEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
@@ -992,6 +993,205 @@ class GestionTest extends TestCase
         $respuesta->assertSee('Ana');
         $respuesta->assertSee('Profe');
         $respuesta->assertDontSee('>Dire<', false);
+    }
+
+    // -----------------------------------------------------------------------
+    // Corregir la promotoria de una matricula
+    // -----------------------------------------------------------------------
+
+    private function otraPromotoria(string $nombre = 'Guitarra'): Promotoria
+    {
+        return Promotoria::create([
+            'nombre' => $nombre,
+            'area_id' => $this->musica->id,
+            'profesor_id' => $this->profesor->id,
+        ]);
+    }
+
+    /** Mueve la fila: no retira una y crea otra. */
+    public function test_corregir_mueve_la_misma_matricula(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('success');
+
+        $m->refresh();
+        $this->assertSame($guitarra->id, $m->promotoria_id);
+        // Una sola fila: si hubiera retirado y creado, serian dos.
+        $this->assertSame(1, Matricula::where('estudiante_id', $this->estudiante->id)->count());
+        $this->assertSame(0, Matricula::where('estado', Matricula::RETIRADA)->count());
+    }
+
+    /**
+     * Vuelve a pendiente aunque estuviera activa: confirmar es un acto de quien
+     * dicta, y el profesor de la promotoria nueva no la ha visto nunca.
+     */
+    public function test_corregir_devuelve_la_matricula_a_pendiente(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
+
+        $this->assertSame(Matricula::PENDIENTE, $m->refresh()->estado);
+    }
+
+    /** El grupo cuelga de la promotoria vieja: no puede sobrevivir al cambio. */
+    public function test_corregir_suelta_el_grupo_asignado(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $grupo = Grupo::create([
+            'promotoria_id' => $this->violin->id, 'nombre' => 'A',
+            'nivel' => 'basico', 'salon' => 'S1', 'cupo_maximo' => 10,
+        ]);
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $m->grupo_id = $grupo->id;
+        $m->save();
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
+
+        $this->assertNull($m->refresh()->grupo_id);
+    }
+
+    /** La fecha de inscripcion es del dato original y el movimiento no la toca. */
+    public function test_corregir_conserva_la_fecha_de_inscripcion(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $fecha = $m->fresh()->fecha;
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
+
+        $m->refresh();
+        // Que se movio de verdad va primero: sin esta linea la prueba pasaba
+        // aunque la correccion no hiciera nada en absoluto.
+        $this->assertSame($guitarra->id, $m->promotoria_id);
+        $this->assertEquals($fecha, $m->fecha);
+    }
+
+    /** Un profesor no mueve estudiantes entre promotorias: es cosa de direccion. */
+    public function test_un_profesor_no_puede_corregir(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error');
+
+        $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /** Mover una de un periodo cerrado cambiaria certificados ya emitidos. */
+    public function test_no_se_corrige_una_matricula_de_un_periodo_cerrado(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $anterior = Periodo::create([
+            'nombre' => '2025-2', 'fecha_inicio' => '2025-07-01',
+            'fecha_fin' => '2025-12-15', 'activo' => false, 'matriculas_abiertas' => false,
+        ]);
+        $m = new Matricula([
+            'estudiante_id' => $this->estudiante->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $anterior->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+        $m->save();
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error');
+
+        $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /** Una retirada no se corrige: el estudiante ya no esta en ella. */
+    public function test_no_se_corrige_una_matricula_retirada(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error');
+
+        $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /**
+     * El unico `(estudiante, promotoria, periodo)` cuenta TAMBIEN las retiradas,
+     * asi que mover a una promotoria por la que ya paso choca contra la base. El
+     * mensaje crudo de MariaDB no lo explicaria, y esta prueba es la que fija
+     * que se traduzca.
+     */
+    public function test_corregir_avisa_si_ya_estuvo_en_la_promotoria_destino(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $this->matricular($this->estudiante, $guitarra, Matricula::RETIRADA);
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'ya tiene una matrícula'));
+
+        $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /**
+     * El trigger de cupo corre tambien en UPDATE, asi que mover a una promotoria
+     * llena lo rechaza el motor. Se traduce en vez de reventar.
+     */
+    public function test_corregir_avisa_si_la_promotoria_destino_no_tiene_cupo(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        CupoPromotoria::create([
+            'promotoria_id' => $guitarra->id, 'periodo_id' => $this->periodo->id, 'cupo_maximo' => 1,
+        ]);
+        $this->matricular($this->crearEstudiante('lleno'), $guitarra, Matricula::ACTIVA);
+
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'cupo libre'));
+
+        $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /** Mover a la que ya tiene no es una corrección, es un clic perdido. */
+    public function test_corregir_a_la_misma_promotoria_avisa(): void
+    {
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $this->violin->id])
+            ->assertSessionHas('error');
+    }
+
+    /** El panel de corregir no se le ofrece al profesor que solo mira. */
+    public function test_el_profesor_no_ve_el_panel_de_corregir(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('historial-estudiante', $this->estudiante))
+            ->assertDontSee('Mover matrícula');
+    }
+
+    /** Y a dirección sí. */
+    public function test_direccion_ve_el_panel_de_corregir(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->get(route('historial-estudiante', $this->estudiante))
+            ->assertSee('Mover matrícula');
     }
 
     /** Quien se retiro de Violin ya no es de Violin. */

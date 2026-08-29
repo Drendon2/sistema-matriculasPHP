@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\DocumentoRequerido;
 use App\Models\Matricula;
 use App\Models\Perfil;
+use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Permisos;
 use App\Support\ResumenAsistencia;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -143,15 +147,139 @@ class FichaController extends Controller
      * vez. No abre nada mas: la encuesta demografica y la copia del documento
      * siguen siendo solo del administrador.
      */
-    public function historial(Perfil $usuario): View
+    public function historial(Request $request, Perfil $usuario): View
     {
         abort_unless($usuario->rol === 'estudiante', 404);
+
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        $puedeCorregir = in_array($perfil->rol, ['director', 'administrador'], true);
+        $enCurso = Periodo::enCurso();
 
         return view('panel.historial-estudiante', [
             'estudiante' => $usuario,
             'historial' => Matricula::historialPorPeriodo($usuario),
             'resumen' => Matricula::resumenTrayectoria($usuario),
+            'puedeCorregir' => $puedeCorregir,
+            'periodoEnCursoId' => $enCurso?->id,
+            // Solo hace falta la lista si va a pintarse el desplegable. Agrupada
+            // por area para el <optgroup>, como el resto de los selectores de
+            // promotoria del proyecto.
+            'promotoriasParaCorregir' => $puedeCorregir
+                ? Promotoria::with('area')
+                    ->join('areas', 'areas.id', '=', 'promotorias.area_id')
+                    ->orderBy('areas.nombre')
+                    ->orderBy('promotorias.nombre')
+                    ->select('promotorias.*')
+                    ->get()
+                : collect(),
         ]);
+    }
+
+    /**
+     * Corrige la promotoria de una matricula: el estudiante se inscribio en la
+     * que no era.
+     *
+     * MUEVE la fila en vez de retirar una y crear otra, y eso es deliberado (se
+     * decidio el 28/08/2026). No fue una salida, fue un dato mal puesto: la
+     * matricula conserva su fecha de inscripcion y el estudiante figura como si
+     * siempre hubiera estado en la correcta. Retirar y crear le dejaria una
+     * `retirada` en la equivocada, que en pantalla se lee como que se salio.
+     *
+     * Vuelve a `pendiente` aunque estuviera activa, por la misma razon por la
+     * que solo quien dicta pasa lista: confirmar es un acto de quien tiene a esa
+     * persona en su salon, y el profesor de la promotoria nueva no la ha visto
+     * nunca. Le aparece en su Panel por el circuito normal.
+     *
+     * Solo el periodo EN CURSO. Mover una matricula de un periodo cerrado
+     * cambiaria certificados ya emitidos y la antiguedad que cuenta
+     * `InformeController`, y eso no es corregir un error de captura.
+     */
+    public function corregirPromotoria(Request $request, Matricula $matricula): RedirectResponse
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        $volver = redirect()->route('historial-estudiante', $matricula->estudiante_id);
+
+        if (! in_array($perfil->rol, ['director', 'administrador'], true)) {
+            return $volver->with('error', 'No tienes acceso a esta corrección.');
+        }
+
+        if ($matricula->periodo_id !== Periodo::enCurso()?->id) {
+            return $volver->with('error', 'Solo se corrige una matrícula del periodo en curso.');
+        }
+
+        if ($matricula->estado === Matricula::RETIRADA) {
+            return $volver->with('error', 'Una matrícula retirada no se corrige: el estudiante ya no está en ella.');
+        }
+
+        // El id llega de un formulario: que exista se exige en la consulta, no
+        // se da por hecho porque se haya pintado en el desplegable.
+        $destino = Promotoria::find($request->input('promotoria_id'));
+
+        if ($destino === null) {
+            return $volver->with('error', 'Esa promotoría no existe.');
+        }
+
+        if ($destino->id === $matricula->promotoria_id) {
+            return $volver->with('error', 'La matrícula ya está en esa promotoría.');
+        }
+
+        // Anotada porque `Matricula` no lleva `@property` y PHPStan no adivina
+        // el tipo detras de la relacion. No es un cast para callarlo: el nombre
+        // se lee ANTES de mover, que es cuando todavia es el de la promotoria
+        // equivocada, y es lo que se le cuenta a quien corrige.
+        /** @var Promotoria $anterior */
+        $anterior = $matricula->promotoria;
+        $origen = $anterior->nombre;
+
+        $matricula->promotoria_id = $destino->id;
+        // El grupo cuelga de la promotoria vieja: dejarlo puesto meteria al
+        // estudiante en un horario de otra promotoria. Se pierde siempre, y por
+        // eso la pantalla lo avisa antes de preguntar.
+        $matricula->grupo_id = null;
+        $matricula->estado = Matricula::PENDIENTE;
+
+        try {
+            $matricula->validar();
+            $matricula->save();
+        } catch (ValidationException $e) {
+            return $volver->with('error', implode(' ', Arr::flatten($e->errors())));
+        } catch (QueryException $e) {
+            return $volver->with('error', $this->porQueNoSePudoCorregir($e, $destino));
+        }
+
+        return $volver->with('success', "La matrícula pasó de {$origen} a {$destino->nombre}, "
+            .'y queda pendiente de que la confirme quien la dicta.');
+    }
+
+    /**
+     * Traduce el rechazo de la base a algo que se pueda leer en pantalla.
+     *
+     * Las dos garantias que pueden saltar aqui viven en el motor y no en la
+     * aplicacion, asi que no hay forma de anticiparlas sin una carrera: el
+     * trigger de cupo —que tambien corre en UPDATE— y el unico
+     * `(estudiante, promotoria, periodo)`, que cuenta TAMBIEN las retiradas. Ese
+     * segundo caso es el que sorprende: un estudiante que entro y se salio de la
+     * promotoria destino este mismo periodo no puede volver a ella moviendo otra
+     * matricula, y el mensaje crudo de MariaDB no lo explicaria.
+     */
+    private function porQueNoSePudoCorregir(QueryException $e, Promotoria $destino): string
+    {
+        $mensaje = $e->getMessage();
+
+        if (str_contains($mensaje, 'unica_matricula_por_periodo')) {
+            return "El estudiante ya tiene una matrícula en {$destino->nombre} este periodo, "
+                .'aunque esté retirada. Reactívala desde ahí en vez de mover esta.';
+        }
+
+        if (str_contains($mensaje, '45000') || str_contains($mensaje, 'cupo')) {
+            return "{$destino->nombre} no tiene cupo libre en este periodo.";
+        }
+
+        throw $e;
     }
 
     /**

@@ -15,6 +15,14 @@
 --}}
 @php($modo = $modo ?? 'estudiante')
 @php($periodoActualId = $periodoActualId ?? null)
+{{--
+  Corregir la promotoria solo lo ofrece la trayectoria que mira el personal, asi
+  que las tres llegan con valor por defecto: «Mis matriculas» incluye este mismo
+  parcial y no las pasa.
+--}}
+@php($puedeCorregir = $puedeCorregir ?? false)
+@php($periodoEnCursoId = $periodoEnCursoId ?? null)
+@php($promotoriasParaCorregir = $promotoriasParaCorregir ?? collect())
 
 @foreach ($historial as $bloque)
 <section class="historial-bloque">
@@ -30,7 +38,16 @@
     @endif
   </div>
 
-  <table>
+  {{--
+    `tabla-personas` no es decorativo: bajo 640px convierte cada fila en una
+    ficha y saca las acciones a ancho completo. Sin eso, en un teléfono esta
+    tabla se arrastra en horizontal y «Certificado» y «Corregir» quedan FUERA de
+    la pantalla — la misma trampa que ya costó una vez en el Panel: una tabla
+    que hay que arrastrar para pulsar el botón no es una tabla estrecha, es un
+    formulario escondido. Aquí se puede aplicar porque esto es una lista de
+    matrículas, no una rejilla donde la posición de la celda sea el dato.
+  --}}
+  <table class="tabla-personas">
     <thead>
       <tr>
         <th>Promotoría</th>
@@ -40,21 +57,22 @@
         <th>Estado</th>
         <th></th>
         @if ($modo === 'estudiante')<th></th>@endif
+        @if ($modo === 'personal')<th></th>@endif
       </tr>
     </thead>
     <tbody>
       @foreach ($bloque['matriculas'] as $m)
       <tr>
-        <td>
+        <td data-celda="nombre">
           <span class="tag-dot {{ $m->promotoria->area->tag_color }}"></span>{{ $m->promotoria->nombre }}
           <span class="historial-area">{{ $m->promotoria->area->nombre }}</span>
         </td>
 
         @if ($modo === 'personal')
-        <td>{{ $m->promotoria->profesor?->nombre_completo ?: '—' }}</td>
+        <td data-label="Profesor">{{ $m->promotoria->profesor?->nombre_completo ?: '—' }}</td>
         @endif
 
-        <td>
+        <td data-label="Grupo">
           @if ($m->grupo)
             {{ $m->grupo->nombre_con_nivel }} · {{ $m->grupo->horario }}
           @elseif ($m->estado === \App\Models\Matricula::ACTIVA)
@@ -65,14 +83,14 @@
         </td>
 
         @if ($modo === 'estudiante')
-        <td class="num">{{ $m->fecha->format('d/m/Y') }}</td>
+        <td class="num" data-label="Inscripción">{{ $m->fecha->format('d/m/Y') }}</td>
         @endif
 
         {{--
           `estado_visible` y no `estado`: una activa de un periodo cerrado se lee
           como «Finalizada». No es un valor guardado, se deduce del calendario.
         --}}
-        <td>
+        <td data-label="Estado">
           <span class="estado estado-{{ $m->estado_visible }}">{{ $m->estado_visible_display }}</span>
         </td>
 
@@ -83,7 +101,7 @@
           tiene derecho a ella; una pendiente o una retirada no lo enseñan,
           porque no hay nada que un papel pueda afirmar de ellas.
         --}}
-        <td class="historial-certificado">
+        <td class="historial-certificado" data-celda="accion">
           @php($certificable = in_array($m->estado_visible, [\App\Models\Matricula::ACTIVA, \App\Models\Matricula::FINALIZADA], true))
           @if ($certificable && \App\Support\Permisos::puedeCertificarMatricula($yo, $m))
             <a class="btn btn-secundario btn-sm" href="{{ route('certificado-matricula', $m) }}">
@@ -92,8 +110,55 @@
           @endif
         </td>
 
+        {{--
+          Corregir la promotoría: el estudiante se inscribió en la que no era.
+          Va plegado en un <details> nativo porque es una corrección rara y no
+          puede pesar tanto como el certificado, que sí se pide a diario.
+
+          El <details> lleva `id` a propósito: `acciones.js` reemplaza <main>
+          sin recargar y solo sabe volver a abrir los que lo tienen. Sin él, al
+          fallar la corrección el panel se cerraría y el aviso quedaría sin el
+          formulario que lo explica.
+        --}}
+        @if ($modo === 'personal')
+        <td class="historial-corregir" data-celda="accion">
+          @if ($puedeCorregir && $m->periodo_id === $periodoEnCursoId && $m->estado !== \App\Models\Matricula::RETIRADA)
+          <details class="corregir" id="corregir-{{ $m->id }}">
+            <summary class="corregir-abrir">Corregir</summary>
+            <form action="{{ route('corregir-promotoria', $m) }}" method="post" class="corregir-form">
+              @csrf
+              <label class="sr-solo" for="corregir-destino-{{ $m->id }}">Promotoría correcta</label>
+              {{--
+                La promotoría actual NO se ofrece: no se mueve una matrícula a
+                donde ya está, y dejarla en la lista —además preseleccionada—
+                hacía que el botón por defecto no hiciera nada más que sacar un
+                aviso. Se filtra ANTES de agrupar, así ningún <optgroup> queda
+                vacío. El controlador conserva su comprobación igualmente: la
+                lista se pinta aquí, pero el id lo manda el navegador.
+              --}}
+              @php($destinos = $promotoriasParaCorregir->where('id', '!=', $m->promotoria_id))
+              <select name="promotoria_id" id="corregir-destino-{{ $m->id }}" required>
+                <option value="">Elegir promotoría…</option>
+                @foreach ($destinos->groupBy('area.nombre') as $areaNombre => $delArea)
+                <optgroup label="{{ $areaNombre }}">
+                  @foreach ($delArea as $p)
+                    <option value="{{ $p->id }}">{{ $p->nombre }}</option>
+                  @endforeach
+                </optgroup>
+                @endforeach
+              </select>
+              <p class="corregir-aviso">
+                Pierde el grupo asignado y vuelve a quedar pendiente de que la confirme quien la dicta.
+              </p>
+              <button type="submit" class="btn btn-sm">Mover matrícula</button>
+            </form>
+          </details>
+          @endif
+        </td>
+        @endif
+
         @if ($modo === 'estudiante')
-        <td>
+        <td data-celda="accion">
           @if ($m->periodo_id !== $periodoActualId)
             <span class="periodo-terminado">Periodo terminado</span>
           @elseif ($m->cancelacion_pendiente)
