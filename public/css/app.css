@@ -24,6 +24,10 @@
     --radius-dato: 3px;
     --shadow: 0 1px 2px rgba(24,36,32,0.05), 0 6px 16px rgba(24,36,32,0.08);
     --shadow-lift: 0 4px 10px rgba(24,36,32,0.10), 0 12px 28px rgba(24,36,32,0.12);
+    /* Aspa dibujada, para enmascarar la cruz de limpiar del buscador. Va como
+       mascara y no como imagen para que el color lo ponga el sistema y no el
+       archivo: asi sigue a la tinta y al rojo del hover. */
+    --aspa: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4 L12 12 M12 4 L4 12' stroke='%23000' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
     /* Etiquetas de Área: un color estable por id (ver templatetag tag_color) — como
@@ -961,8 +965,19 @@
      tabla, no un formulario con su propia tarjeta. Se lee como los rótulos de
      una carpeta de archivador —etiqueta pequeña arriba, control debajo— y se
      reparte en varias líneas cuando la pantalla no da. */
+  /* REJILLA y no fila envuelta, desde que el buscador es el septimo control.
+     En fila cada control media lo que pedia su opcion mas larga, asi que al
+     partir en dos lineas la segunda quedaba coja —tres controles y medio ancho
+     vacio— y ninguno se alineaba con el de arriba. Con columnas iguales la
+     barra cae en cuadricula sola, los rotulos forman columna, y un nombre de
+     promotoria largo ya no puede empujar a nadie porque el ancho lo pone la
+     rejilla y no el contenido.
+     `auto-fit` es lo que la baja a una columna en el telefono sin una regla
+     aparte: la misma barra sirve para las dos pantallas. */
   .filtros {
-    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    align-items: end; gap: 0.75rem;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -976,19 +991,31 @@
     text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);
     margin-bottom: 0.25rem;
   }
-  /* Los select del formulario base ocupan el 100%; aquí conviven varios en una
-     fila, así que se les deja ancho propio y un tope para que un nombre de
-     promotoría largo no empuje al resto fuera de la tarjeta. */
-  .filtro select { width: auto; max-width: 172px; margin: 0; padding: 0.45rem 0.55rem; font-size: 0.88rem; }
+  /* Llenan su celda. El tope de ancho que llevaban antes lo pone ahora la
+     rejilla, y ademas asi todos miden lo mismo: seis controles de anchos
+     distintos, cada uno segun su opcion mas larga, era la mitad de por que la
+     barra se veia desordenada. */
+  .filtro select { width: 100%; max-width: none; margin: 0; padding: 0.45rem 0.55rem; font-size: 0.88rem; }
   /* El buscador se lleva el sobrante de la fila —un nombre completo necesita
      mas sitio que «Todos»— pero con tope, para que no empuje a los cinco
      desplegables a la linea de abajo en pantalla ancha.
 
-     El reparto va en `.filtro-buscar`, que es el hijo de la fila, y NO en el
-     campo: `.filtro` es un contenedor flex EN COLUMNA, asi que un `flex-basis`
-     puesto al campo se aplicaria al eje vertical y pediria alto en vez de
-     ancho. */
-  .filtro-buscar { flex: 1 1 12rem; max-width: 16rem; }
+     El reparto va en `.filtro-buscar` y NO en el campo, y esto es una trampa que
+     ya costo una vez: `.filtro` es un contenedor flex EN COLUMNA, asi que un
+     `flex-basis` puesto al campo se aplica al eje vertical. Un `flex: 1 1 11rem`
+     ahi no pedia 176px de ancho sino de ALTO, y dejaba un buscador cinco veces
+     mas alto que sus cinco vecinos. Quien reparte el ancho es el hijo de
+     `.filtros`.
+
+     Dos columnas: es el unico control en el que se escribe un nombre completo,
+     y ademas cuadra la barra —buscador(2) + cinco desplegables + boton son ocho
+     celdas, o sea dos filas exactas de cuatro, sin el hueco suelto al final que
+     deja un numero impar de controles. Solo a partir de 641px: por debajo la
+     rejilla baja a una columna y un `span 2` ahi se inventaria una segunda
+     columna y desbordaria la tarjeta. */
+  @media (min-width: 641px) {
+    .filtro-buscar { grid-column: span 2; }
+  }
   /* Se queda en 1rem y NO en los 0.88rem de los select vecinos: es el unico
      control de la barra en el que se ESCRIBE, y por debajo de 16px Safari de
      iOS hace zoom al enfocarlo y deja la pagina descuadrada. Es la regla de los
@@ -997,6 +1024,23 @@
     width: 100%; max-width: none; margin: 0;
     padding: 0.3rem 0.55rem; font-size: 1rem; line-height: 1.3;
   }
+  /* Los seis controles comparten alto. Sin esto el campo mide unos pixeles mas
+     que los desplegables por su letra mayor, y como la barra alinea por abajo
+     (`align-items: flex-end`) lo que se descuadra es su ROTULO: cinco etiquetas
+     a una altura y la sexta un escalon mas arriba. */
+  .filtro select,
+  .filtro input[type="search"] { min-height: 2.2rem; }
+  /* La cruz de limpiar que pinta el navegador viene con su propio gris y su
+     propio tamano. Se apaga y se rehace en la tinta del sistema: es de las
+     piezas que uno no dibuja y delatan que la pantalla se armo de plantilla. */
+  .filtro input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; cursor: pointer;
+    background: var(--ink-faint);
+    -webkit-mask: var(--aspa) center / 11px no-repeat;
+    mask: var(--aspa) center / 11px no-repeat;
+  }
+  .filtro input[type="search"]::-webkit-search-cancel-button:hover { background: var(--danger); }
   /* El botón sigue al último control en vez de irse al extremo derecho con un
      margin-left:auto. En una sola fila la diferencia no se nota; en cuanto la
      barra se parte en dos líneas, "auto" dejaba el botón descolgado al otro
@@ -1343,13 +1387,13 @@
     .stat-bar-fila { gap: 0.55rem; }
     .perm { margin-left: 0.5rem; gap: 2px; padding: 0 1px; }
     .perm-col { width: 6px; flex-basis: 6px; }
-    /* Filtros a ancho completo: media fila por control es demasiado estrecho
-       para leer el nombre de una promotoría. */
-    .filtro { flex: 1 1 100%; }
-    .filtro select { max-width: none; width: 100%; }
-    /* El buscador tambien: a media fila no cabe un nombre completo, que es
-       justo lo que se teclea aqui. */
-    .filtro-buscar { flex: 1 1 100%; max-width: none; }
+    /* Los filtros a ancho completo ya NO se piden aqui: la rejilla `auto-fit`
+       de `.filtros` baja sola a una columna cuando no caben dos de 10.5rem.
+       Lo que si es propio del telefono es el area de toque: los seis controles
+       suben a 44px como ya hacen los botones y los enlaces de la cabecera en
+       este mismo breakpoint. La barra se usa de pie y con el pulgar. */
+    .filtro select,
+    .filtro input[type="search"] { min-height: 44px; }
     .filtro-acciones { margin-left: 0; }
     /* Y el de la barra de acciones en bloque, por lo mismo: a media fila no se
        lee de qué grupo se trata. */
