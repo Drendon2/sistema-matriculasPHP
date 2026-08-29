@@ -23,6 +23,7 @@
 @php($puedeCorregir = $puedeCorregir ?? false)
 @php($periodoEnCursoId = $periodoEnCursoId ?? null)
 @php($promotoriasParaCorregir = $promotoriasParaCorregir ?? collect())
+@php($motivoSinCorregir = $motivoSinCorregir ?? null)
 
 @foreach ($historial as $bloque)
 <section class="historial-bloque">
@@ -122,9 +123,15 @@
         --}}
         @if ($modo === 'personal')
         <td class="historial-corregir" data-celda="accion">
-          @if ($puedeCorregir && $m->periodo_id === $periodoEnCursoId && $m->estado !== \App\Models\Matricula::RETIRADA)
+          @if ($puedeCorregir && $m->periodo_id === $periodoEnCursoId)
+          {{--
+            Una retirada TAMBIÉN se mueve: quien se salió y quiere entrar a otra
+            no está corrigiendo un dato viejo, está entrando. Por eso el rótulo
+            cambia — «Corregir» no describe readmitir a alguien.
+          --}}
+          @php($esRetirada = $m->estado === \App\Models\Matricula::RETIRADA)
           <details class="corregir" id="corregir-{{ $m->id }}">
-            <summary class="corregir-abrir">Corregir</summary>
+            <summary class="corregir-abrir">{{ $esRetirada ? 'Cambiar' : 'Corregir' }}</summary>
             <form action="{{ route('corregir-promotoria', $m) }}" method="post" class="corregir-form">
               @csrf
               <label class="sr-solo" for="corregir-destino-{{ $m->id }}">Promotoría correcta</label>
@@ -148,11 +155,21 @@
                 @endforeach
               </select>
               <p class="corregir-aviso">
-                Pierde el grupo asignado y vuelve a quedar pendiente de que la confirme quien la dicta.
+                @if ($esRetirada)
+                  Vuelve a entrar y queda pendiente de que la confirme quien la dicta.
+                  Ocupa de nuevo un cupo del estudiante.
+                @else
+                  Pierde el grupo asignado y vuelve a quedar pendiente de que la confirme quien la dicta.
+                @endif
               </p>
-              <button type="submit" class="btn btn-sm">Mover matrícula</button>
+              <button type="submit" class="btn btn-sm">
+                {{ $esRetirada ? 'Mover y readmitir' : 'Mover matrícula' }}
+              </button>
             </form>
           </details>
+          @elseif ($motivoSinCorregir && $m->periodo_id === $periodoEnCursoId)
+            {{-- Dice por que no hay boton, en vez de dejar el hueco. --}}
+            <span class="clase-mia">{{ $motivoSinCorregir }}</span>
           @endif
         </td>
         @endif

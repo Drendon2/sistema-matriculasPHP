@@ -154,14 +154,22 @@ class FichaController extends Controller
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
 
-        $puedeCorregir = in_array($perfil->rol, ['director', 'administrador'], true);
         $enCurso = Periodo::enCurso();
+        $puedeCorregir = $this->puedeCorregirPromotoria($perfil, $enCurso);
 
         return view('panel.historial-estudiante', [
             'estudiante' => $usuario,
             'historial' => Matricula::historialPorPeriodo($usuario),
             'resumen' => Matricula::resumenTrayectoria($usuario),
             'puedeCorregir' => $puedeCorregir,
+            // Por que NO puede, cuando el motivo es temporal. Al director con la
+            // ventana cerrada le desaparecia la accion y quedaba un hueco, y un
+            // hueco donde antes habia un boton se lee como un fallo, no como una
+            // regla — la misma leccion que el «Plazo cerrado» de la hoja de
+            // asistencia. A un profesor no se le dice nada: nunca la tuvo.
+            'motivoSinCorregir' => ! $puedeCorregir && $perfil->rol === 'director'
+                ? 'Matrículas cerradas'
+                : null,
             'periodoEnCursoId' => $enCurso?->id,
             // Solo hace falta la lista si va a pintarse el desplegable. Agrupada
             // por area para el <optgroup>, como el resto de los selectores de
@@ -192,6 +200,13 @@ class FichaController extends Controller
      * persona en su salon, y el profesor de la promotoria nueva no la ha visto
      * nunca. Le aparece en su Panel por el circuito normal.
      *
+     * Tambien se mueve una RETIRADA, y al moverla revive como pendiente (se
+     * decidio el 29/08/2026). Es el mismo trato que ya le da el boton
+     * «Matricularme» del catalogo cuando el estudiante vuelve por su cuenta:
+     * quien se salio y quiere entrar a otra no esta corrigiendo un dato viejo,
+     * esta entrando. El limite de promotorias vuelve a contarla, y de eso se
+     * encarga `Matricula::validar()`, que ve que la ocupacion aumenta.
+     *
      * Solo el periodo EN CURSO. Mover una matricula de un periodo cerrado
      * cambiaria certificados ya emitidos y la antiguedad que cuenta
      * `InformeController`, y eso no es corregir un error de captura.
@@ -202,17 +217,20 @@ class FichaController extends Controller
         $perfil = $request->attributes->get('perfil');
 
         $volver = redirect()->route('historial-estudiante', $matricula->estudiante_id);
+        $enCurso = Periodo::enCurso();
 
-        if (! in_array($perfil->rol, ['director', 'administrador'], true)) {
-            return $volver->with('error', 'No tienes acceso a esta corrección.');
-        }
-
-        if ($matricula->periodo_id !== Periodo::enCurso()?->id) {
+        if ($matricula->periodo_id !== $enCurso?->id) {
             return $volver->with('error', 'Solo se corrige una matrícula del periodo en curso.');
         }
 
-        if ($matricula->estado === Matricula::RETIRADA) {
-            return $volver->with('error', 'Una matrícula retirada no se corrige: el estudiante ya no está en ella.');
+        if (! $this->puedeCorregirPromotoria($perfil, $enCurso)) {
+            // El motivo importa: a un director con la ventana cerrada no le
+            // falta permiso siempre, le falta AHORA, y un «no tienes acceso»
+            // seco le haria pensar que el sistema esta mal.
+            return $volver->with('error', $perfil->rol === 'director'
+                ? "Las matrículas de {$enCurso} están cerradas. Con la ventana cerrada, "
+                    .'solo el administrador puede mover una matrícula.'
+                : 'No tienes acceso a esta corrección.');
         }
 
         // El id llega de un formulario: que exista se exige en la consulta, no
@@ -234,6 +252,9 @@ class FichaController extends Controller
         /** @var Promotoria $anterior */
         $anterior = $matricula->promotoria;
         $origen = $anterior->nombre;
+        $revivida = $matricula->estado === Matricula::RETIRADA;
+        /** @var Perfil $quien */
+        $quien = $matricula->estudiante;
 
         $matricula->promotoria_id = $destino->id;
         // El grupo cuelga de la promotoria vieja: dejarlo puesto meteria al
@@ -251,8 +272,43 @@ class FichaController extends Controller
             return $volver->with('error', $this->porQueNoSePudoCorregir($e, $destino));
         }
 
-        return $volver->with('success', "La matrícula pasó de {$origen} a {$destino->nombre}, "
-            .'y queda pendiente de que la confirme quien la dicta.');
+        // Se dicen distinto porque pasaron cosas distintas: una activa cambió de
+        // sitio, una retirada volvió a entrar. Un mensaje único dejaría a quien
+        // corrige sin saber que acaba de readmitir a alguien.
+        return $volver->with('success', $revivida
+            ? "{$quien->nombre_completo} estaba retirado de {$origen} y vuelve a entrar, "
+                ."ahora en {$destino->nombre}. Queda pendiente de que la confirme quien la dicta."
+            : "La matrícula pasó de {$origen} a {$destino->nombre}, "
+                .'y queda pendiente de que la confirme quien la dicta.');
+    }
+
+    /**
+     * Quien puede mover una matricula de promotoria, y cuando.
+     *
+     * La regla vive AQUI y la usan las dos: la pantalla, para decidir si pinta
+     * el panel, y la accion, para decidir si lo acepta. Separadas se
+     * desincronizan, y la forma en que se nota es la peor —el boton se ve, se
+     * pulsa y contesta que no—, que es justo lo que este proyecto ya aprendio
+     * con el rastro de las retiradas: la regla en un sitio, no una copia por
+     * pantalla.
+     *
+     * El administrador puede en cualquier momento. El director, solo mientras
+     * la ventana de matriculas este abierta: con ella cerrada el periodo ya esta
+     * repartido —hay grupos armados y listas pasadas— y mover a alguien deja de
+     * ser una correccion de captura para ser un cambio de plan. Esa excepcion se
+     * queda en una sola persona (decidido el 29/08/2026).
+     */
+    private function puedeCorregirPromotoria(Perfil $perfil, ?Periodo $enCurso): bool
+    {
+        if ($perfil->rol === 'administrador') {
+            return true;
+        }
+
+        if ($perfil->rol === 'director') {
+            return (bool) $enCurso?->matriculas_abiertas;
+        }
+
+        return false;
     }
 
     /**

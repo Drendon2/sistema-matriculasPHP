@@ -1112,16 +1112,109 @@ class GestionTest extends TestCase
     }
 
     /** Una retirada no se corrige: el estudiante ya no esta en ella. */
-    public function test_no_se_corrige_una_matricula_retirada(): void
+    /**
+     * Una retirada tambien se mueve, y al moverla REVIVE: quien se salio y
+     * quiere entrar a otra no esta corrigiendo un dato viejo, esta entrando.
+     */
+    public function test_una_matricula_retirada_se_mueve_y_revive(): void
     {
         $guitarra = $this->otraPromotoria();
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
 
         $this->actingAs($this->director->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
-            ->assertSessionHas('error');
+            ->assertSessionHas('success');
+
+        $m->refresh();
+        $this->assertSame($guitarra->id, $m->promotoria_id);
+        $this->assertSame(Matricula::PENDIENTE, $m->estado);
+    }
+
+    /**
+     * Y al revivir vuelve a contar para el limite de promotorias: si el
+     * estudiante ya llego al tope con otras, readmitirla no puede colarse.
+     */
+    public function test_revivir_una_retirada_respeta_el_limite_de_promotorias(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $piano = $this->otraPromotoria('Piano');
+        $canto = $this->otraPromotoria('Canto');
+
+        $retirada = $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
+        // El limite por defecto son 2, y ya las tiene ocupadas.
+        $this->matricular($this->estudiante, $piano, Matricula::ACTIVA);
+        $this->matricular($this->estudiante, $canto, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $retirada), ['promotoria_id' => $guitarra->id])
+            // El MOTIVO, no un error cualquiera: con solo `assertSessionHas`
+            // esta prueba pasaba tambien cuando lo que fallaba era otra cosa
+            // —por ejemplo un bloqueo a las retiradas—, y entonces no estaba
+            // comprobando el limite en absoluto.
+            ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'máximo de'));
+
+        $this->assertSame(Matricula::RETIRADA, $retirada->refresh()->estado);
+    }
+
+    /**
+     * Con la ventana de matriculas CERRADA el director ya no mueve: el periodo
+     * esta repartido y mover a alguien deja de ser corregir una captura.
+     */
+    public function test_con_la_ventana_cerrada_el_director_no_mueve(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $this->periodo->update(['matriculas_abiertas' => false]);
+
+        $this->actingAs($this->director->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'solo el administrador'));
 
         $this->assertSame($this->violin->id, $m->refresh()->promotoria_id);
+    }
+
+    /** Y el administrador sí, que es justamente la excepcion. */
+    public function test_con_la_ventana_cerrada_el_administrador_si_mueve(): void
+    {
+        $guitarra = $this->otraPromotoria();
+        $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $this->periodo->update(['matriculas_abiertas' => false]);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
+            ->assertSessionHas('success');
+
+        $this->assertSame($guitarra->id, $m->refresh()->promotoria_id);
+    }
+
+    /**
+     * La pantalla y la accion comparten la regla: con la ventana cerrada el
+     * director tampoco VE el panel, para que no se le ofrezca un boton que va a
+     * contestarle que no.
+     */
+    public function test_con_la_ventana_cerrada_el_director_no_ve_el_panel(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $this->periodo->update(['matriculas_abiertas' => false]);
+
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('historial-estudiante', $this->estudiante));
+
+        $respuesta->assertDontSee('Mover matrícula');
+        // Y en su sitio queda dicho POR QUE, no un hueco: un hueco donde antes
+        // habia un boton se lee como un fallo, no como una regla.
+        $respuesta->assertSee('Matrículas cerradas');
+    }
+
+    /** Al profesor no se le dice nada: nunca tuvo esa accion. */
+    public function test_al_profesor_no_se_le_explica_por_que_no_puede_mover(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+        $this->periodo->update(['matriculas_abiertas' => false]);
+
+        $this->actingAs($this->profesor->user)
+            ->get(route('historial-estudiante', $this->estudiante))
+            ->assertDontSee('Matrículas cerradas');
     }
 
     /**
