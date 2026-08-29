@@ -980,6 +980,23 @@
      fila, así que se les deja ancho propio y un tope para que un nombre de
      promotoría largo no empuje al resto fuera de la tarjeta. */
   .filtro select { width: auto; max-width: 172px; margin: 0; padding: 0.45rem 0.55rem; font-size: 0.88rem; }
+  /* El buscador se lleva el sobrante de la fila —un nombre completo necesita
+     mas sitio que «Todos»— pero con tope, para que no empuje a los cinco
+     desplegables a la linea de abajo en pantalla ancha.
+
+     El reparto va en `.filtro-buscar`, que es el hijo de la fila, y NO en el
+     campo: `.filtro` es un contenedor flex EN COLUMNA, asi que un `flex-basis`
+     puesto al campo se aplicaria al eje vertical y pediria alto en vez de
+     ancho. */
+  .filtro-buscar { flex: 1 1 12rem; max-width: 16rem; }
+  /* Se queda en 1rem y NO en los 0.88rem de los select vecinos: es el unico
+     control de la barra en el que se ESCRIBE, y por debajo de 16px Safari de
+     iOS hace zoom al enfocarlo y deja la pagina descuadrada. Es la regla de los
+     16px del DESIGN.md, que aqui ademas se nota. */
+  .filtro input[type="search"] {
+    width: 100%; max-width: none; margin: 0;
+    padding: 0.3rem 0.55rem; font-size: 1rem; line-height: 1.3;
+  }
   /* El botón sigue al último control en vez de irse al extremo derecho con un
      margin-left:auto. En una sola fila la diferencia no se nota; en cuanto la
      barra se parte en dos líneas, "auto" dejaba el botón descolgado al otro
@@ -1330,6 +1347,9 @@
        para leer el nombre de una promotoría. */
     .filtro { flex: 1 1 100%; }
     .filtro select { max-width: none; width: 100%; }
+    /* El buscador tambien: a media fila no cabe un nombre completo, que es
+       justo lo que se teclea aqui. */
+    .filtro-buscar { flex: 1 1 100%; max-width: none; }
     .filtro-acciones { margin-left: 0; }
     /* Y el de la barra de acciones en bloque, por lo mismo: a media fila no se
        lee de qué grupo se trata. */

@@ -1005,6 +1005,131 @@ class GestionTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Buscador por texto del listado de usuarios
+    // -----------------------------------------------------------------------
+
+    public function test_el_buscador_encuentra_por_nombre(): void
+    {
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'Ana']));
+
+        $respuesta->assertOk();
+        $respuesta->assertSee('>Ana<', false);
+        $respuesta->assertDontSee('>Dire<', false);
+        $respuesta->assertDontSee('>Profe<', false);
+    }
+
+    /**
+     * Se busca tambien por el nombre de la cuenta, no solo por el de la persona:
+     * quien administra suele acordarse del usuario antes que del nombre completo.
+     */
+    public function test_el_buscador_encuentra_por_nombre_de_usuario(): void
+    {
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'profe']));
+
+        $respuesta->assertSee('>Profe<', false);
+        // Sin esta segunda mitad la prueba pasaba igual con el buscador
+        // desconectado, porque sin filtrar sale TODO el mundo.
+        $respuesta->assertDontSee('>Ana<', false);
+        $respuesta->assertDontSee('>Dire<', false);
+    }
+
+    /**
+     * El cotejo de la base ignora tildes y mayusculas, y de eso depende que
+     * buscar «gomez» encuentre a «Gómez». Si alguien cambia el cotejo de
+     * `perfiles.nombre_completo`, esta prueba es la que lo cuenta.
+     */
+    public function test_el_buscador_ignora_tildes_y_mayusculas(): void
+    {
+        $conTilde = $this->crearPerfil('jgomez', 'profesor');
+        $conTilde->update(['nombre_completo' => 'Jorge Gómez']);
+
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'GOMEZ']));
+
+        $respuesta->assertSee('Jorge Gómez', false);
+        $respuesta->assertDontSee('>Ana<', false);
+        $respuesta->assertDontSee('>Profe<', false);
+    }
+
+    /**
+     * Un `%` tecleado es texto, no un comodin. Sin escapar, buscar «%» devolvia
+     * la lista ENTERA — que es justo lo contrario de buscar.
+     */
+    public function test_el_buscador_no_trata_el_porcentaje_como_comodin(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => '%']))
+            ->assertSee('Ningún usuario coincide con estos filtros.');
+    }
+
+    /** Y el guion bajo, que casa con cualquier letra suelta. */
+    public function test_el_buscador_no_trata_el_guion_bajo_como_comodin(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'An_']))
+            ->assertSee('Ningún usuario coincide con estos filtros.');
+    }
+
+    /**
+     * Un espacio suelto no es un filtro: no debe encender «Limpiar».
+     *
+     * OJO con lo que esta prueba prueba: quien recorta la cadena por HTTP es el
+     * middleware `TrimStrings` de Laravel, NO el `trim()` del controlador —
+     * quitando ese `trim()` esta prueba sigue verde. Se queda porque el
+     * comportamiento visible merece quedar fijado, pero no vale como guardia
+     * del `trim()`, y nadie deberia creer que lo es.
+     */
+    public function test_un_buscador_en_blanco_no_cuenta_como_filtro(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => '   ']))
+            ->assertDontSee('Limpiar');
+    }
+
+    /** El buscador se combina con los demas filtros, no los sustituye. */
+    public function test_el_buscador_se_cruza_con_el_filtro_de_rol(): void
+    {
+        $otra = $this->crearPerfil('anadir', 'profesor');
+        $otra->update(['nombre_completo' => 'Ana Profesora']);
+
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'Ana', 'rol' => 'profesor']));
+
+        $respuesta->assertSee('Ana Profesora', false);
+        // El rol deja fuera a la estudiante Ana...
+        $respuesta->assertDontSee('>Ana<', false);
+        // ...y el BUSCADOR deja fuera al otro profesor. Sin esta linea, el
+        // filtro de rol solo explicaba el resultado y la prueba pasaba con el
+        // buscador apagado.
+        $respuesta->assertDontSee('>Profe<', false);
+    }
+
+    /** Lo tecleado vuelve en el campo: si no, no se sabe que se busco. */
+    public function test_el_buscador_conserva_lo_tecleado(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => 'Ana']))
+            ->assertSee('value="Ana"', false);
+    }
+
+    /**
+     * Lo tecleado vuelve DENTRO de un atributo HTML, asi que una comilla o una
+     * etiqueta tienen que salir escapadas. Blade lo hace solo con `{{ }}`, pero
+     * el dia que alguien lo pase a `{!! !!}` para «que se vea bien» esta prueba
+     * es la que lo para.
+     */
+    public function test_el_buscador_escapa_lo_tecleado_en_el_atributo(): void
+    {
+        $respuesta = $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['buscar' => '"><script>x</script>']));
+
+        $respuesta->assertDontSee('<script>x</script>', false);
+        $respuesta->assertSee('&quot;&gt;&lt;script&gt;', false);
+    }
+
+    // -----------------------------------------------------------------------
     // Institucion
     // -----------------------------------------------------------------------
 

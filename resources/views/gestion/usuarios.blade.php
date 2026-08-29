@@ -8,6 +8,20 @@
 <p><a class="btn" href="{{ route('usuario-nuevo') }}">+ Nuevo usuario</a></p>
 
 <form method="get" class="filtros">
+  {{--
+    El buscador va PRIMERO: es el camino directo a una persona concreta, y los
+    otros cinco son filtros que acotan un conjunto. Buscar por nombre o usuario
+    y nada mas — el documento y el telefono no se buscan a proposito, ver el
+    comentario del controlador.
+  --}}
+  <div class="filtro filtro-buscar">
+    <label for="f-buscar">Buscar</label>
+    <input type="search" name="buscar" id="f-buscar"
+           value="{{ $seleccion['buscar'] }}"
+           placeholder="Nombre o usuario"
+           autocomplete="off">
+  </div>
+
   <div class="filtro">
     <label for="f-rol">Rol</label>
     <select name="rol" id="f-rol">

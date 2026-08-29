@@ -89,6 +89,25 @@ class UsuarioController extends Controller
             // justo el dia en que nadie estaria mirando.
             ->orderBy('id');
 
+        // Buscador por texto: nombre o usuario, que son las dos columnas por las
+        // que alguien identifica a una persona en esta lista. NO busca por
+        // documento ni por telefono a proposito — son datos de visibilidad
+        // restringida (ver PRODUCT.md), y un buscador que los aceptara dejaria
+        // que un director confirmara el documento de alguien probando cifras.
+        //
+        // El cotejo de la base es utf8mb4_unicode_ci, o sea que ignora
+        // mayusculas Y tildes: «gomez» encuentra «Gómez» sin normalizar nada
+        // aqui. Si alguna vez se cambia el cotejo de estas dos columnas, esta
+        // busqueda deja de encontrar los nombres con tilde en silencio.
+        if ($seleccion['buscar'] !== '') {
+            $termino = '%'.$this->escaparLike($seleccion['buscar']).'%';
+
+            $consulta->where(function ($q) use ($termino) {
+                $q->where('nombre_completo', 'like', $termino)
+                    ->orWhereHas('user', fn ($u) => $u->where('username', 'like', $termino));
+            });
+        }
+
         if ($seleccion['rol'] === self::ROL_PENDIENTE) {
             $consulta->where('rol', '');
         } elseif ($seleccion['rol'] !== '') {
@@ -148,7 +167,7 @@ class UsuarioController extends Controller
                 ->select('grupos.*')
                 ->get(),
             'periodos' => Periodo::orderByDesc('activo')->orderByDesc('fecha_inicio')->get(),
-            'hayFiltros' => $seleccion['rol'] !== ''
+            'hayFiltros' => $seleccion['buscar'] !== '' || $seleccion['rol'] !== ''
                 || $seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'],
         ]);
     }
@@ -453,11 +472,30 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Neutraliza los comodines de LIKE en lo que teclee el usuario.
+     *
+     * Sin esto, `%` devuelve la lista entera y `_` casa con cualquier letra: el
+     * buscador contestaria cosas que nadie pidio, y ademas seria una forma de
+     * tantear nombres que no se pueden ver. La consulta ya va con parametros
+     * ligados, asi que esto no es contra inyeccion sino contra el comodin.
+     */
+    private function escaparLike(string $valor): string
+    {
+        return addcslashes($valor, '%_\\');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function seleccion(Request $request): array
     {
         return [
+            // Un espacio suelto no puede contar como filtro puesto: dejaria
+            // "Limpiar" a la vista sin que nada este filtrado. Por HTTP esto ya
+            // lo garantiza el middleware `TrimStrings` de Laravel y este `trim`
+            // no llega a hacer nada; se queda por si alguna vez se exceptua esa
+            // clave del middleware o se llama a este metodo desde otro sitio.
+            'buscar' => trim((string) $request->query('buscar', '')),
             'rol' => (string) $request->query('rol', ''),
             'area' => $request->query('area') ? Area::find($request->query('area')) : null,
             'promotoria' => $request->query('promotoria') ? Promotoria::find($request->query('promotoria')) : null,
