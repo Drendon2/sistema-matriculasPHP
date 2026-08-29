@@ -82,12 +82,68 @@ repartir en ellos a los matriculados (uno a uno o por lote), registrar clases,
 pasar lista y consultar la ficha y la trayectoria de cada persona. También los
 cursos, talleres y grupos de proyección que tenga a su cargo (ver abajo).
 
+Desde la trayectoria de un estudiante, dirección puede además **mover una
+matrícula de promotoría** cuando se inscribió en la que no era (ver abajo).
+
 **Gestión** (dirección y administración) — el catálogo en cuatro niveles
 (departamento → promotoría → grupo → estudiantes) con filtros de grupos por
 departamento, promotoría y profesor; la ventana de matrículas, los cupos de todo
 el catálogo de una vez, las cancelaciones por resolver (también por lote), los
-usuarios con filtros por catálogo y periodo, los cursos, talleres y grupos de
-proyección, los ajustes de la institución y las estadísticas agregadas.
+usuarios con **buscador por nombre o cuenta** y filtros por catálogo y periodo,
+los cursos, talleres y grupos de proyección, los ajustes de la institución y las
+estadísticas agregadas.
+
+El buscador del listado de usuarios busca por nombre y por nombre de cuenta, y
+**no por documento ni por teléfono a propósito**: son datos de visibilidad
+restringida, y un buscador que los aceptara dejaría a un director confirmar el
+documento de alguien probando cifras hasta acertar.
+
+## Mover una matrícula de promotoría
+
+El estudiante se inscribió en la que no era y hay que arreglarlo. Se hace desde
+su trayectoria (Gestión → Usuarios → su nombre → «Ver trayectoria»), en la fila
+de la matrícula.
+
+**Mueve la fila, no retira una y crea otra.** No fue una salida, fue un dato mal
+puesto: la matrícula conserva su fecha de inscripción y el estudiante figura como
+si siempre hubiera estado en la correcta. Retirar y crear le dejaría una
+«retirada» en la equivocada, que en pantalla se lee como que se salió.
+
+Al moverla **vuelve a pendiente** aunque estuviera activa, por la misma razón por
+la que solo quien dicta pasa lista: confirmar es un acto de quien tiene a esa
+persona en su salón, y el profesor de la promotoría nueva no la ha visto nunca.
+Y **suelta el grupo**, que colgaba de la promotoría vieja.
+
+Una matrícula **retirada también se mueve, y al moverla revive** como pendiente:
+quien se salió y quiere entrar a otra no está corrigiendo un dato viejo, está
+entrando. Vuelve a ocupar un cupo del estudiante, y el límite de promotorías por
+periodo vuelve a contarla.
+
+Quién y cuándo:
+
+| | Ventana de matrículas abierta | Ventana cerrada |
+|---|---|---|
+| Administrador | sí | **sí** |
+| Director | sí | no |
+| Profesor | no | no |
+
+Siempre dentro del **periodo en curso**. Mover una matrícula de un periodo
+cerrado cambiaría certificados ya emitidos y la antigüedad que cuenta el informe,
+y eso no es corregir un error de captura.
+
+Con la ventana cerrada el periodo ya está repartido —hay grupos armados y listas
+pasadas— y mover a alguien deja de ser una corrección para ser un cambio de plan;
+por eso esa excepción se queda en una sola persona. Al director, en el sitio del
+botón, la pantalla le dice por qué no está en vez de dejar un hueco.
+
+Dos rechazos vienen de la base y se traducen a algo legible: la promotoría de
+destino **sin cupo** (el trigger corre también en `UPDATE`) y el estudiante que
+**ya tuvo matrícula en la de destino** ese periodo, porque el único
+`(estudiante, promotoría, periodo)` cuenta también las retiradas.
+
+**El estudiante no necesita nada de esto** para cambiarse por su cuenta: al
+retirarse con la ventana abierta su cupo y su ranura quedan libres y se matricula
+en otra desde el catálogo.
 
 ## Cursos, talleres y grupos de proyección
 
