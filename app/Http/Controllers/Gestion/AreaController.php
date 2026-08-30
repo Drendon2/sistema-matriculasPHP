@@ -23,7 +23,9 @@ class AreaController extends RecursoController
             'titulo' => 'Departamentos',
             'titulo_nuevo' => 'Nueva área',
             'titulo_editar' => 'Editar área',
-            'ruta_lista' => 'area-lista',
+            // No hay pantalla propia de listado: Departamentos vive en la
+            // portada de Gestión, y crear/editar/eliminar vuelve ahí.
+            'ruta_lista' => 'gestion-inicio',
             'ruta_nuevo' => 'area-nueva',
             'ruta_editar' => 'area-editar',
             'ruta_eliminar' => 'area-eliminar',
@@ -32,7 +34,8 @@ class AreaController extends RecursoController
         ];
     }
 
-    protected function listado(Request $request): array
+    /** Expuesto para que `Gestion\InicioController` pinte esta tabla en su portada. */
+    public function listado(Request $request): array
     {
         return [
             'objetos' => Area::withCount('promotorias')->orderBy('nombre')->get()

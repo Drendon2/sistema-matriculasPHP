@@ -7,7 +7,6 @@ use App\Models\Matricula;
 use App\Models\Periodo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 /**
  * Iniciar y finalizar las matriculas del periodo en curso.
@@ -18,15 +17,26 @@ use Illuminate\View\View;
  */
 class MatriculasController extends Controller
 {
-    public function mostrar(): View
+    /**
+     * Lo que necesita la sección de Matrículas en la portada de Gestión.
+     *
+     * No hay pantalla propia que pintar: expuesto para que
+     * `Gestion\InicioController` la incluya ahí.
+     *
+     * @return array<string, mixed>
+     */
+    public function datos(): array
     {
         $periodo = Periodo::enCurso();
 
-        return view('gestion.matriculas', [
+        return [
             'periodo' => $periodo,
             'resumen' => $periodo === null ? null : $this->resumen($periodo),
-            'periodos' => Periodo::orderByDesc('fecha_inicio')->get(),
-        ]);
+            // `withCount`: los modales de crear/editar/eliminar periodo, en la
+            // misma tarjeta, necesitan saber si cada uno tiene matrículas o
+            // clases (lo que bloquea su borrado) sin una consulta aparte.
+            'periodos' => Periodo::withCount(['matriculas', 'clases'])->orderByDesc('fecha_inicio')->get(),
+        ];
     }
 
     public function guardar(Request $request): RedirectResponse
@@ -116,6 +126,7 @@ class MatriculasController extends Controller
 
     private function volver(string $mensaje, bool $exito = false): RedirectResponse
     {
-        return redirect()->route('gestion-matriculas')->with($exito ? 'success' : 'error', $mensaje);
+        // Sin pantalla propia: la sección de Matrículas vive en la portada.
+        return redirect()->route('gestion-inicio')->with($exito ? 'success' : 'error', $mensaje);
     }
 }

@@ -151,14 +151,23 @@ class AutenticacionTest extends TestCase
             ->assertRedirect(route('promotorias-disponibles'));
     }
 
-    public function test_el_personal_aterriza_en_el_panel(): void
+    public function test_el_profesor_aterriza_en_el_panel(): void
     {
-        foreach (['administrador', 'director', 'profesor'] as $indice => $rol) {
+        $user = $this->crearCuenta('profesor');
+
+        $this->actingAs($user)
+            ->get(route('post-login'))
+            ->assertRedirect(route('panel'));
+    }
+
+    public function test_direccion_y_administracion_aterrizan_en_gestion(): void
+    {
+        foreach (['administrador', 'director'] as $indice => $rol) {
             $user = $this->crearCuenta($rol, "usuario{$indice}");
 
             $this->actingAs($user)
                 ->get(route('post-login'))
-                ->assertRedirect(route('panel'));
+                ->assertRedirect(route('gestion-inicio'));
         }
     }
 

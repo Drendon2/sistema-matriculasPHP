@@ -58,7 +58,7 @@ class PromotoriaController extends RecursoController
             ...$this->columnas(),
             'preset_campo' => 'area_id',
             'preset_valor' => $area->id,
-            'migas' => [['texto' => 'Departamentos', 'url' => route('area-lista')]],
+            'migas' => [['texto' => 'Gestión', 'url' => route('gestion-inicio')]],
         ]);
     }
 

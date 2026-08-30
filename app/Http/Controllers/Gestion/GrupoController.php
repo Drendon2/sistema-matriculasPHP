@@ -165,7 +165,7 @@ class GrupoController extends RecursoController
             'preset_campo' => 'promotoria_id',
             'preset_valor' => $promotoria->id,
             'migas' => [
-                ['texto' => 'Departamentos', 'url' => route('area-lista')],
+                ['texto' => 'Gestión', 'url' => route('gestion-inicio')],
                 ['texto' => $promotoria->area->nombre, 'url' => route('promotorias-por-area', $promotoria->area_id)],
             ],
         ]);
@@ -190,7 +190,7 @@ class GrupoController extends RecursoController
                 'acudiente' => $m->estudiante->datosEstudiante?->acudiente,
             ])->all(),
             'migas' => [
-                ['texto' => 'Departamentos', 'url' => route('area-lista')],
+                ['texto' => 'Gestión', 'url' => route('gestion-inicio')],
                 ['texto' => $grupo->promotoria->area->nombre, 'url' => route('promotorias-por-area', $grupo->promotoria->area_id)],
                 ['texto' => $grupo->promotoria->nombre, 'url' => route('grupos-por-promotoria', $grupo->promotoria_id)],
             ],

@@ -1320,3 +1320,45 @@
     font-size: 0.92rem;
     line-height: 1.55;
   }
+
+/* ---------------------------------------------------------------------
+   Modales: crear/editar/eliminar periodo, desde la tarjeta "Periodo en
+   curso". <dialog> nativo por el manejo gratis de foco, ESC y ::backdrop —no
+   hay que reinventar nada de eso a mano.
+   --------------------------------------------------------------------- */
+dialog.modal {
+  width: min(480px, calc(100vw - 2rem));
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  background: var(--surface);
+  color: var(--ink);
+}
+dialog.modal::backdrop {
+  background: rgba(24, 36, 32, 0.45);
+}
+dialog.modal[open] {
+  animation: modal-entra 0.15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.modal[open] { animation: none; }
+}
+@keyframes modal-entra {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+dialog.modal h2 { margin-top: 0; }
+dialog.modal .modal-acciones { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+.periodo-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+
+/* El resultado de elegir el periodo en curso, dentro de la propia tarjeta
+   "Periodos" y no en una tarjeta aparte: el borde de arriba es lo único que
+   separa "elegir" de "lo que quedó elegido". */
+.periodo-resultado { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.periodo-resultado-cabecera { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.periodo-resultado-cabecera h4 { margin: 0; }
+
+@media (max-width: 640px) {
+  dialog.modal { padding: 1.1rem; }
+}

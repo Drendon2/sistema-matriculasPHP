@@ -66,8 +66,7 @@ class InstalarTest extends TestCase
 
         $admin = User::where('username', 'admin')->firstOrFail();
 
-        $this->actingAs($admin)->get('/gestion')->assertOk();
-        $this->actingAs($admin)->get('/gestion/areas')->assertOk()->assertSee('Música');
+        $this->actingAs($admin)->get('/gestion')->assertOk()->assertSee('Música');
     }
 
     public function test_el_ejemplo_crea_los_dos_administradores(): void

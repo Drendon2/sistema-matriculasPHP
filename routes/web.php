@@ -268,9 +268,8 @@ Route::get('/documento/{datos}', [ArchivoController::class, 'documento'])
 Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->group(function () {
     Route::get('/', Gestion\InicioController::class)->name('gestion-inicio');
 
-    // Ventana de matriculas y cupos
-    Route::get('/matriculas', [Gestion\MatriculasController::class, 'mostrar'])->name('gestion-matriculas');
-    Route::post('/matriculas', [Gestion\MatriculasController::class, 'guardar']);
+    // Ventana de matriculas: sin pantalla propia, se pinta en la portada (gestion-inicio)
+    Route::post('/matriculas', [Gestion\MatriculasController::class, 'guardar'])->name('gestion-matriculas');
 
     Route::get('/cupos', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos');
     Route::get('/cupos/{periodo}', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos-periodo');
@@ -287,8 +286,7 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::post('/cancelaciones/{matricula}/{decision}', [Gestion\CancelacionesController::class, 'resolver'])
         ->name('gestion-resolver-cancelacion');
 
-    // Departamentos
-    Route::get('/areas', [Gestion\AreaController::class, 'index'])->name('area-lista');
+    // Departamentos: sin pantalla propia, se pintan en la portada (gestion-inicio)
     Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');
     Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar']);
     Route::get('/areas/{objeto}/editar', [Gestion\AreaController::class, 'editar'])->name('area-editar');
@@ -299,15 +297,11 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/areas/{area}/promotorias', [Gestion\PromotoriaController::class, 'porArea'])
         ->name('promotorias-por-area');
 
-    // Periodos
-    Route::get('/periodos', [Gestion\PeriodoController::class, 'index'])->name('periodo-lista');
-    Route::get('/periodos/nuevo', [Gestion\PeriodoController::class, 'crear'])->name('periodo-nuevo');
-    Route::post('/periodos/nuevo', [Gestion\PeriodoController::class, 'guardar']);
-    Route::get('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'editar'])->name('periodo-editar');
-    Route::post('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'actualizar']);
-    Route::get('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'confirmarBorrado'])
-        ->name('periodo-eliminar');
-    Route::post('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'eliminar']);
+    // Periodos: sin pantalla propia — crear/editar/eliminar son modales en la
+    // tarjeta "Periodo en curso" de la portada de Gestión (gestion-inicio).
+    Route::post('/periodos/nuevo', [Gestion\PeriodoController::class, 'guardar'])->name('periodo-nuevo');
+    Route::post('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'actualizar'])->name('periodo-editar');
+    Route::post('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'eliminar'])->name('periodo-eliminar');
 
     // Promotorias
     Route::get('/promotorias', [Gestion\PromotoriaController::class, 'index'])->name('promotoria-lista');

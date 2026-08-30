@@ -34,6 +34,10 @@ class PostLoginController extends Controller
             return redirect()->route('promotorias-disponibles');
         }
 
+        if ($perfil->rol === 'administrador' || $perfil->rol === 'director') {
+            return redirect()->route('gestion-inicio');
+        }
+
         return redirect()->route('panel');
     }
 

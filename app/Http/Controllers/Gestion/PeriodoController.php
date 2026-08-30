@@ -28,7 +28,9 @@ class PeriodoController extends RecursoController
             'titulo' => 'Periodos',
             'titulo_nuevo' => 'Nuevo periodo',
             'titulo_editar' => 'Editar periodo',
-            'ruta_lista' => 'periodo-lista',
+            // Sin pantalla propia: crear/editar/eliminar viven como modales en
+            // la tarjeta "Periodo en curso" de la portada de Gestión.
+            'ruta_lista' => 'gestion-inicio',
             'ruta_nuevo' => 'periodo-nuevo',
             'ruta_editar' => 'periodo-editar',
             'ruta_eliminar' => 'periodo-eliminar',

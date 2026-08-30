@@ -468,7 +468,7 @@ class GestionTest extends TestCase
     {
         $this->actingAs($this->director->user)
             ->post(route('area-nueva'), ['nombre' => 'Teatro'])
-            ->assertRedirect(route('area-lista'));
+            ->assertRedirect(route('gestion-inicio'));
 
         $this->assertNotNull(Area::where('nombre', 'Teatro')->first());
     }
@@ -543,6 +543,98 @@ class GestionTest extends TestCase
                 'profesor_id' => '',
             ])
             ->assertRedirect(route('promotorias-por-area', $this->musica));
+    }
+
+    // -----------------------------------------------------------------------
+    // Periodos: sin pantalla propia, viven en modales de la tarjeta
+    // "Periodos" (gestion-inicio).
+    // -----------------------------------------------------------------------
+
+    public function test_se_crea_un_periodo(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('periodo-nuevo'), [
+                'nombre' => '2027-1',
+                'fecha_inicio' => '2027-01-15',
+                'fecha_fin' => '2027-06-30',
+            ])
+            ->assertRedirect(route('gestion-inicio'));
+
+        $this->assertNotNull(Periodo::where('nombre', '2027-1')->first());
+    }
+
+    public function test_crear_periodo_con_fecha_fin_antes_de_inicio_no_se_guarda(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('periodo-nuevo'), [
+                'nombre' => '2027-2',
+                'fecha_inicio' => '2027-07-01',
+                'fecha_fin' => '2027-06-01',
+            ])
+            ->assertSessionHasErrors('fecha_fin');
+
+        $this->assertNull(Periodo::where('nombre', '2027-2')->first());
+    }
+
+    public function test_se_edita_un_periodo(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('periodo-editar', $this->periodo), [
+                'nombre' => $this->periodo->nombre,
+                'fecha_inicio' => $this->periodo->fecha_inicio->toDateString(),
+                'fecha_fin' => '2026-07-15',
+            ])
+            ->assertRedirect(route('gestion-inicio'));
+
+        $this->assertSame('2026-07-15', $this->periodo->fresh()->fecha_fin->toDateString());
+    }
+
+    public function test_no_se_borra_un_periodo_con_matriculas(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->post(route('periodo-eliminar', $this->periodo))
+            ->assertSessionHas('error');
+
+        $this->assertNotNull($this->periodo->fresh());
+    }
+
+    public function test_se_borra_un_periodo_sin_historial(): void
+    {
+        $vacio = Periodo::create([
+            'nombre' => '2020-1',
+            'fecha_inicio' => '2020-01-01',
+            'fecha_fin' => '2020-06-30',
+            'activo' => false,
+            'matriculas_abiertas' => false,
+        ]);
+
+        $this->actingAs($this->director->user)
+            ->post(route('periodo-eliminar', $vacio))
+            ->assertRedirect(route('gestion-inicio'));
+
+        $this->assertNull($vacio->fresh());
+    }
+
+    /**
+     * Sin pantalla de confirmacion propia, la portada de Gestion es lo unico
+     * que puede decir, por adelantado, que bloquea o arrastra cada periodo —
+     * vía los data-* del desplegable de "Eliminar".
+     */
+    public function test_la_portada_avisa_por_adelantado_de_lo_que_bloquea_un_periodo(): void
+    {
+        $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->director->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            ->assertSee('data-bloqueos="1 matrícula"', false);
+    }
+
+    public function test_ya_no_hay_pantalla_propia_de_periodos(): void
+    {
+        $this->actingAs($this->director->user)->get('/gestion/periodos')->assertNotFound();
     }
 
     // -----------------------------------------------------------------------
@@ -1438,7 +1530,7 @@ class GestionTest extends TestCase
     public function test_los_otros_catalogos_siguen_sin_filtros(): void
     {
         $this->actingAs($this->director->user)
-            ->get(route('area-lista'))
+            ->get(route('gestion-inicio'))
             ->assertOk()
             ->assertDontSee('class="filtros"', false);
     }

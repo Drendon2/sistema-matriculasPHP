@@ -3,11 +3,30 @@
 @section('title', 'Gestión')
 
 @section('content')
-<h2>Gestión del catálogo académico</h2>
+<h2>Departamentos</h2>
+@include('gestion.partials.tabla', [
+  'ruta_nuevo' => 'area-nueva',
+  'ruta_editar' => 'area-editar',
+  'ruta_eliminar' => 'area-eliminar',
+])
+
+{{--
+  Cursos, talleres y proyección van justo debajo del árbol académico y no
+  mezclados con Periodos/Promotorías/Grupos: no cuelgan de un departamento ni
+  pasan por matrícula, y ponerlas al lado de esas invita a buscar ahí lo que
+  aquí se hace por un enlace.
+--}}
+<div class="tarjetas" style="margin-top:1rem;">
+  <a class="tarjeta-enlace" href="{{ route('actividad-curso-lista') }}">Cursos y talleres</a>
+  <a class="tarjeta-enlace" href="{{ route('actividad-proyeccion-lista') }}">Grupos de proyección</a>
+</div>
+
+<h2 style="margin-top:2rem;">Matrículas</h2>
+@include('gestion.partials.matriculas')
+@include('gestion.partials.periodo-modales')
+
+<h2 style="margin-top:2rem;">Gestión del catálogo académico</h2>
 <div class="tarjetas">
-  <a class="tarjeta-enlace" href="{{ route('area-lista') }}">Departamentos</a>
-  <a class="tarjeta-enlace" href="{{ route('periodo-lista') }}">Periodos</a>
-  <a class="tarjeta-enlace" href="{{ route('gestion-matriculas') }}">Iniciar / finalizar matrículas</a>
   <a class="tarjeta-enlace" href="{{ route('gestion-cancelaciones') }}">
     @if ($cancelacionesPendientes)<span class="num">{{ $cancelacionesPendientes }}</span>@endif
     Cancelaciones
@@ -15,14 +34,6 @@
   <a class="tarjeta-enlace" href="{{ route('promotoria-lista') }}">Promotorías</a>
   <a class="tarjeta-enlace" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
   <a class="tarjeta-enlace" href="{{ route('grupo-lista') }}">Grupos</a>
-  {{--
-    Las dos actividades van después del árbol académico y antes de Usuarios, no
-    mezcladas entre las promotorías: no cuelgan de un departamento ni pasan por
-    matrícula, y ponerlas al lado de «Promotorías» invita a buscar ahí lo que
-    aquí se hace por un enlace.
-  --}}
-  <a class="tarjeta-enlace" href="{{ route('actividad-curso-lista') }}">Cursos y talleres</a>
-  <a class="tarjeta-enlace" href="{{ route('actividad-proyeccion-lista') }}">Grupos de proyección</a>
   <a class="tarjeta-enlace" href="{{ route('usuario-lista') }}">Usuarios</a>
   @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">Estadísticas</a>
@@ -60,3 +71,7 @@
   @endif
 </div>
 @endsection
+
+@push('scripts')
+<script src="@recurso('js/gestion-periodo-modales.js')" defer></script>
+@endpush
