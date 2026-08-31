@@ -1352,13 +1352,17 @@ dialog.modal h2 { margin-top: 0; }
 dialog.modal .modal-acciones { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
 .periodo-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
 
-/* El resultado de elegir el periodo en curso, dentro de la propia tarjeta
-   "Periodos" y no en una tarjeta aparte: el borde de arriba es lo único que
-   separa "elegir" de "lo que quedó elegido". */
-.periodo-resultado { margin-top: 1.1rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+/* La tarjeta "Periodos": a la izquierda se elige, a la derecha se ve el
+   resultado de haber elegido — por eso el borde que las separa y no un
+   `<h3>` propio en la columna derecha. En una sola columna en móvil, con el
+   resultado abajo y no al lado. */
+.periodo-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem; }
+.periodo-resultado { padding-left: 1.5rem; border-left: 1px solid var(--border); }
 .periodo-resultado-cabecera { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .periodo-resultado-cabecera h4 { margin: 0; }
 
 @media (max-width: 640px) {
+  .periodo-columnas { grid-template-columns: 1fr; gap: 1.1rem; }
+  .periodo-resultado { padding-left: 0; padding-top: 1.1rem; border-left: none; border-top: 1px solid var(--border); }
   dialog.modal { padding: 1.1rem; }
 }
