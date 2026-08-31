@@ -82,4 +82,8 @@
       @endif
     </div>
   </div>
+
+  <p class="periodo-acciones" style="margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--border);">
+    <a class="btn btn-blanco btn-sm" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
+  </p>
 </div>
