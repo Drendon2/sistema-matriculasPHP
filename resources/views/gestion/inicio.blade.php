@@ -3,7 +3,19 @@
 @section('title', 'Gestión')
 
 @section('content')
-<h2>Departamentos</h2>
+@include('gestion.partials.resumen-periodo')
+
+<div class="card">
+  <h3>Buscar usuario</h3>
+  <form method="get" action="{{ route('usuario-lista') }}" class="cupo-form" style="margin-left:0;">
+    <label class="sr-solo" for="busqueda-usuario">Buscar usuario</label>
+    <input type="search" name="q" id="busqueda-usuario"
+           placeholder="Nombre, usuario, teléfono, correo o documento" style="max-width:22rem;">
+    <button type="submit" class="btn btn-sm">Buscar</button>
+  </form>
+</div>
+
+<h2 style="margin-top:2rem;">Departamentos</h2>
 @include('gestion.partials.tabla', [
   'ruta_nuevo' => 'area-nueva',
   'ruta_editar' => 'area-editar',

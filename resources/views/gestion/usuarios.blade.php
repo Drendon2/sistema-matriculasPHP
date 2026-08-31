@@ -9,6 +9,12 @@
 
 <form method="get" class="filtros">
   <div class="filtro">
+    <label for="f-q">Buscar</label>
+    <input type="search" name="q" id="f-q" value="{{ $seleccion['q'] }}"
+           placeholder="Nombre, usuario, teléfono, correo o documento">
+  </div>
+
+  <div class="filtro">
     <label for="f-rol">Rol</label>
     <select name="rol" id="f-rol">
       <option value="">Todos</option>
@@ -83,6 +89,9 @@
 @if ($hayFiltros)
 <p class="filtros-nota">
   {{ $perfiles->total() }} {{ $perfiles->total() == 1 ? 'usuario' : 'usuarios' }}
+  @if ($seleccion['q'] !== '')
+    · resultados para «<strong>{{ $seleccion['q'] }}</strong>»
+  @endif
   @if ($seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'])
     · matrículas de <strong>{{ $seleccion['periodo']?->nombre ?: 'ningún periodo' }}</strong>,
     sin contar las retiradas

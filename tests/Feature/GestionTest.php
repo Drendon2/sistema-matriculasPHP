@@ -1024,6 +1024,89 @@ class GestionTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Busqueda: un solo cuadro para nombre, usuario, telefono, correo y
+    // documento, sin que quien busca tenga que decir cual de los cinco es.
+    // -----------------------------------------------------------------------
+
+    public function test_la_busqueda_encuentra_por_nombre(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => 'Ana']))
+            ->assertOk()
+            ->assertSee('>Ana<', false)
+            ->assertDontSee('>Profe<', false);
+    }
+
+    public function test_la_busqueda_encuentra_por_username(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => 'profe']))
+            ->assertOk()
+            ->assertSee('>Profe<', false)
+            ->assertDontSee('>Ana<', false);
+    }
+
+    public function test_la_busqueda_encuentra_por_telefono(): void
+    {
+        $unico = $this->crearPerfil('unico', 'profesor', null);
+        $unico->telefono = '3009998877';
+        $unico->save();
+
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => '9998877']))
+            ->assertOk()
+            ->assertSee('Unico');
+    }
+
+    public function test_la_busqueda_encuentra_por_correo(): void
+    {
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
+                'username' => 'con.correo',
+                'nombre_completo' => 'Con Correo',
+                'correo' => 'con.correo@example.com',
+            ]));
+
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => 'con.correo@example.com']))
+            ->assertOk()
+            ->assertSee('Con Correo');
+    }
+
+    /** El documento vive en `datos_estudiante` y no en `perfiles`, así que la busqueda tiene que cruzar tablas. */
+    public function test_la_busqueda_encuentra_por_documento(): void
+    {
+        $documento = $this->estudiante->datosEstudiante->documento_identidad;
+
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => $documento]))
+            ->assertOk()
+            ->assertSee('>Ana<', false);
+    }
+
+    public function test_la_busqueda_sin_coincidencias_lo_dice(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => 'nadie-se-llama-asi']))
+            ->assertOk()
+            ->assertSee('Ningún usuario coincide con estos filtros.');
+    }
+
+    /**
+     * La busqueda y los filtros de catalogo se combinan, no se reemplazan:
+     * "e" por si sola trae a "Profe" y a "Dire" (los dos la llevan en el
+     * nombre); con rol=profesor solo debe quedar el primero.
+     */
+    public function test_la_busqueda_se_combina_con_el_filtro_de_rol(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista', ['q' => 'e', 'rol' => 'profesor']))
+            ->assertOk()
+            ->assertSee('>Profe<', false)
+            ->assertDontSee('>Dire<', false);
+    }
+
+    // -----------------------------------------------------------------------
     // Institucion
     // -----------------------------------------------------------------------
 

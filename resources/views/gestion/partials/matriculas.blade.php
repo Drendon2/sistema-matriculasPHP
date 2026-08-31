@@ -2,8 +2,8 @@
   La ventana de matrículas del periodo en curso. Vive en la portada de
   Gestión (ver `gestion.inicio`) y no en pantalla aparte.
 
-  Recibe lo que arma `MatriculasController::datos()`: $periodo, $resumen,
-  $periodos.
+  Recibe lo que arma `MatriculasController::datos()`: $periodo, $periodos.
+  ($resumen lo pinta `gestion.partials.resumen-periodo`, arriba del todo.)
 --}}
 <div class="card">
   <h3>Periodos</h3>
@@ -83,35 +83,3 @@
     </div>
   </div>
 </div>
-
-@if ($periodo && $resumen)
-<div class="card">
-  <h3>Cómo va {{ $periodo->nombre }}</h3>
-  <div class="perfil-stats">
-    <div>
-      <span class="perfil-stat-num">{{ $resumen['estudiantes'] }}</span>
-      <span class="perfil-stat-label">Estudiantes</span>
-    </div>
-    <div>
-      <span class="perfil-stat-num">{{ $resumen['activas'] }}</span>
-      <span class="perfil-stat-label">Matrículas activas</span>
-    </div>
-    <div>
-      <span class="perfil-stat-num">{{ $resumen['pendientes'] }}</span>
-      <span class="perfil-stat-label">Por confirmar</span>
-    </div>
-    @if ($resumen['periodo_anterior'])
-    <div>
-      <span class="perfil-stat-num">{{ $resumen['por_renovar'] }}</span>
-      <span class="perfil-stat-label">Antiguos sin renovar</span>
-    </div>
-    @endif
-  </div>
-  @if ($resumen['periodo_anterior'])
-    <p class="campo-info">
-      «Antiguos sin renovar» son estudiantes que estuvieron activos en
-      {{ $resumen['periodo_anterior']->nombre }} y todavía no aparecen en {{ $periodo->nombre }}.
-    </p>
-  @endif
-</div>
-@endif

@@ -109,6 +109,22 @@ class UsuarioController extends Controller
             });
         }
 
+        if ($seleccion['q'] !== '') {
+            $termino = '%'.$this->escaparLike($seleccion['q']).'%';
+
+            // Un solo cuadro para los cinco datos con los que a alguien se le
+            // reconoce, sin obligar a decir cual esta escribiendo: el
+            // documento solo aplica a estudiantes (vive en `datos_estudiante`
+            // y no en `perfiles`), pero nadie tiene que saber eso para usarlo.
+            $consulta->where(function ($q) use ($termino) {
+                $q->where('nombre_completo', 'like', $termino)
+                    ->orWhere('telefono', 'like', $termino)
+                    ->orWhereHas('user', fn ($u) => $u->where('username', 'like', $termino)
+                        ->orWhere('email', 'like', $termino))
+                    ->orWhereHas('datosEstudiante', fn ($d) => $d->where('documento_identidad', 'like', $termino));
+            });
+        }
+
         // `withQueryString()` conserva los filtros en los enlaces: sin el,
         // pasar de pagina limpiaba rol, departamento, promotoria y periodo, y
         // la pagina 2 era la de TODOS los usuarios.
@@ -149,7 +165,7 @@ class UsuarioController extends Controller
                 ->get(),
             'periodos' => Periodo::orderByDesc('activo')->orderByDesc('fecha_inicio')->get(),
             'hayFiltros' => $seleccion['rol'] !== ''
-                || $seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'],
+                || $seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'] || $seleccion['q'] !== '',
         ]);
     }
 
@@ -463,7 +479,14 @@ class UsuarioController extends Controller
             'promotoria' => $request->query('promotoria') ? Promotoria::find($request->query('promotoria')) : null,
             'grupo' => $request->query('grupo') ? Grupo::find($request->query('grupo')) : null,
             'periodo' => $this->periodo($request),
+            'q' => trim((string) $request->query('q', '')),
         ];
+    }
+
+    /** Para que un `%` o un `_` escritos a mano no se lean como comodín de SQL. */
+    private function escaparLike(string $termino): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $termino);
     }
 
     /**
