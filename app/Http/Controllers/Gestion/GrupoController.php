@@ -6,10 +6,12 @@ use App\Models\Area;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
+use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\HorarioDeGrupo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -168,6 +170,64 @@ class GrupoController extends RecursoController
                 ['texto' => 'Gestión', 'url' => route('gestion-inicio')],
                 ['texto' => $promotoria->area->nombre, 'url' => route('promotorias-por-area', $promotoria->area_id)],
             ],
+        ]);
+    }
+
+    /**
+     * Años de diferencia a partir de los cuales la composición de un grupo se
+     * marca como una brecha de edad a revisar.
+     *
+     * Da igual la promotoría: un niño de 8 y un adolescente de 15 en el mismo
+     * salón es una situación distinta a solo tener edades distintas, y 7 es lo
+     * bastante grande para no marcar lo normal (dos años de diferencia en un
+     * grupo de adultos) y lo bastante chico para no dejar pasar lo que sí pesa.
+     */
+    public const BRECHA_MINIMA = 7;
+
+    /**
+     * Grupos cuya composición ACTUAL (periodo en curso) tiene una brecha de
+     * edad de {@see BRECHA_MINIMA} años o más entre el estudiante mayor y el
+     * menor.
+     *
+     * Reusado por la alerta de la portada de Gestión y por la pantalla que
+     * lista el detalle, para que las dos cuenten exactamente lo mismo.
+     *
+     * @return Collection<int, array{grupo: Grupo, menor: int, mayor: int, brecha: int}>
+     */
+    public function gruposConBrechaDeEdad(): Collection
+    {
+        $periodo = Periodo::enCurso();
+
+        if ($periodo === null) {
+            return collect();
+        }
+
+        return Grupo::query()
+            ->with(['promotoria.area', 'matriculas' => fn ($q) => $q
+                ->where('periodo_id', $periodo->id)
+                ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+                ->with('estudiante')])
+            ->get()
+            ->map(function (Grupo $g) {
+                $edades = $g->matriculas->map(fn (Matricula $m) => Perfil::edadDe($m->estudiante->fecha_nacimiento));
+
+                return [
+                    'grupo' => $g,
+                    'menor' => $edades->min(),
+                    'mayor' => $edades->max(),
+                    'brecha' => $edades->isEmpty() ? 0 : $edades->max() - $edades->min(),
+                ];
+            })
+            ->filter(fn (array $f) => $f['brecha'] >= self::BRECHA_MINIMA)
+            ->sortByDesc('brecha')
+            ->values();
+    }
+
+    /** La pantalla de detalle a la que lleva la alerta de la portada. */
+    public function brechaEdad(): View
+    {
+        return view('gestion.grupos-brecha-edad', [
+            'filas' => $this->gruposConBrechaDeEdad(),
         ]);
     }
 

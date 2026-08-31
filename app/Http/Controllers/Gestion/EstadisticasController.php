@@ -28,14 +28,6 @@ use Illuminate\View\View;
 class EstadisticasController extends Controller
 {
     /**
-     * Nota por debajo de la cual una respuesta se considera mala experiencia.
-     *
-     * En una escala de 1 a 5, el 3 es el "ni bien ni mal" y no pide llamar a
-     * nadie: lo que hay que atender de verdad es el 1 y el 2.
-     */
-    private const NOTA_BAJA = 2;
-
-    /**
      * Cuantas clases marcadas hacen falta para entrar en el ranking de
      * constancia.
      *
@@ -202,10 +194,7 @@ class EstadisticasController extends Controller
      */
     private function satisfaccion(bool $veNombres): ?array
     {
-        $periodo = Periodo::query()
-            ->whereHas('encuestasSatisfaccion')
-            ->orderByDesc('fecha_inicio')
-            ->first();
+        $periodo = EncuestaSatisfaccion::periodoDeSeguimiento();
 
         if ($periodo === null) {
             return null;
@@ -319,8 +308,8 @@ class EstadisticasController extends Controller
     private function seguimiento($respuestas): array
     {
         return $respuestas
-            ->filter(fn (EncuestaSatisfaccion $e) => $e->satisfaccion_general <= self::NOTA_BAJA
-                || $e->calificacion_profesor <= self::NOTA_BAJA)
+            ->filter(fn (EncuestaSatisfaccion $e) => $e->satisfaccion_general <= EncuestaSatisfaccion::NOTA_BAJA
+                || $e->calificacion_profesor <= EncuestaSatisfaccion::NOTA_BAJA)
             ->sortBy('satisfaccion_general')
             ->map(function (EncuestaSatisfaccion $e) {
                 $perfil = $e->perfil;

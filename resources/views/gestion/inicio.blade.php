@@ -5,22 +5,24 @@
 @section('content')
 @include('gestion.partials.resumen-periodo')
 
-<div class="card">
-  <h3>Buscar usuario</h3>
-  <form method="get" action="{{ route('usuario-lista') }}" class="cupo-form" style="margin-left:0;">
-    <label class="sr-solo" for="busqueda-usuario">Buscar usuario</label>
-    <input type="search" name="q" id="busqueda-usuario"
-           placeholder="Nombre, usuario, teléfono, correo o documento" style="max-width:22rem;">
-    <button type="submit" class="btn btn-sm">Buscar</button>
-  </form>
+{{--
+  El botón "Nuevo" sube a esta fila —alineado a la derecha, con el mismo ancho
+  que la tabla de abajo— en vez de vivir dentro de `gestion.partials.tabla`
+  como en los demás catálogos: aquí Departamentos es la cabecera de su propia
+  sección, no un listado más.
+--}}
+<div class="fila-titulo-accion" style="margin-top:2rem;">
+  <h2>Departamentos</h2>
+  <button type="button" class="btn btn-sm" data-abre-modal="modal-area-nueva">Nuevo</button>
 </div>
-
-<h2 style="margin-top:2rem;">Departamentos</h2>
-@include('gestion.partials.tabla', [
-  'ruta_nuevo' => 'area-nueva',
-  'ruta_editar' => 'area-editar',
-  'ruta_eliminar' => 'area-eliminar',
-])
+<div class="tabla-departamentos">
+  @include('gestion.partials.tabla', [
+    'ruta_nuevo' => 'area-nueva',
+    'ruta_editar' => 'area-editar',
+    'ruta_eliminar' => 'area-eliminar',
+  ])
+</div>
+@include('gestion.partials.area-modales')
 
 {{--
   Cursos, talleres y proyección van justo debajo del árbol académico y no
@@ -28,7 +30,7 @@
   pasan por matrícula, y ponerlas al lado de esas invita a buscar ahí lo que
   aquí se hace por un enlace.
 --}}
-<div class="tarjetas" style="margin-top:1rem;">
+<div class="tarjetas tarjetas-derecha" style="margin-top:1rem;">
   <a class="tarjeta-enlace" href="{{ route('actividad-curso-lista') }}">Cursos y talleres</a>
   <a class="tarjeta-enlace" href="{{ route('actividad-proyeccion-lista') }}">Grupos de proyección</a>
 </div>
@@ -37,17 +39,13 @@
 @include('gestion.partials.matriculas')
 @include('gestion.partials.periodo-modales')
 
+@if ($yo->rol === 'administrador')
 <h2 style="margin-top:2rem;">Gestión del catálogo académico</h2>
 <div class="tarjetas">
-  <a class="tarjeta-enlace" href="{{ route('gestion-cancelaciones') }}">
-    @if ($cancelacionesPendientes)<span class="num">{{ $cancelacionesPendientes }}</span>@endif
-    Cancelaciones
-  </a>
-  @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">Estadísticas</a>
   <a class="tarjeta-enlace" href="{{ route('gestion-configuracion') }}">Institución</a>
-  @endif
 </div>
+@endif
 
 <h2 style="margin-top:2rem;">Informes descargables</h2>
 <p class="campo-info" style="margin-top:-0.8rem;">

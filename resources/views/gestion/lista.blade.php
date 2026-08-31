@@ -13,7 +13,7 @@
     $ruta_fila .......... a dónde lleva el nombre (el nivel de abajo), si aplica
     $etiqueta_singular/plural ... qué se cuenta al lado del nombre
     $etiqueta_protegido . qué impide borrarlo
-    $preset_campo/valor . para que "+ Nuevo" llegue con el padre ya elegido
+    $preset_campo/valor . para que "Nuevo" llegue con el padre ya elegido
     $migas .............. la ruta de vuelta cuando se entra por la jerarquía
     $filtros ............ opcional: [{nombre, etiqueta, vacio, opciones, valor}]
                           Solo Grupos los usa hoy. Los otros dos catálogos no

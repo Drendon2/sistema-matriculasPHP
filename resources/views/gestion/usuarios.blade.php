@@ -5,7 +5,7 @@
 @section('content')
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>Usuarios</h2>
-<p><a class="btn" href="{{ route('usuario-nuevo') }}">+ Nuevo usuario</a></p>
+<p><a class="btn" href="{{ route('usuario-nuevo') }}">Nuevo usuario</a></p>
 
 <form method="get" class="filtros">
   <div class="filtro">

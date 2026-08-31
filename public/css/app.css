@@ -1,19 +1,38 @@
+  /* Public Sans y JetBrains Mono, autoalojadas en /fonts — cero petición
+     externa (ni a Google ni a nadie), coherente con el hosting compartido y
+     con la privacidad de datos de menores que ya cuida PRODUCT.md. JetBrains
+     Mono queda reservada estrictamente a cifras y encabezados de tabla: ver
+     "Regla del instrumento" en DESIGN.md. */
+  @font-face { font-family: 'Public Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/public-sans-400.woff2') format('woff2'); }
+  @font-face { font-family: 'Public Sans'; font-style: italic; font-weight: 400; font-display: swap; src: url('/fonts/public-sans-400-italic.woff2') format('woff2'); }
+  @font-face { font-family: 'Public Sans'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/public-sans-500.woff2') format('woff2'); }
+  @font-face { font-family: 'Public Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/public-sans-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Public Sans'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/public-sans-700.woff2') format('woff2'); }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url('/fonts/jetbrains-mono-500.woff2') format('woff2'); }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/jetbrains-mono-600.woff2') format('woff2'); }
+  @font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/jetbrains-mono-700.woff2') format('woff2'); }
+
   :root {
-    --bg: #f2f5f3;
+    --bg: #f6f4ef;
     --surface: #ffffff;
-    --surface-alt: #eaf1ec;
-    --border: #dce4df;
-    --border-strong: #c3cfc7;
-    --ink: #182420;
-    --ink-soft: #55645c;
-    --ink-faint: #56655d;
-    --accent: #0a7a59;
-    --accent-dark: #065a41;
-    --accent-soft: #dbf2e7;
-    --activa: #2458d6;
-    --activa-bg: #e3ebfc;
+    --surface-alt: #efece3;
+    --border: #e5e1d5;
+    --border-strong: #d3cebd;
+    --ink: #26251f;
+    --ink-soft: #726e60;
+    --ink-faint: #726e60;
+    --accent: #1f5c42;
+    --accent-dark: #163f2d;
+    --accent-soft: #dfeae3;
+    /* Los estados ya no llevan un azul aparte: "activa" es simplemente el
+       verde de marca, así hay un color de menos que decodificar. */
+    --activa: var(--accent);
+    --activa-bg: var(--accent-soft);
     --danger: #b22e22;
     --danger-bg: #fbe4e1;
+    /* Cifra de archivo: solo en números grandes (ver .perfil-stat-num), nunca
+       en texto corrido — a este tamaño da 3.8:1, el mínimo AA de texto grande. */
+    --ocre: #a97b2f;
     --radius-lg: 18px;
     --radius: 12px;
     --radius-sm: 8px;
@@ -22,10 +41,10 @@
        calendario. Misma excepción documentada que las barras de estadísticas —
        ver "Excepción intencional — barras de dato" en DESIGN.md. */
     --radius-dato: 3px;
-    --shadow: 0 1px 2px rgba(24,36,32,0.05), 0 6px 16px rgba(24,36,32,0.08);
-    --shadow-lift: 0 4px 10px rgba(24,36,32,0.10), 0 12px 28px rgba(24,36,32,0.12);
-    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+    --shadow: 0 1px 2px rgba(38,37,31,0.05);
+    --shadow-lift: 0 2px 10px rgba(38,37,31,0.10);
+    --font-body: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
     /* Etiquetas de Área: un color estable por id (ver templatetag tag_color) — como
        un marcador de color distinto por disciplina en la cartelera del estudio. */
     --tag-0: #8f5e10; --tag-0-bg: #fbecd3;
@@ -53,12 +72,13 @@
   a:hover { color: var(--accent-dark); }
 
   h1, h2, h3, h4 { font-family: var(--font-body); color: var(--ink); text-wrap: balance; }
-  h2 { font-size: 1.75rem; font-weight: 800; margin: 0 0 1.2rem; letter-spacing: -0.02em; }
+  h2 { font-size: 1.75rem; font-weight: 700; margin: 0 0 1.2rem; letter-spacing: -0.02em; }
   h3 { font-size: 1.2rem; font-weight: 700; margin: 2.4rem 0 0.7rem; }
   h3:first-of-type { margin-top: 0.5rem; }
   h4 { font-size: 0.78rem; margin: 1.5rem 0 0.65rem; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
   header {
+    position: relative;
     background: var(--surface);
     color: var(--ink);
     padding: 1rem 1.75rem;
@@ -73,7 +93,7 @@
     font-size: 1.05rem;
     margin: 0;
     color: var(--ink);
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: -0.01em;
   }
   .marca-header { display: flex; align-items: center; gap: 0.65rem; }
@@ -91,6 +111,38 @@
   }
   header nav a:hover { background: var(--surface-alt); color: var(--ink); }
   header nav form { margin-left: 0.5rem; }
+
+  /* Buscar usuario: fuera del flujo de .marca-header/<nav>, clavada en la
+     misma posición horizontal donde arranca el contenido de <main> —el mismo
+     cálculo que su `margin: 0 auto` de 960px— para que quede a plomo con el
+     título "Cómo va" de la portada de Gestión. El `max()` es el mismo
+     amortiguador que el auto-margin de main: por debajo de ~960px de
+     viewport no hay hueco que centrar y se queda en el padding base.
+     En reposo es solo la lupa —el título del <input> hace de tooltip nativo,
+     sin JS ni componente aparte—, y al enfocarlo se ensancha lo bastante para
+     leer un correo largo entero. Vuelve sola a su tamaño de lupa al perder
+     el foco. */
+  .nav-buscar {
+    position: absolute;
+    top: 50%;
+    left: max(1.25rem, calc((100vw - 960px) / 2 + 1.25rem));
+    transform: translateY(-50%);
+    display: inline-flex; align-items: center;
+  }
+  .nav-buscar-icono {
+    position: absolute; left: 0.65rem; width: 15px; height: 15px;
+    color: var(--ink-soft); pointer-events: none;
+  }
+  .nav-buscar input[type="search"] {
+    width: 2.3rem; min-height: 36px; margin: 0; padding: 0 0.6rem 0 2rem;
+    border-radius: 999px; font-size: 0.85rem; cursor: pointer;
+    transition: width 0.2s ease;
+  }
+  .nav-buscar input[type="search"]::placeholder { color: transparent; transition: color 0.2s ease; }
+  .nav-buscar input[type="search"]:focus {
+    width: 57rem; max-width: 85vw; cursor: text;
+  }
+  .nav-buscar input[type="search"]:focus::placeholder { color: var(--ink-soft); }
 
   main { max-width: 960px; margin: 2rem auto 4rem; padding: 0 1.25rem; }
 
@@ -117,7 +169,6 @@
   .btn-secundario:hover { background: var(--surface-alt); color: var(--accent-dark); border-color: var(--border-strong); }
   .btn-retirar {
     background: transparent; color: var(--ink-soft); border: 1.5px dashed var(--border-strong);
-    text-decoration: line-through;
   }
   .btn-retirar:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
   .btn-sm { min-height: 0; padding: 0.36rem 0.75rem; font-size: 0.78rem; }
@@ -129,6 +180,20 @@
     font-weight: 600;
   }
   .btn-texto:hover { color: var(--danger); }
+
+  /* Botón realmente inhabilitado (atributo `disabled`): gris, sin subrayado
+     ni tachado, sin hover y sin poder pulsarlo — nunca el look de
+     `.btn-retirar` (tachado), que es para una acción destructiva pero
+     USABLE, como "Finalizar matrículas". Regla general: gana sobre
+     cualquier variante de .btn por especificidad, sea cual sea su color. */
+  .btn:disabled, .btn[disabled] {
+    background: var(--surface-alt);
+    color: var(--ink-faint);
+    border-color: var(--border-strong);
+    text-decoration: none;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
 
   .volver { display: inline-block; font-size: 0.85rem; color: var(--ink-soft); text-decoration: none; margin-bottom: 1rem; }
   .volver:hover { color: var(--accent); }
@@ -146,6 +211,9 @@
     box-shadow: var(--shadow);
     padding: 1.6rem 1.85rem;
   }
+  /* Solo el FONDO al 50 % —no `opacity`, que apagaría también las cifras y el
+     texto que hay dentro y los dejaría por debajo del contraste AA. */
+  .card-translucida { background: color-mix(in srgb, var(--surface) 50%, transparent); }
 
   .form-card {
     background: var(--surface);
@@ -214,66 +282,54 @@
   tbody tr:hover { background: var(--surface-alt); }
   td.num, th.num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 
-  /* Estado de matrícula: un marcador de cartelera, no una píldora de color plano.
-     Activa = pin sólido (relleno + puntito), pendiente = contorno punteado (sin
-     pinear todavía), retirada = tachado, finalizada = relleno neutro SIN puntito
-     (estuvo pineada, ya se descolgó). Forma primero, color después. */
+  /* Estado de matrícula: un punto y una palabra, no una píldora de color. El
+     tachado quedó descartado — leía como error, no como estado administrativo
+     (ver DESIGN.md). Activa = punto lleno, pendiente = tinta llena + anillo
+     hueco (pide una decisión), retirada = tinta suave + anillo partido,
+     finalizada = tinta suave + punto lleno. Retirada y finalizada comparten
+     tono de texto (--ink-soft, 5.1:1 sobre blanco — AA) y se distinguen por la
+     FORMA del punto, nunca lavando el color hasta perder contraste. */
   .estado {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.045em;
-    padding: 0.28rem 0.65rem;
-    border-radius: var(--radius-sm);
+    gap: 0.5rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
   }
-  .estado-activa::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--activa); flex-shrink: 0; }
-  .estado-activa {
-    background: var(--activa-bg); color: var(--activa);
-    border: 1.5px solid var(--activa);
-    box-shadow: 0 1px 4px rgba(36,88,214,0.20);
-  }
-  .estado-pendiente {
-    background: transparent; color: var(--ink-soft);
-    border: 1.5px dashed var(--border-strong);
-  }
-  /* Faltan papeles. Reusa la FORMA de "pendiente" —contorno punteado, sin
-     relleno— porque dice lo mismo: algo está a medias. No lleva el rojo de
-     "retirada": a nadie se le ha quitado nada, falta una gestión. La cifra va
-     en el texto y el detalle en el title, así que no depende del color. */
+  .estado::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .estado-activa { color: var(--ink); }
+  .estado-activa::before { background: var(--accent); }
+  .estado-pendiente { color: var(--ink); font-weight: 600; }
+  .estado-pendiente::before { background: transparent; border: 1.5px solid var(--ink); }
+  /* Ventana de matrículas cerrada: no es un estado de matrícula individual
+     (ver arriba), es un aviso de que la ventana del periodo dejó de admitir
+     gente — por eso el rojo, aunque comparta la forma de anillo hueco con
+     "pendiente". */
+  .estado-cerrada { color: var(--danger); font-weight: 600; }
+  .estado-cerrada::before { background: transparent; border: 1.5px solid var(--danger); }
+  /* Faltan papeles: no es un estado de matrícula, es un aviso con detalle en
+     el title — por eso el subrayado punteado (la convención de "hay más
+     información aquí") y no un punto propio. */
   .estado-papeles {
-    background: transparent; color: var(--ink-soft);
-    border: 1.5px dashed var(--border-strong);
-    cursor: help;
+    color: var(--ink-soft); cursor: help;
+    text-decoration: underline dotted; text-underline-offset: 3px;
   }
-  .estado-retirada {
-    background: var(--danger-bg); color: var(--danger);
-    border: 1.5px solid var(--danger);
-    text-decoration: line-through;
+  .estado-papeles::before { content: none; }
+  .estado-retirada { color: var(--ink-soft); }
+  .estado-retirada::before {
+    border: 1.5px solid var(--ink-soft);
+    background: linear-gradient(135deg, transparent 0 38%, var(--ink-soft) 38% 62%, transparent 62% 100%);
   }
-  /* Cancelación solicitada: el estudiante pidió salirse y nadie lo ha resuelto.
-     Compone las dos formas que ya existen en vez de inventar una tercera —
-     punteado como "pendiente", porque está sin decidir, y en rojo como
-     "retirada", porque de lo que se trata es de una salida. Sin tachar: todavía
-     no se ha ido, y ese es justo el punto. */
-  .estado-cancelacion_solicitada {
-    background: transparent; color: var(--danger);
-    border: 1.5px dashed var(--danger);
-  }
+  /* Cancelación solicitada: el estudiante pidió salirse y nadie lo ha resuelto
+     — el único estado que conserva tinta de alerta, porque es el único que de
+     verdad pide una decisión con plazo. Anillo hueco como "pendiente" (sin
+     resolver), en --danger porque de lo que se trata es de una salida. */
+  .estado-cancelacion_solicitada { color: var(--danger); font-weight: 600; }
+  .estado-cancelacion_solicitada::before { background: transparent; border: 1.5px solid var(--danger); }
 
-  /* Finalizada: estuvo pineada y ya se descolgó. Se distingue de las otras tres
-     por forma antes que por color — borde SÓLIDO (pendiente lo tiene punteado),
-     sin puntito de cabeza de pin (activa sí lo lleva) y sin tachar (retirada sí).
-     El borde va en tinta tenue y no en borde-fuerte: ese gris queda en 1.6:1
-     contra el blanco de la tabla, y con el relleno también casi invisible (1.15:1)
-     el marcador se leería como texto suelto en vez de como marcador. */
-  .estado-finalizada {
-    background: var(--surface-alt); color: var(--ink-soft);
-    border: 1.5px solid var(--ink-faint);
-  }
+  .estado-finalizada { color: var(--ink-soft); }
+  .estado-finalizada::before { background: var(--ink-soft); }
 
   .cupos-agotados { color: var(--danger); font-weight: 700; }
 
@@ -286,7 +342,7 @@
     position: sticky; top: 0.6rem; z-index: 5;
   }
   .messages li { padding: 0.7rem 1rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem; font-size: 0.85rem; border: 1px solid transparent; box-shadow: var(--shadow); }
-  .messages .success { background: var(--accent-soft); color: var(--accent-dark); border-color: rgba(10,122,89,0.2); }
+  .messages .success { background: var(--accent-soft); color: var(--accent-dark); border-color: rgba(31,92,66,0.2); }
   .messages .error { background: var(--danger-bg); color: var(--danger); border-color: rgba(178,46,34,0.2); }
 
   .vacio { color: var(--ink-faint); font-style: italic; padding: 1rem 0; }
@@ -304,7 +360,7 @@
      administrador) y las reusa el resumen del historial de un estudiante, que
      sí ve todo el personal — y el propio estudiante sobre lo suyo. */
   .dash-resumen { display: flex; flex-wrap: wrap; gap: 1.75rem; margin: 0 0 0.5rem; }
-  .dash-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; color: var(--ink); }
+  .dash-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; color: var(--ocre); }
   .dash-stat-label { font-size: 0.72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
 
   .stat-bar-fila { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.55rem; }
@@ -475,7 +531,7 @@
     background: var(--surface-alt);
     border-radius: var(--radius-lg);
     padding: 2rem 1.5rem 1.75rem;
-    box-shadow: 0 1px 2px rgba(24,36,32,0.04), 0 3px 10px rgba(24,36,32,0.05);
+    box-shadow: 0 1px 2px rgba(38,37,31,0.04), 0 3px 10px rgba(38,37,31,0.05);
   }
 
   /* Avatar circular de "Mi perfil" — foto redonda con una insignia de cámara
@@ -491,7 +547,7 @@
     box-shadow: var(--shadow);
   }
   .perfil-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .perfil-avatar-inicial { font-weight: 800; font-size: 2.1rem; color: var(--accent-dark); }
+  .perfil-avatar-inicial { font-weight: 700; font-size: 2.1rem; color: var(--accent-dark); }
   .perfil-avatar-badge {
     position: absolute; right: -2px; bottom: -2px;
     width: 30px; height: 30px; border-radius: 50%;
@@ -501,7 +557,7 @@
     box-shadow: var(--shadow);
   }
   .perfil-avatar-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
-  .perfil-nombre { font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+  .perfil-nombre { font-weight: 700; font-size: 1.15rem; color: var(--ink); }
   .perfil-rol-sub { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.1rem; }
   .perfil-contacto-form { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0.6rem 0 0; }
   .perfil-contacto-form input { width: auto; max-width: 150px; padding: 0.45rem 0.6rem; margin: 0; }
@@ -519,7 +575,8 @@
   .perfil-tel-hint { border-bottom: 1px dashed var(--border-strong); }
 
   .perfil-stats { display: flex; justify-content: center; gap: 1.1rem; margin: 0; }
-  .perfil-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+  .perfil-stats > div { text-align: center; }
+  .perfil-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 2.4rem; line-height: 1.1; color: var(--ocre); }
   .perfil-stat-label { font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
 
   /* Cabecera de sección de "Mi perfil": chip de icono + título, en vez de un
@@ -825,11 +882,10 @@
   .asistencia-opcion input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
   .asistencia-opcion-asistio:has(input:checked) {
     color: var(--activa); background: var(--activa-bg); border-color: var(--activa);
-    box-shadow: 0 1px 4px rgba(36,88,214,0.20);
+    box-shadow: 0 1px 4px rgba(31,92,66,0.20);
   }
   .asistencia-opcion-falto:has(input:checked) {
     color: var(--danger); background: var(--danger-bg); border-color: var(--danger);
-    text-decoration: line-through;
   }
   .asistencia-opcion-excusa:has(input:checked) {
     color: var(--danger); background: transparent; border-color: var(--danger);
@@ -1223,7 +1279,7 @@
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
 
-  /* Pestañas de Gestión: tarjetas pineadas en la cartelera, no pestañas de carpeta. */
+  /* Tarjetas de Gestión: acceso directo a una pantalla o una cifra que avisa. */
   .tarjetas { display: flex; gap: 1rem; flex-wrap: wrap; }
   .tarjeta-enlace {
     position: relative;
@@ -1238,11 +1294,6 @@
     font-weight: 700;
     min-width: 150px;
     transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
-  }
-  .tarjeta-enlace::before {
-    content: ""; position: absolute; top: -5px; left: 1.3rem;
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 1px 3px rgba(24,36,32,0.25);
   }
   .tarjeta-enlace:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); transform: translateY(-3px); color: var(--ink); }
   .tarjeta-enlace .num { display: block; font-family: var(--font-mono); font-size: 1.6rem; color: var(--accent); margin-bottom: 0.15rem; }
@@ -1265,6 +1316,8 @@
     header { padding: 0.8rem 1.1rem; }
     header nav a { padding: 0.85rem 0.75rem; min-height: 44px; display: inline-flex; align-items: center; }
     header nav form { margin-left: 0.3rem; }
+    .nav-buscar input[type="search"] { min-height: 44px; width: 2.6rem; }
+    .nav-buscar input[type="search"]:focus { width: 70vw; }
     .btn { padding: 0.75rem 1.15rem; }
     .btn-sm { padding: 0.6rem 0.9rem; }
     .btn-texto { padding: 0.5rem 0; }
@@ -1351,15 +1404,80 @@ dialog.modal[open] {
 dialog.modal h2 { margin-top: 0; }
 dialog.modal .modal-acciones { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
 .periodo-acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.resumen-alertas { display: flex; align-items: stretch; justify-content: flex-end; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+/* Las tres alertas del mismo tamaño, sin importar que el texto de una sea más
+   corto que el de otra ("Cancelaciones" vs. "encuestas para seguimiento") —
+   se leen como un conjunto parejo, no como fichas sueltas de tamaño al azar. */
+.resumen-alertas .tarjeta-enlace { width: 230px; flex: 0 0 230px; }
+
+/* Título de sección + su acción, en la misma fila y alineados a los extremos
+   —el botón queda a la derecha, a ras con el borde de lo que sigue debajo (la
+   tabla de Departamentos, o el resto de la columna izquierda de Periodos).
+   El h2/h3 pierde su margen propio y lo hereda la fila entera, para que el
+   hueco hasta el contenido de abajo sea el mismo que el de cualquier otro
+   título con su tabla. */
+.fila-titulo-accion { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.fila-titulo-accion h2, .fila-titulo-accion h3 { margin: 0; }
+
+/* Que alguien alineado a la derecha, como "Cursos y talleres" y las alertas de
+   arriba, pida lo mismo en dos sitios es la señal de que hace falta un
+   modificador y no repetir `justify-content` a mano en cada uno. */
+.tarjetas-derecha { justify-content: flex-end; }
+
+/* Departamentos: cada fila es su propia tarjeta y no una fila de tabla — se
+   lee como una lista de fichas, no como una hoja de cálculo. El nombre hace
+   de título: más grande, en negrita y en el acento, sin subrayado. El oscurecer
+   al pasar el cursor es el mismo `tbody tr:hover` de siempre, intacto. */
+.tabla-departamentos table {
+  display: block; background: transparent; border: none; box-shadow: none; border-radius: 0;
+}
+.tabla-departamentos tbody { display: block; }
+.tabla-departamentos tbody tr {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 0.9rem 1.1rem; margin-bottom: 0.75rem;
+  transition: background 0.15s ease;
+}
+.tabla-departamentos tbody tr:last-child { margin-bottom: 0; }
+/* Repetida con `.tabla-departamentos` delante: sin esto empata en
+   especificidad con la regla de fondo de arriba, y quién gana pasa a depender
+   del orden en la hoja de estilos en vez de la intención. */
+.tabla-departamentos tbody tr:hover { background: var(--surface-alt); }
+.tabla-departamentos td { display: block; padding: 0; border: none; }
+.tabla-departamentos table a { font-size: 1.05rem; font-weight: 700; color: var(--accent); text-decoration: none; text-transform: uppercase; letter-spacing: 0.02em; }
 
 /* La tarjeta "Periodos": a la izquierda se elige, a la derecha se ve el
    resultado de haber elegido — por eso el borde que las separa y no un
-   `<h3>` propio en la columna derecha. En una sola columna en móvil, con el
-   resultado abajo y no al lado. */
-.periodo-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem; }
-.periodo-resultado { padding-left: 1.5rem; border-left: 1px solid var(--border); }
-.periodo-resultado-cabecera { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-.periodo-resultado-cabecera h4 { margin: 0; }
+   `<h3>` propio en la columna derecha (su título vive dentro de la columna
+   izquierda, como cabecera de esa columna y no de toda la tarjeta). En una
+   sola columna en móvil, con el resultado abajo y no al lado. */
+.periodo-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+/* La columna se estira sola a la altura de la izquierda (comportamiento por
+   defecto de CSS Grid), y su contenido se centra dentro de esa altura propia
+   —no un hueco fijo calculado a partir de la fila "Periodos"/"Nuevo" de al
+   lado, que dejaba de tener sentido en cuanto esa fila cambiara de tamaño. */
+.periodo-resultado {
+  padding-left: 1.5rem; border-left: 1px solid var(--border); text-align: center;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.periodo-resultado-cabecera { display: flex; align-items: center; justify-content: center; gap: 0.6rem; flex-wrap: wrap; }
+/* El nombre del periodo es el dato que más importa de esta tarjeta —qué
+   periodo es "el" en curso— así que sale del tamaño de subtítulo genérico de
+   h4 (0.78rem, versalitas) a una cifra de lectura inmediata. */
+.periodo-resultado-cabecera h4 {
+  margin: 0; font-size: 1.9rem; font-weight: 700; color: var(--ink);
+  text-transform: none; letter-spacing: -0.01em;
+}
+.periodo-resultado-cabecera .estado { font-size: 0.95rem; }
+.periodo-resultado-fechas { font-size: 1.05rem; }
+
+/* El selector de periodo en curso ocupa casi toda la columna: es la acción
+   principal de esta tarjeta, no un campo de formulario entre otros. Los tres
+   botones van en su propia fila, en el orden en que de verdad se usan: poner
+   en curso primero, editar y eliminar después. */
+.periodo-selector select { width: 100%; margin-top: 0.4rem; }
+.periodo-selector .periodo-acciones { margin-top: 0.9rem; }
 
 @media (max-width: 640px) {
   .periodo-columnas { grid-template-columns: 1fr; gap: 1.1rem; }

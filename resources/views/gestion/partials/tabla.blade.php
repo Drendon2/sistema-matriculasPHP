@@ -1,9 +1,11 @@
 {{--
-  La tabla —y el botón "+ Nuevo"— que comparten los catálogos de Gestión.
+  La tabla —y el botón "Nuevo"— que comparten los catálogos de Gestión.
   Recibida por `gestion.lista` para sus pantallas propias, y directamente por
   `gestion.inicio` para Departamentos, que vive ahí y no en pantalla aparte.
 
-  Variables: ver la cabecera de `gestion/lista.blade.php`.
+  Variables: ver la cabecera de `gestion/lista.blade.php`. `$ocultar_boton_nuevo`
+  es aparte: Departamentos lo pone en su propia fila junto al título en vez de
+  aquí (ver `gestion.inicio`), así que este parcial no lo repite.
 --}}
 @php($rutaFila = $ruta_fila ?? null)
 @php($etiquetaSingular = $etiqueta_singular ?? null)
@@ -13,7 +15,9 @@
 @php($mostrarProfesor = $mostrar_profesor ?? false)
 @php($preset = isset($preset_campo) ? '?'.$preset_campo.'='.$preset_valor : '')
 
-<p><a class="btn" href="{{ route($ruta_nuevo).$preset }}">+ Nuevo</a></p>
+@unless ($ocultar_boton_nuevo ?? false)
+<p><a class="btn" href="{{ route($ruta_nuevo).$preset }}">Nuevo</a></p>
+@endunless
 
 @php($losFiltros = $filtros ?? [])
 @php($hayFiltros = $hay_filtros ?? false)

@@ -20,6 +20,14 @@ class EncuestaSatisfaccion extends Model
 {
     public const ESCALA = [1 => '1', 2 => '2', 3 => '3', 4 => '4', 5 => '5'];
 
+    /**
+     * Nota por debajo de la cual una respuesta se considera mala experiencia.
+     *
+     * En una escala de 1 a 5, el 3 es el "ni bien ni mal" y no pide llamar a
+     * nadie: lo que hay que atender de verdad es el 1 y el 2.
+     */
+    public const NOTA_BAJA = 2;
+
     protected $table = 'encuestas_satisfaccion';
 
     protected $fillable = [
@@ -105,5 +113,40 @@ class EncuestaSatisfaccion extends Model
             ->whereNotIn('promotoria_id', $contestadas)
             ->with('promotoria.area')
             ->get();
+    }
+
+    /**
+     * El periodo que evalua "Para seguimiento".
+     *
+     * La encuesta se contesta al renovar y evalua el periodo que TERMINO, asi
+     * que es el mas reciente CON respuestas, no el que esta en curso.
+     */
+    public static function periodoDeSeguimiento(): ?Periodo
+    {
+        return Periodo::query()
+            ->whereHas('encuestasSatisfaccion')
+            ->orderByDesc('fecha_inicio')
+            ->first();
+    }
+
+    /**
+     * Cuantas respuestas de ese periodo puntuaron NOTA_BAJA o menos en
+     * experiencia general o en el profesor.
+     *
+     * Reusado por la alerta de la portada de Gestion y por el detalle de
+     * Estadisticas, para que las dos cuenten exactamente lo mismo.
+     */
+    public static function conteoParaSeguimiento(): int
+    {
+        $periodo = self::periodoDeSeguimiento();
+
+        if ($periodo === null) {
+            return 0;
+        }
+
+        return self::where('periodo_id', $periodo->id)
+            ->where(fn ($q) => $q->where('satisfaccion_general', '<=', self::NOTA_BAJA)
+                ->orWhere('calificacion_profesor', '<=', self::NOTA_BAJA))
+            ->count();
     }
 }

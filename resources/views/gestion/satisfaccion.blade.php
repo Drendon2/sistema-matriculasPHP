@@ -180,7 +180,7 @@
   poder hablar con quien lo pasó mal, y para eso hace falta saber a quién llamar.
   Por eso va el teléfono: sin él la lista no sirve para lo único que la justifica.
 --}}
-<h4 style="margin-top: 1.9rem;">
+<h4 id="seguimiento" style="margin-top: 1.9rem;">
   Para seguimiento
   <span class="h4-nota">(solo administración)</span>
 </h4>

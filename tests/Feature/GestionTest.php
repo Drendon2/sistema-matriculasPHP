@@ -1402,6 +1402,41 @@ class GestionTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Alerta de seguimiento en la portada de Gestion
+    // -----------------------------------------------------------------------
+
+    public function test_la_portada_avisa_de_encuestas_para_seguimiento(): void
+    {
+        $this->encuestar($this->estudiante, 1, 5);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            ->assertSee('para seguimiento');
+    }
+
+    /** El director no es administracion: no ve el aviso aunque exista el dato. */
+    public function test_un_director_no_ve_el_aviso_de_seguimiento(): void
+    {
+        $this->encuestar($this->estudiante, 1, 5);
+
+        $this->actingAs($this->director->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            ->assertDontSee('para seguimiento');
+    }
+
+    public function test_sin_notas_bajas_no_hay_aviso_de_seguimiento(): void
+    {
+        $this->encuestar($this->estudiante, 5, 4);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            ->assertDontSee('para seguimiento');
+    }
+
+    // -----------------------------------------------------------------------
     // Filtros del listado de grupos
     // -----------------------------------------------------------------------
 
@@ -1616,6 +1651,69 @@ class GestionTest extends TestCase
             ->get(route('gestion-inicio'))
             ->assertOk()
             ->assertDontSee('class="filtros"', false);
+    }
+
+    // -----------------------------------------------------------------------
+    // Brecha de edad en un grupo
+    // -----------------------------------------------------------------------
+
+    /** Matricula a $perfil, ACTIVA, en un grupo concreto (no solo en su promotoría). */
+    private function matricularEnGrupo(Perfil $perfil, Grupo $grupo): void
+    {
+        $matricula = $this->matricular($perfil, $this->violin, Matricula::ACTIVA);
+        $matricula->grupo_id = $grupo->id;
+        $matricula->save();
+    }
+
+    public function test_la_portada_avisa_de_grupos_con_brecha_de_edad(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $joven = $this->crearEstudiante('joven', Carbon::today()->subYears(9)->toDateString());
+        $viejo = $this->crearEstudiante('viejo', Carbon::today()->subYears(17)->toDateString());
+        $this->matricularEnGrupo($joven, $grupo);
+        $this->matricularEnGrupo($viejo, $grupo);
+
+        $this->actingAs($this->director->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            // Con un solo grupo el texto sale en singular: "1 grupo con
+            // brecha de edad", no "grupos".
+            ->assertSee('con brecha de edad');
+    }
+
+    public function test_grupo_brecha_edad_lista_el_detalle(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $joven = $this->crearEstudiante('joven', Carbon::today()->subYears(9)->toDateString());
+        $viejo = $this->crearEstudiante('viejo', Carbon::today()->subYears(17)->toDateString());
+        $this->matricularEnGrupo($joven, $grupo);
+        $this->matricularEnGrupo($viejo, $grupo);
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-brecha-edad'))
+            ->assertOk()
+            ->assertSee((string) $grupo, false)
+            ->assertSee('8 años');
+    }
+
+    /** Por debajo del minimo, ni la portada ni el detalle lo marcan. */
+    public function test_una_diferencia_de_seis_anos_no_entra_en_la_brecha(): void
+    {
+        $grupo = $this->grupoDeViolin();
+        $joven = $this->crearEstudiante('joven', Carbon::today()->subYears(10)->toDateString());
+        $viejo = $this->crearEstudiante('viejo', Carbon::today()->subYears(16)->toDateString());
+        $this->matricularEnGrupo($joven, $grupo);
+        $this->matricularEnGrupo($viejo, $grupo);
+
+        $this->actingAs($this->director->user)
+            ->get(route('gestion-inicio'))
+            ->assertOk()
+            ->assertDontSee('con brecha de edad');
+
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-brecha-edad'))
+            ->assertOk()
+            ->assertDontSee((string) $grupo, false);
     }
 
     // -----------------------------------------------------------------------

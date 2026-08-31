@@ -6,38 +6,37 @@
   ($resumen lo pinta `gestion.partials.resumen-periodo`, arriba del todo.)
 --}}
 <div class="card">
-  <h3>Periodos</h3>
-  <p class="campo-info">
-    Solo puede haber uno. Al cambiarlo, el anterior deja de estar en curso y sus matrículas
-    se cierran automáticamente; sus datos no se tocan.
-  </p>
-
   <div class="periodo-columnas">
     {{-- Izquierda: elegir cuál está en curso, y el catálogo de periodos. --}}
     <div>
+      <div class="fila-titulo-accion">
+        <h3>Periodos</h3>
+        <button type="button" class="btn btn-sm" data-abre-modal="modal-periodo-nuevo">Nuevo</button>
+      </div>
+      <p class="campo-info">
+        Selecciona el periodo que quieres Poner en curso, Editar o Eliminar.
+      </p>
+
       @if (count($periodos))
-      <form method="post" action="{{ route('gestion-matriculas') }}" class="cupo-form" style="margin-left:0;">
+      <form method="post" action="{{ route('gestion-matriculas') }}" class="periodo-selector">
         @csrf
         <input type="hidden" name="accion" value="poner_en_curso">
         <label class="sr-solo" for="id_periodo_en_curso">Periodo en curso</label>
-        <select name="periodo_id" id="id_periodo_en_curso" style="width:auto;">
+        <select name="periodo_id" id="id_periodo_en_curso">
           @foreach ($periodos as $p)
             <option value="{{ $p->id }}" @selected($p->activo)>{{ $p->nombre }}@if ($p->activo) — en curso @endif</option>
           @endforeach
         </select>
-        <button type="submit" class="btn btn-sm">Poner en curso</button>
-      </form>
-      @else
-        <p class="vacio">Todavía no hay periodos creados. Créalos con «+ Nuevo» abajo.</p>
-      @endif
 
-      <p class="periodo-acciones">
-        <button type="button" class="btn btn-sm" data-abre-modal="modal-periodo-nuevo">+ Nuevo</button>
-        @if (count($periodos))
+        <p class="periodo-acciones">
+          <button type="submit" class="btn btn-sm">Poner en curso</button>
           <button type="button" class="btn btn-blanco btn-sm" data-abre-modal="modal-periodo-editar">Editar</button>
           <button type="button" class="btn btn-blanco btn-sm" data-abre-modal="modal-periodo-eliminar">Eliminar</button>
-        @endif
-      </p>
+        </p>
+      </form>
+      @else
+        <p class="vacio">Todavía no hay periodos creados. Créalos con «Nuevo» arriba.</p>
+      @endif
     </div>
 
     {{--
@@ -55,10 +54,10 @@
           @if ($periodo->matriculas_abiertas)
             <span class="estado estado-activa">Matrículas abiertas</span>
           @else
-            <span class="estado estado-pendiente">Matrículas cerradas</span>
+            <span class="estado estado-cerrada">Matrículas cerradas</span>
           @endif
         </div>
-        <p class="campo-info" style="margin-top:0;">
+        <p class="campo-info periodo-resultado-fechas" style="margin-top:0;">
           Del {{ $periodo->fecha_inicio->format('d/m/Y') }} al {{ $periodo->fecha_fin->format('d/m/Y') }}
         </p>
         <p class="campo-info" style="margin-top:-0.6rem;">
@@ -73,7 +72,7 @@
           @csrf
           @if ($periodo->matriculas_abiertas)
             <input type="hidden" name="accion" value="cerrar">
-            <button type="submit" class="btn btn-retirar">Finalizar matrículas de {{ $periodo->nombre }}</button>
+            <button type="submit" class="btn">Finalizar matrículas de {{ $periodo->nombre }}</button>
           @else
             <input type="hidden" name="accion" value="abrir">
             <button type="submit" class="btn">Iniciar matrículas de {{ $periodo->nombre }}</button>
@@ -83,7 +82,8 @@
     </div>
   </div>
 
-  <p class="periodo-acciones" style="margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--border);">
-    <a class="btn btn-blanco btn-sm" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
+  <p class="periodo-acciones" style="margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--border);align-items:center;justify-content:space-between;">
+    <a class="btn" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
+    <span class="campo-info" style="margin:0;">Modifica los cupos máximos permitidos para cada promotoría.</span>
   </p>
 </div>

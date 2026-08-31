@@ -52,7 +52,10 @@ class AreaController extends RecursoController
             'etiqueta_plural' => 'promotorías',
             'etiqueta_protegido' => 'promotorías',
             'ruta_fila' => 'promotorias-por-area',
-            'mostrar_tag_area' => true,
+            // Sin punto de color y sin su propio botón "Nuevo": el título de
+            // cada fila ya lleva el acento (ver gestion.inicio) y el botón
+            // vive junto al encabezado "Departamentos", no aquí abajo.
+            'ocultar_boton_nuevo' => true,
         ];
     }
 

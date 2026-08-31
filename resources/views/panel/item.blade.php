@@ -45,7 +45,7 @@
 @endif
 
 @if ($item['puede_gestionar'])
-<p><a class="btn btn-sm" href="{{ route('panel-grupo-nuevo', $item['promotoria']) }}">+ Nuevo grupo</a></p>
+<p><a class="btn btn-sm" href="{{ route('panel-grupo-nuevo', $item['promotoria']) }}">Nuevo grupo</a></p>
 @endif
 
 {{--

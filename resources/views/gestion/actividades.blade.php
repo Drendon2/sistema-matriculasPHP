@@ -16,7 +16,7 @@
 --}}
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>{{ $titulo }}</h2>
-<p><a class="btn" href="{{ route($ruta_nuevo) }}">+ Nuevo</a></p>
+<p><a class="btn" href="{{ route($ruta_nuevo) }}">Nuevo</a></p>
 
 @if ($actividades->isEmpty())
   <p class="vacio">Todavía no hay nada aquí.</p>

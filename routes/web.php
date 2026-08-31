@@ -286,9 +286,9 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::post('/cancelaciones/{matricula}/{decision}', [Gestion\CancelacionesController::class, 'resolver'])
         ->name('gestion-resolver-cancelacion');
 
-    // Departamentos: sin pantalla propia, se pintan en la portada (gestion-inicio)
-    Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');
-    Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar']);
+    // Departamentos: sin pantalla propia, se pintan en la portada (gestion-inicio).
+    // "Nueva área" tampoco: es un modal en esa misma portada.
+    Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar'])->name('area-nueva');
     Route::get('/areas/{objeto}/editar', [Gestion\AreaController::class, 'editar'])->name('area-editar');
     Route::post('/areas/{objeto}/editar', [Gestion\AreaController::class, 'actualizar']);
     Route::get('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'confirmarBorrado'])
@@ -327,6 +327,7 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::post('/grupos/{objeto}/eliminar', [Gestion\GrupoController::class, 'eliminar']);
     Route::get('/grupos/{grupo}/estudiantes', [Gestion\GrupoController::class, 'estudiantes'])
         ->name('grupo-estudiantes');
+    Route::get('/grupos/brecha-edad', [Gestion\GrupoController::class, 'brechaEdad'])->name('grupo-brecha-edad');
 
     // Cursos y talleres
     Route::get('/cursos', [Gestion\CursoTallerController::class, 'index'])->name('actividad-curso-lista');

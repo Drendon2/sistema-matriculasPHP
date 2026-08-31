@@ -1,25 +1,62 @@
 /*
- * MODALES DE PERIODO
+ * MODALES DE GESTIÓN
  * ===================
- * Crear/editar/eliminar periodo desde la tarjeta "Periodo en curso" de
- * Gestión. Delegación de eventos sobre `document`, como el resto de los
- * scripts de la app: los formularios y diálogos viven dentro de <main>, que
- * `acciones.js` puede reemplazar entero tras cualquier envío (éxito o error
- * de validación), así que un listener puesto directo sobre un elemento
- * quedaría huérfano en cuanto eso pase.
+ * Abrir/cerrar cualquier <dialog> de la portada de Gestión —crear/editar/
+ * eliminar periodo, y "Nueva área" de Departamentos— vía delegación genérica
+ * sobre [data-abre-modal]/[data-cierra-modal]. El nombre del archivo quedó
+ * de cuando solo existían los de Periodo; un modal nuevo que no necesite el
+ * paso extra de sincronizar un desplegable (ver más abajo) no necesita tocar
+ * este archivo, solo poner esos dos atributos.
+ *
+ * Delegación de eventos sobre `document`, como el resto de los scripts de la
+ * app: los formularios y diálogos viven dentro de <main>, que `acciones.js`
+ * puede reemplazar entero tras cualquier envío (éxito o error de
+ * validación), así que un listener puesto directo sobre un elemento quedaría
+ * huérfano en cuanto eso pase.
  *
  * Reabrir el modal correcto tras un error de validación NO lo hace este
- * archivo: lo resuelve un <script> que Blade pinta solo cuando hace falta,
- * en `gestion/partials/periodo-modales.blade.php`.
+ * archivo: lo resuelve un <script> que Blade pinta solo cuando hace falta, en
+ * el parcial de cada modal (`periodo-modales.blade.php`, `area-modales.blade.php`).
  */
 (function () {
   "use strict";
 
+  // Qué <select> de cada modal hay que sincronizar con "Periodo en curso" al
+  // abrirlo, y con qué modal va cada uno. "Nuevo" no entra: no parte de un
+  // periodo ya elegido.
+  var SELECTOR_POR_MODAL = {
+    "modal-periodo-editar": "[data-select-periodo-editar]",
+    "modal-periodo-eliminar": "[data-select-periodo-eliminar]",
+  };
+
   document.addEventListener("click", function (evento) {
     var abre = evento.target.closest("[data-abre-modal]");
     if (abre) {
-      var dialogo = document.getElementById(abre.getAttribute("data-abre-modal"));
-      if (dialogo) { dialogo.showModal(); }
+      var idDialogo = abre.getAttribute("data-abre-modal");
+      var dialogo = document.getElementById(idDialogo);
+      if (!dialogo) { return; }
+
+      // Editar y Eliminar parten de lo que ya está elegido en "Periodo en
+      // curso" arriba —el mismo periodo sobre el que actuaría "Poner en
+      // curso"— en vez de obligar a elegirlo otra vez dentro del modal.
+      var selectorDelModal = SELECTOR_POR_MODAL[idDialogo];
+      if (selectorDelModal) {
+        var enCurso = document.getElementById("id_periodo_en_curso");
+        var selectModal = dialogo.querySelector(selectorDelModal);
+
+        if (enCurso && selectModal && enCurso.value) {
+          var tieneEsaOpcion = Array.prototype.some.call(selectModal.options, function (o) {
+            return o.value === enCurso.value;
+          });
+
+          if (tieneEsaOpcion) {
+            selectModal.value = enCurso.value;
+            selectModal.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+      }
+
+      dialogo.showModal();
       return;
     }
 
