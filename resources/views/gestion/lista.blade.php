@@ -139,7 +139,7 @@
             Eliminar
           </span>
         @else
-          <a href="{{ route($ruta_eliminar, $obj) }}" style="color:var(--danger);">Eliminar</a>
+          <a href="{{ route($ruta_eliminar, $obj) }}" style="color:var(--danger);" data-modal>Eliminar</a>
         @endif
       </td>
     </tr>

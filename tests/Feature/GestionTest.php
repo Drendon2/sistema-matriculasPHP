@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Gestion\GrupoController;
+use App\Http\Controllers\Gestion\UsuarioController;
 use App\Models\Acudiente;
 use App\Models\Area;
 use App\Models\Asistencia;
@@ -2023,6 +2024,97 @@ class GestionTest extends TestCase
 
         $this->assertStringContainsString(route('usuario-eliminar', $suelta), $html);
         $this->assertStringNotContainsString(route('usuario-eliminar', $estudiante), $html);
+    }
+
+    // -----------------------------------------------------------------------
+    // El modal y la vuelta al listado filtrado
+    // -----------------------------------------------------------------------
+
+    /**
+     * El modal se lleva ESA tarjeta y ninguna otra.
+     *
+     * Es un contrato entre la plantilla y `acciones.js`: si el marcador
+     * desaparece de la vista, el modal no encuentra que ensenar y el enlace pasa
+     * a navegar como antes. No se rompe nada visible, que es justo por lo que
+     * conviene que haya una prueba.
+     */
+    public function test_las_confirmaciones_traen_el_marcador_que_busca_el_modal(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        $this->actingAs($this->admin->user)
+            ->get(route('usuario-eliminar', $suelta))
+            ->assertOk()
+            ->assertSee('data-modal-cuerpo', false);
+
+        // Y la de los catalogos, que es la que usan los otros seis sitios.
+        $this->actingAs($this->director->user)
+            ->get(route('area-eliminar', $this->musica))
+            ->assertOk()
+            ->assertSee('data-modal-cuerpo', false);
+    }
+
+    /**
+     * Borrar devuelve al listado TAL COMO ESTABA.
+     *
+     * Sin esto, quien filtra por «Pendiente de rol» y borra a uno aparece en la
+     * lista entera y por el principio, asi que para borrar a cinco hay que
+     * volver a filtrar cinco veces. Es lo mismo que `alternarActivo` resolvio
+     * con `back()`; aqui no vale porque en medio esta la confirmacion.
+     */
+    public function test_al_eliminar_se_vuelve_al_listado_con_sus_filtros(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        $filtrada = route('usuario-lista', ['rol' => UsuarioController::ROL_PENDIENTE, 'page' => 2]);
+
+        // La confirmacion recoge los filtros del referente y los deja en el
+        // formulario.
+        $this->actingAs($this->admin->user)
+            ->get(route('usuario-eliminar', $suelta), ['referer' => $filtrada])
+            ->assertOk()
+            ->assertSee('name="volver" value="rol=__sin__&amp;page=2"', false);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $suelta), [
+                'password' => 'x',
+                'volver' => 'rol=__sin__&page=2',
+            ])
+            ->assertRedirect($filtrada);
+    }
+
+    /** Y tambien cuando se NIEGA: el viaje perdido no debe costar el filtro. */
+    public function test_un_borrado_rechazado_tambien_vuelve_al_listado_filtrado(): void
+    {
+        $estudiante = $this->crearEstudiante('conhistorial');
+        $this->matricular($estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $estudiante), [
+                'password' => 'x',
+                'volver' => 'rol=estudiante',
+            ])
+            ->assertRedirect(route('usuario-lista', ['rol' => 'estudiante']));
+    }
+
+    /**
+     * El campo oculto no es una puerta para mandar a nadie fuera.
+     *
+     * Lo compone quien quiera, y ademas en una pantalla donde la persona acaba
+     * de escribir su contrasena. El destino lo pone siempre el servidor; ver
+     * `Support\Regreso` y sus pruebas.
+     */
+    public function test_el_campo_de_vuelta_no_saca_del_sitio(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        $respuesta = $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $suelta), [
+                'password' => 'x',
+                'volver' => 'https://malo.example.com',
+            ]);
+
+        $this->assertStringStartsWith(route('usuario-lista'), $respuesta->headers->get('Location'));
     }
 
     // -----------------------------------------------------------------------

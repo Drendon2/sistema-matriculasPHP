@@ -275,7 +275,7 @@
               Eliminar
             </span>
           @else
-            <a href="{{ route('usuario-eliminar', $perfil) }}" style="color:var(--danger);">Eliminar</a>
+            <a href="{{ route('usuario-eliminar', $perfil) }}" style="color:var(--danger);" data-modal>Eliminar</a>
           @endif
         @endif
         </span>

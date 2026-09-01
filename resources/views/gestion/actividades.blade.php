@@ -110,7 +110,7 @@
           @endif
           <a href="{{ route($ruta_editar, $actividad) }}">Editar</a>
           &nbsp;·&nbsp;
-          <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);">Eliminar</a>
+          <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);" data-modal>Eliminar</a>
         </span>
       </td>
     </tr>

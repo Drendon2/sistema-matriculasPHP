@@ -25,6 +25,20 @@
  * Si no hay JavaScript, o si `fetch` falla, no pasa nada: el formulario se envia
  * como siempre. Para dejar una accion FUERA basta ponerle `data-recarga-completa`
  * al <form>.
+ *
+ * LA SEGUNDA MITAD: EL MODAL DE CONFIRMACION
+ * ------------------------------------------
+ * Vive aqui y no en un archivo aparte porque es lo mismo que lo de arriba —una
+ * accion sin recargar— y porque necesita `pintar()`: cuando el borrado sale
+ * bien hay que refrescar la lista de detras, que es exactamente lo que esa
+ * funcion ya sabe hacer, con sus <details> abiertos y su scroll.
+ *
+ * La idea es la misma que la de los formularios: NO se convierte nada en una
+ * API. La pagina de confirmacion sigue existiendo, sigue siendo una URL de
+ * verdad y sigue renderizandose entera en el servidor; el modal se limita a
+ * pedirla por `fetch` y ensenar su tarjeta dentro de un <dialog>. Por eso sin
+ * JavaScript el enlace navega a esa pagina y todo funciona igual, y por eso el
+ * servidor no tiene que saber si le estan preguntando desde un modal.
  */
 (function () {
   var main = document.querySelector("main");
@@ -136,6 +150,147 @@
       window.location.reload();
     }).then(function () {
       main.removeAttribute("aria-busy");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // MODAL DE CONFIRMACION
+  // -----------------------------------------------------------------------
+
+  var dialogo = null;
+
+  /*
+   * El <dialog>, creado una vez y colgado del <body>.
+   *
+   * FUERA de <main>, y no es un detalle de colocacion: el manejador de envios
+   * de arriba actua sobre los formularios que main CONTIENE, y si el dialogo
+   * estuviera dentro, enviar la confirmacion repintaria main y se llevaria por
+   * delante el propio dialogo a media peticion. Al quedar fuera, aquel lo
+   * ignora y este se ocupa.
+   */
+  function caja() {
+    if (dialogo) { return dialogo; }
+
+    dialogo = document.createElement("dialog");
+    dialogo.className = "modal";
+    document.body.appendChild(dialogo);
+
+    // Tocar el fondo cierra. El propio <dialog> ocupa toda la ventana cuando
+    // esta abierto, asi que un clic cuyo destino sea EL —y no algo de dentro—
+    // es un clic en el fondo.
+    dialogo.addEventListener("click", function (evento) {
+      if (evento.target === dialogo) { dialogo.close(); }
+    });
+
+    return dialogo;
+  }
+
+  /*
+   * Mete en el dialogo la tarjeta que venga en ese HTML. Devuelve false si el
+   * HTML no trae ninguna, que es como se distingue un rechazo de un exito.
+   */
+  function abrirModal(html) {
+    var doc = new DOMParser().parseFromString(html, "text/html");
+    var cuerpo = doc.querySelector("[data-modal-cuerpo]");
+    if (!cuerpo) { return false; }
+
+    var d = caja();
+    d.innerHTML = "";
+    d.appendChild(document.importNode(cuerpo, true));
+    d.removeAttribute("aria-busy");
+
+    if (!d.open) { d.showModal(); }
+
+    // El foco al primer campo que haya, y si no al primer boton. `showModal()`
+    // ya lo atrapa dentro; esto solo elige por donde empieza.
+    var foco = d.querySelector("input:not([type=hidden]), textarea, select, button");
+    if (foco) { foco.focus(); }
+
+    return true;
+  }
+
+  document.addEventListener("click", function (evento) {
+    // Cancelar dentro del modal cierra y no navega.
+    var cerrar = evento.target.closest("[data-modal-cerrar]");
+    if (cerrar && dialogo && dialogo.contains(cerrar)) {
+      evento.preventDefault();
+      dialogo.close();
+      return;
+    }
+
+    var enlace = evento.target.closest("a[data-modal]");
+    if (!enlace) { return; }
+
+    // Abrir en otra pestana, o con el boton de en medio, sigue siendo abrir en
+    // otra pestana: quien lo pide a proposito no quiere un modal.
+    if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+      return;
+    }
+
+    evento.preventDefault();
+
+    fetch(enlace.href, {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    }).then(function (respuesta) {
+      return respuesta.text();
+    }).then(function (html) {
+      // Si la respuesta no trae tarjeta —la sesion caduco y llego el login, por
+      // ejemplo— se navega de verdad, que es lo que la persona esperaba.
+      if (!abrirModal(html)) { window.location.href = enlace.href; }
+    }).catch(function () {
+      window.location.href = enlace.href;
+    });
+  });
+
+  document.addEventListener("submit", function (evento) {
+    var form = evento.target;
+    // Solo los de DENTRO del dialogo. Los de main ya los lleva el manejador de
+    // arriba, que sale antes por su propia comprobacion.
+    if (!dialogo || !dialogo.contains(form)) { return; }
+
+    evento.preventDefault();
+
+    var datos;
+    try {
+      datos = new FormData(form, evento.submitter);
+    } catch (e) {
+      datos = new FormData(form);
+    }
+
+    var estado = abiertos();
+    var scroll = window.scrollY;
+    dialogo.setAttribute("aria-busy", "true");
+
+    fetch(form.action || window.location.href, {
+      method: "POST",
+      body: datos,
+      credentials: "same-origin",
+      redirect: "follow",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    }).then(function (respuesta) {
+      return respuesta.text().then(function (html) {
+        return { html: html, url: respuesta.url };
+      });
+    }).then(function (r) {
+      // Si vuelve la tarjeta de confirmacion es que NO se hizo: la contrasena
+      // estaba mal, o algo lo impide. Se queda abierto con el aviso dentro, que
+      // es justo lo que una pantalla entera hacia perder de vista.
+      if (abrirModal(r.html)) { return; }
+
+      dialogo.close();
+
+      // Salio bien: lo que llega es la lista, y se pinta detras sin recargar.
+      var cambioDePagina = r.url && r.url !== window.location.href;
+      if (!pintar(r.html, estado, cambioDePagina ? 0 : scroll)) {
+        window.location.href = r.url || window.location.href;
+        return;
+      }
+      if (cambioDePagina) { window.history.pushState({ pintado: true }, "", r.url); }
+    }).catch(function () {
+      window.location.reload();
+    }).then(function () {
+      if (dialogo) { dialogo.removeAttribute("aria-busy"); }
     });
   });
 

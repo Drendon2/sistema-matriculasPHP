@@ -3,7 +3,13 @@
 @section('title', 'Eliminar cuenta')
 
 @section('content')
-<div class="card" style="max-width:480px;">
+{{--
+  `data-modal-cuerpo` marca lo que el modal se lleva dentro. La página sigue
+  existiendo entera y con su URL: sin JavaScript se abre y se lee igual, y es la
+  MISMA tarjeta en los dos casos, así que no hay dos versiones que se puedan
+  desincronizar. Ver el modal en `acciones.js`.
+--}}
+<div class="card" data-modal-cuerpo style="max-width:480px;">
 @if ($impedimento)
   {{--
     Misma regla que en la confirmacion de los catalogos: preguntar «¿seguro?»
@@ -18,7 +24,7 @@
     llevaría por delante, y por eso el sistema no lo permite.
   </p>
   <p style="margin-bottom:0;">
-    <a href="{{ route('usuario-lista') }}" class="btn btn-secundario">Volver</a>
+    <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Volver</a>
   </p>
 @else
   <h2>¿Eliminar la cuenta de «{{ $usuario->nombre_completo }}»?</h2>
@@ -45,6 +51,7 @@
 
   <form method="post" action="{{ $accion }}">
     @csrf
+    <input type="hidden" name="volver" value="{{ $volver }}">
 
     {{--
       La contraseña de QUIEN BORRA, no la de la cuenta que se va. Una sesion
@@ -58,9 +65,9 @@
       <ul class="errorlist"><li>{{ $message }}</li></ul>
     @enderror
 
-    <div style="display:flex;gap:0.6rem;margin-top:0.9rem;">
+    <div class="modal-botones" style="display:flex;gap:0.6rem;margin-top:0.9rem;">
       <button type="submit" class="btn btn-retirar">Sí, eliminar</button>
-      <a href="{{ route('usuario-lista') }}" class="btn btn-secundario">Cancelar</a>
+      <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
     </div>
   </form>
 @endif

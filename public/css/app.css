@@ -1563,3 +1563,87 @@
     font-size: 0.92rem;
     line-height: 1.55;
   }
+
+  /* ---------------------------------------------------------------------
+     MODAL DE CONFIRMACION (`dialog.modal`)
+
+     El unico componente que se superpone a la pagina. Existe porque las siete
+     confirmaciones de borrado eran pantallas enteras: se salia de la lista, se
+     contestaba una pregunta de dos lineas y se volvia — y al volver se perdia el
+     filtro y la posicion. Preguntar no merece un viaje.
+
+     Es un `<dialog>` NATIVO, no un div con posicion fija, y la diferencia no es
+     de gusto: `showModal()` regala el foco atrapado dentro, la tecla Escape, el
+     `inert` de todo lo de detras y la capa superior del navegador —o sea que
+     ninguna tarjeta ni cabecera pegajosa se le puede poner encima por un
+     z-index—. Escrito a mano habria que hacer esas cuatro cosas y la cuarta se
+     olvida siempre.
+
+     Vive FUERA de `<main>` a proposito: `acciones.js` intercepta los formularios
+     que estan DENTRO de main para repintarlo, y eso se llevaria por delante el
+     propio dialogo en mitad del envio. Al quedar fuera, lo lleva su propio
+     manejador, que sabe distinguir un rechazo —se queda abierto con el aviso—
+     de un exito —cierra y repinta la lista de detras—.
+
+     Dentro va una `.card` normal: el modal no trae estilo de contenido, solo
+     coloca. Asi la misma pagina de confirmacion se ve igual dentro del modal y
+     suelta, que es lo que la deja funcionando sin JavaScript.
+     --------------------------------------------------------------------- */
+  dialog.modal {
+    border: none;
+    padding: 0;
+    background: transparent;
+    /* `width` y no `max-width` a secas: un dialog se encoge a su contenido, y
+       una pregunta corta salia como una tarjeta estrecha en mitad de nada. */
+    width: min(30rem, calc(100vw - 2rem));
+    max-height: calc(100dvh - 3rem);
+    overflow: visible;
+    color: var(--ink);
+  }
+  dialog.modal::backdrop {
+    /* El fondo se oscurece pero se sigue leyendo: lo que hay detras es la fila
+       que se esta a punto de borrar, y taparla del todo obliga a recordarla. */
+    background: rgba(24, 36, 32, 0.45);
+  }
+  dialog.modal .card {
+    max-width: none;
+    margin: 0;
+    /* La tarjeta es la que desplaza si la pregunta es larga, no el dialogo: asi
+       el borde redondeado y la sombra se quedan quietos. */
+    max-height: calc(100dvh - 3rem);
+    overflow-y: auto;
+  }
+  dialog.modal .card > :first-child { margin-top: 0; }
+  dialog.modal .card > :last-child { margin-bottom: 0; }
+
+  /* Mientras el envio va en camino, igual que `main[aria-busy]`. */
+  dialog.modal[aria-busy="true"] .card { opacity: 0.55; pointer-events: none; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    dialog.modal[open] { animation: modal-entra 0.14s ease-out; }
+    @keyframes modal-entra {
+      from { opacity: 0; transform: translateY(0.4rem); }
+      to { opacity: 1; transform: none; }
+    }
+  }
+
+  @media (max-width: 640px) {
+    /* Pegado ARRIBA y no centrado. Centrado se ve mejor en una captura y peor
+       en la mano: al tocar el campo de la contrasena sube el teclado, el area
+       visible se parte por la mitad y un dialogo centrado en la pantalla ENTERA
+       queda con los botones debajo del teclado. Anclado arriba, lo que el
+       teclado tapa es el fondo. */
+    dialog.modal {
+      margin: 1rem auto auto;
+      width: calc(100vw - 1.6rem);
+      max-height: calc(100dvh - 2rem);
+    }
+    dialog.modal .card { padding: 1.25rem 1.2rem; max-height: calc(100dvh - 2rem); }
+    /* Los botones a lo ancho y en columna, en el MISMO orden que en escritorio.
+       No al reves: invertidos, el que queda abajo —donde cae el pulgar sin
+       estirarse— es «Sí, eliminar», y el sitio mas facil de tocar de la pantalla
+       no puede ser el del borrado irreversible. Asi lo que hay ahi es
+       «Cancelar». */
+    dialog.modal .modal-botones { flex-direction: column; align-items: stretch; }
+    dialog.modal .modal-botones .btn { width: 100%; }
+  }

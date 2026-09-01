@@ -16,6 +16,7 @@ use App\Rules\ImagenProcesable;
 use App\Support\Dependencias;
 use App\Support\Imagen;
 use App\Support\Permisos;
+use App\Support\Regreso;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -376,6 +377,10 @@ class UsuarioController extends Controller
             'accion' => route('usuario-eliminar', $usuario),
             'impedimento' => $this->impedimento($request, $usuario, $dependencias),
             'arrastre' => $dependencias['arrastre'],
+            // El filtro y la pagina en que estaba quien mira. Sin esto, borrar a
+            // uno de los «Pendiente de rol» devolvia a la lista entera por el
+            // principio, y para borrar a cinco habia que filtrar cinco veces.
+            'volver' => Regreso::consulta($request, route('usuario-lista')),
         ]);
     }
 
@@ -389,8 +394,10 @@ class UsuarioController extends Controller
         // de una promotoria. La pantalla informa; esta linea es la que decide.
         $impedimento = $this->impedimento($request, $usuario);
 
+        $destino = Regreso::url(route('usuario-lista'), $request->input('volver'));
+
         if ($impedimento !== null) {
-            return redirect()->route('usuario-lista')->with('error', $impedimento);
+            return redirect($destino)->with('error', $impedimento);
         }
 
         // La contrasena se valida como un campo del formulario y no con un
@@ -411,7 +418,7 @@ class UsuarioController extends Controller
         // mandarla—.
         $usuario->user->delete();
 
-        return redirect()->route('usuario-lista')->with('success', "Se eliminó la cuenta de {$nombre}.");
+        return redirect($destino)->with('success', "Se eliminó la cuenta de {$nombre}.");
     }
 
     /**

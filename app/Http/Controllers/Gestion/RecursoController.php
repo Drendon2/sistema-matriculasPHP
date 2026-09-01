@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Support\Dependencias;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\Regreso;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -231,7 +232,7 @@ abstract class RecursoController extends Controller
      * Si algo bloquea el borrado no se ofrece boton: preguntar «¿seguro?» para
      * negarse despues es hacer perder el viaje, y la respuesta ya se sabe.
      */
-    public function confirmarBorrado(string $id): View
+    public function confirmarBorrado(Request $request, string $id): View
     {
         $objeto = $this->buscar($id);
 
@@ -239,18 +240,22 @@ abstract class RecursoController extends Controller
             'objeto' => $objeto,
             'ruta_lista' => $this->textos()['ruta_lista'],
             'accion' => route($this->textos()['ruta_eliminar'], $objeto),
+            // Los filtros con los que se estaba mirando la lista, para
+            // devolverlos puestos. Se leen AQUI porque este es el ultimo momento
+            // en que la pagina anterior sigue siendo esa lista.
+            'volver' => Regreso::consulta($request, $this->urlExito($objeto)),
             ...Dependencias::de($objeto),
         ]);
     }
 
-    public function eliminar(string $id): RedirectResponse
+    public function eliminar(Request $request, string $id): RedirectResponse
     {
         $objeto = $this->buscar($id);
 
         // El destino se calcula ANTES de borrar: despues, `$objeto->area_id` y
         // compania siguen en memoria pero la fila ya no esta, y las subclases que
         // vuelven al padre necesitan ese dato intacto.
-        $destino = $this->urlExito($objeto);
+        $destino = Regreso::url($this->urlExito($objeto), $request->input('volver'));
 
         try {
             $objeto->delete();
