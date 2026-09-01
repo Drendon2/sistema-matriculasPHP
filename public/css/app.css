@@ -1605,7 +1605,8 @@
        que se esta a punto de borrar, y taparla del todo obliga a recordarla. */
     background: rgba(24, 36, 32, 0.45);
   }
-  dialog.modal .card {
+  dialog.modal .card,
+  dialog.modal .form-card {
     max-width: none;
     margin: 0;
     /* La tarjeta es la que desplaza si la pregunta es larga, no el dialogo: asi
@@ -1613,11 +1614,14 @@
     max-height: calc(100dvh - 3rem);
     overflow-y: auto;
   }
-  dialog.modal .card > :first-child { margin-top: 0; }
-  dialog.modal .card > :last-child { margin-bottom: 0; }
+  dialog.modal .card > :first-child,
+  dialog.modal .form-card > :first-child { margin-top: 0; }
+  dialog.modal .card > :last-child,
+  dialog.modal .form-card > :last-child { margin-bottom: 0; }
 
   /* Mientras el envio va en camino, igual que `main[aria-busy]`. */
-  dialog.modal[aria-busy="true"] .card { opacity: 0.55; pointer-events: none; }
+  dialog.modal[aria-busy="true"] .card,
+  dialog.modal[aria-busy="true"] .form-card { opacity: 0.55; pointer-events: none; }
 
   @media (prefers-reduced-motion: no-preference) {
     dialog.modal[open] { animation: modal-entra 0.14s ease-out; }
@@ -1638,7 +1642,8 @@
       width: calc(100vw - 1.6rem);
       max-height: calc(100dvh - 2rem);
     }
-    dialog.modal .card { padding: 1.25rem 1.2rem; max-height: calc(100dvh - 2rem); }
+    dialog.modal .card,
+    dialog.modal .form-card { padding: 1.25rem 1.2rem; max-height: calc(100dvh - 2rem); }
     /* Los botones a lo ancho y en columna, en el MISMO orden que en escritorio.
        No al reves: invertidos, el que queda abajo —donde cae el pulgar sin
        estirarse— es «Sí, eliminar», y el sitio mas facil de tocar de la pantalla

@@ -31,6 +31,24 @@ abstract class RecursoController extends Controller
     abstract protected function modelo(): string;
 
     /**
+     * ¿El formulario de este catalogo cabe en un modal?
+     *
+     * Casi todos son de uno a tres campos —un departamento es UN campo, y
+     * gastaba una pantalla entera en pedir una palabra—, y ahi sacar a la
+     * persona de su lista para eso es todo coste y ningun beneficio.
+     *
+     * El grupo dice que no, y es el motivo de que esto sea una pregunta y no
+     * una regla: su horario es una rejilla semanal de siete filas con dos horas
+     * cada una. Metida en un dialogo se aprieta, y en un celular pelea con el
+     * teclado. La regla de que va en un modal y que no esta escrita en
+     * DESIGN.md; aqui vive el interruptor.
+     */
+    protected function cabeEnModal(): bool
+    {
+        return true;
+    }
+
+    /**
      * Textos y rutas de esta pantalla.
      *
      * @return array{
@@ -140,6 +158,7 @@ abstract class RecursoController extends Controller
     {
         return view('gestion.lista', [
             ...$this->textos(),
+            'modal' => $this->cabeEnModal(),
             ...$this->listado($request),
         ]);
     }
@@ -154,6 +173,8 @@ abstract class RecursoController extends Controller
             'accion' => route($textos['ruta_nuevo']),
             'objeto' => new ($this->modelo()),
             'campos' => $this->campos($request, null),
+            'modal' => $this->cabeEnModal(),
+            'volver' => Regreso::consulta($request, route($textos['ruta_lista'])),
         ]);
     }
 
@@ -184,6 +205,11 @@ abstract class RecursoController extends Controller
             'accion' => route($textos['ruta_editar'], $objeto),
             'objeto' => $objeto,
             'campos' => $this->campos($request, $objeto),
+            'modal' => $this->cabeEnModal(),
+            // Los filtros y la pagina de la lista de la que se viene, para
+            // devolverlos puestos. Sin esto, editar algo de la pagina 3
+            // aterrizaba en la 1.
+            'volver' => Regreso::consulta($request, $this->urlExito($objeto)),
         ]);
     }
 
@@ -197,7 +223,8 @@ abstract class RecursoController extends Controller
         $objeto->save();
         $this->despuesDeGuardar($objeto, $extra);
 
-        return redirect($this->urlExito($objeto))->with('success', $this->textos()['actualizado']);
+        return redirect(Regreso::url($this->urlExito($objeto), $request->input('volver')))
+            ->with('success', $this->textos()['actualizado']);
     }
 
     /**

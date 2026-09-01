@@ -23,6 +23,18 @@ use Illuminate\View\View;
  */
 class GrupoController extends RecursoController
 {
+    /**
+     * El unico catalogo que NO cabe en un modal.
+     *
+     * Su formulario lleva el horario, que es una rejilla de los siete dias con
+     * su hora de inicio y de fin. Eso no es un campo, es media pantalla; en un
+     * dialogo se aprieta y en un celular queda debajo del teclado.
+     */
+    protected function cabeEnModal(): bool
+    {
+        return false;
+    }
+
     protected function modelo(): string
     {
         return Grupo::class;

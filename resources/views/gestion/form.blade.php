@@ -4,16 +4,24 @@
 
 @section('content')
 <a href="{{ route($ruta_lista) }}" class="volver">&larr; Volver al listado</a>
-<h2>{{ $titulo }}</h2>
 
 {{--
   El formulario que comparten los cuatro catálogos. Los campos llegan
   declarados desde el controlador (ver `RecursoController::campos()`), que es lo
   que permite que una sola plantilla sirva para departamentos, periodos,
   promotorías y grupos sin preguntar de cuál se trata.
+
+  `data-modal-cuerpo` es lo que el modal se lleva dentro cuando se abre desde el
+  listado, y por eso el título vive AQUÍ y ya no encima: suelto quedaría flotando
+  sobre el fondo oscurecido, fuera de la tarjeta. Sigue siendo una página de
+  verdad con su URL — sin JavaScript se abre y se rellena igual —, y es la misma
+  tarjeta en los dos casos. El enlace de «Volver al listado» se queda fuera a
+  propósito: dentro del modal el que cierra es «Cancelar».
 --}}
-<form method="post" action="{{ $accion }}" class="form-card">
+<form method="post" action="{{ $accion }}" class="form-card" @if ($modal ?? false) data-modal-cuerpo @endif>
   @csrf
+  <input type="hidden" name="volver" value="{{ $volver ?? '' }}">
+  <h2 style="margin-top:0;">{{ $titulo }}</h2>
 
   @foreach ($campos as $campo => $spec)
   {{--
@@ -70,6 +78,14 @@
   </div>
   @endforeach
 
-  <button type="submit" class="btn">Guardar</button>
+  {{--
+    «Cancelar» no existía y hace falta en los dos sitios: dentro del modal es lo
+    que lo cierra, y en la página suelta es la salida que no obliga a buscar el
+    «Volver» de arriba del todo.
+  --}}
+  <div class="modal-botones" style="display:flex;gap:0.6rem;">
+    <button type="submit" class="btn">Guardar</button>
+    <a href="{{ route($ruta_lista) }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
+  </div>
 </form>
 @endsection

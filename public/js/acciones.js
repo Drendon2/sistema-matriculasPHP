@@ -44,6 +44,37 @@
   var main = document.querySelector("main");
   if (!main || !window.fetch || !window.DOMParser || !window.history.pushState) { return; }
 
+  /*
+   * Las cabeceras de todas las peticiones de este archivo. Las DOS importan.
+   *
+   * `X-Requested-With` es la de siempre. `Accept` se anadio el 01/09 y arregla
+   * algo que llevaba roto sin que se viera:
+   *
+   * `fetch` manda un Accept comodin —el que acepta cualquier tipo— cuando nadie
+   * dice otra cosa, y con eso `Request::expectsJson()` de Laravel devuelve true. O sea que un formulario
+   * rechazado por la validacion no contestaba con el 302 y su HTML, sino con un
+   * 422 y un JSON — y entonces `pintar()` no encuentra <main>, se rinde y
+   * navega a la URL del POST. El aviso de por que se rechazo no llegaba a
+   * verse: exactamente el fallo que se creia arreglado.
+   *
+   * Se llevaba por delante tambien a los dos manejadores de `bootstrap/app.php`
+   * — el del CSRF caducado y el del limite de intentos —, que preguntan por
+   * `expectsJson()` y se apartaban. El primero dice en su propio comentario que
+   * existe para servir a este archivo, y no llegaba a correr nunca.
+   *
+   * NINGUNA PRUEBA DE PHP PUEDE VIGILAR ESTA LINEA, y conviene saberlo: el
+   * cliente de PHPUnit no manda ese comodin, asi que por ahi el servidor
+   * siempre contesto HTML y las pruebas de rechazo pasaban en verde con el
+   * fallo puesto. Lo que si esta probado es la otra mitad —que con ESTAS
+   * cabeceras el servidor devuelve HTML—, en `RechazoDeFormularioTest`. Si
+   * alguien quita este `Accept`, esa prueba seguira verde y el fallo volvera.
+   * Se ve abriendo la pagina y guardando algo mal escrito.
+   */
+  var CABECERAS = {
+    "X-Requested-With": "XMLHttpRequest",
+    Accept: "text/html",
+  };
+
   function abiertos() {
     // Solo los que tienen id: el id es la promesa de que ese <details> es el
     // mismo antes y despues. Sin el, la promotoria que cambio de posicion
@@ -126,7 +157,7 @@
       body: datos,
       credentials: "same-origin",
       redirect: "follow",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
+      headers: CABECERAS,
     }).then(function (respuesta) {
       return respuesta.text().then(function (html) {
         return { html: html, url: respuesta.url, ok: respuesta.ok };
@@ -231,7 +262,7 @@
 
     fetch(enlace.href, {
       credentials: "same-origin",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
+      headers: CABECERAS,
     }).then(function (respuesta) {
       return respuesta.text();
     }).then(function (html) {
@@ -267,7 +298,7 @@
       body: datos,
       credentials: "same-origin",
       redirect: "follow",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
+      headers: CABECERAS,
     }).then(function (respuesta) {
       return respuesta.text().then(function (html) {
         return { html: html, url: respuesta.url };

@@ -2118,6 +2118,103 @@ class GestionTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Los formularios de catalogo, tambien en modal
+    // -----------------------------------------------------------------------
+
+    /** El enlace de esa fila o ese boton, tal como salio pintado. */
+    private function enlaceQueApunta(string $html, string $url): string
+    {
+        preg_match('/<a [^>]*href="'.preg_quote($url, '/').'"[^>]*>/', $html, $coincidencia);
+
+        return $coincidencia[0] ?? '';
+    }
+
+    public function test_el_formulario_de_catalogo_lo_puede_llevar_el_modal(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('area-nueva'))
+            ->assertOk()
+            ->assertSee('data-modal-cuerpo', false)
+            // El titulo va DENTRO de la tarjeta: suelto, en el modal quedaria
+            // flotando sobre el fondo oscurecido.
+            ->assertSee('<h2 style="margin-top:0;">', false);
+    }
+
+    public function test_crear_y_editar_un_departamento_abren_en_modal(): void
+    {
+        $html = $this->actingAs($this->director->user)
+            ->get(route('area-lista'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            'data-modal',
+            $this->enlaceQueApunta($html, route('area-nueva'))
+        );
+        $this->assertStringContainsString(
+            'data-modal',
+            $this->enlaceQueApunta($html, route('area-editar', $this->musica))
+        );
+    }
+
+    /**
+     * El grupo NO, y es el motivo de que esto sea un interruptor.
+     *
+     * Su horario es una rejilla de siete dias con dos horas cada uno: media
+     * pantalla. Ojo con lo que comprueba esta prueba — el listado de grupos
+     * SIGUE teniendo `data-modal` en «Eliminar», porque borrar solo es una
+     * pregunta. Lo que no lo lleva es el formulario.
+     */
+    public function test_el_formulario_de_grupo_no_abre_en_modal(): void
+    {
+        $grupo = $this->grupoDeViolin();
+
+        $html = $this->actingAs($this->director->user)
+            ->get(route('grupo-lista'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            'data-modal',
+            $this->enlaceQueApunta($html, route('grupo-editar', $grupo))
+        );
+        $this->assertStringNotContainsString(
+            'data-modal',
+            $this->enlaceQueApunta($html, route('grupo-nuevo'))
+        );
+
+        // Pero borrarlo sigue siendo una pregunta, y esa sí.
+        $this->assertStringContainsString(
+            'data-modal',
+            $this->enlaceQueApunta($html, route('grupo-eliminar', $grupo))
+        );
+
+        // Y su formulario tampoco se anuncia como llevable: la plantilla es
+        // compartida, asi que el marcador tiene que colgar del mismo
+        // interruptor. Si no, quedaria diciendo que cabe en un modal un
+        // formulario que hemos decidido que no.
+        $this->actingAs($this->director->user)
+            ->get(route('grupo-editar', $grupo))
+            ->assertOk()
+            ->assertDontSee('data-modal-cuerpo', false);
+    }
+
+    public function test_al_editar_un_catalogo_se_vuelve_a_la_lista_con_sus_filtros(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('area-editar', $this->musica), ['referer' => route('area-lista', ['page' => 2])])
+            ->assertOk()
+            ->assertSee('name="volver" value="page=2"', false);
+
+        $this->actingAs($this->director->user)
+            ->post(route('area-editar', $this->musica), [
+                'nombre' => 'Música y sonido',
+                'volver' => 'page=2',
+            ])
+            ->assertRedirect(route('area-lista', ['page' => 2]));
+    }
+
+    // -----------------------------------------------------------------------
     // El enlace de registro de profesor
     // -----------------------------------------------------------------------
 

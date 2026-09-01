@@ -24,6 +24,8 @@
 @php($etiquetaSingular = $etiqueta_singular ?? null)
 @php($etiquetaPlural = $etiqueta_plural ?? null)
 @php($etiquetaProtegido = $etiqueta_protegido ?? 'registros')
+{{-- El grupo dice que no: su horario es media pantalla. Ver `RecursoController::cabeEnModal()`. --}}
+@php($abreEnModal = $modal ?? false)
 @php($mostrarTagArea = $mostrar_tag_area ?? false)
 @php($mostrarProfesor = $mostrar_profesor ?? false)
 @php($preset = isset($preset_campo) ? '?'.$preset_campo.'='.$preset_valor : '')
@@ -36,7 +38,9 @@
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 @endif
 <h2>{{ $titulo }}</h2>
-<p><a class="btn" href="{{ route($ruta_nuevo).$preset }}">+ Nuevo</a></p>
+{{-- El espacio antes de la directiva no sobra: pegada a una letra, Blade lee
+     «algo@if» como un correo y se come el @endif que le toca. --}}
+<p><a class="btn" href="{{ route($ruta_nuevo).$preset }}" @if ($abreEnModal) data-modal @endif>+ Nuevo</a></p>
 
 @php($losFiltros = $filtros ?? [])
 @php($hayFiltros = $hay_filtros ?? false)
@@ -124,7 +128,7 @@
         @endif
       </td>
       <td style="text-align:right;white-space:nowrap;">
-        <a href="{{ route($ruta_editar, $obj) }}">Editar</a>
+        <a href="{{ route($ruta_editar, $obj) }}" @if ($abreEnModal) data-modal @endif>Editar</a>
         &nbsp;·&nbsp;
         {{--
           Lo que se cuenta al lado del nombre (grupos, estudiantes activos) no es

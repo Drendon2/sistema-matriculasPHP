@@ -16,7 +16,7 @@
 --}}
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>{{ $titulo }}</h2>
-<p><a class="btn" href="{{ route($ruta_nuevo) }}">+ Nuevo</a></p>
+<p><a class="btn" href="{{ route($ruta_nuevo) }}" @if ($modal ?? false) data-modal @endif>+ Nuevo</a></p>
 
 @if ($actividades->isEmpty())
   <p class="vacio">Todavía no hay nada aquí.</p>
@@ -108,7 +108,7 @@
             <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
             &nbsp;·&nbsp;
           @endif
-          <a href="{{ route($ruta_editar, $actividad) }}">Editar</a>
+          <a href="{{ route($ruta_editar, $actividad) }}" @if ($modal ?? false) data-modal @endif>Editar</a>
           &nbsp;·&nbsp;
           <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);" data-modal>Eliminar</a>
         </span>
