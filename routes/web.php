@@ -404,4 +404,21 @@ Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(funct
     Route::get('/estadisticas', Gestion\EstadisticasController::class)->name('gestion-estadisticas');
     Route::get('/estadisticas/{periodo}', Gestion\EstadisticasController::class)
         ->name('gestion-estadisticas-periodo');
+
+    // Eliminar una cuenta, y SOLO el administrador. Es la unica accion del
+    // sistema que quita datos en lugar de cambiarlos: todo lo demas se corrige,
+    // se retira o se desactiva. Un director gobierna su escuela entera sin
+    // borrar a nadie, asi que no gana nada teniendolo y puede perder mucho.
+    //
+    // Vive aqui abajo, en el grupo del administrador, y no arriba con el resto
+    // de /usuarios: la puerta es el grupo de rutas, no una comprobacion dentro
+    // del controlador que haya que acordarse de repetir.
+    Route::get('/usuarios/{usuario}/eliminar', [Gestion\UsuarioController::class, 'confirmarBorrado'])
+        ->name('usuario-eliminar');
+    // Con limite de intentos, como el login y por lo mismo. Este POST acepta una
+    // contrasena, y esa contrasena es lo UNICO que separa una sesion prestada de
+    // un borrado permanente: sin limite se puede tantear a placer desde dentro.
+    // Cinco por minuto es lo que ya se le da al propio inicio de sesion.
+    Route::post('/usuarios/{usuario}/eliminar', [Gestion\UsuarioController::class, 'eliminar'])
+        ->middleware('throttle:5,1');
 });

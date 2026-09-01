@@ -34,6 +34,24 @@
       rebotar es peor que no ofrecerlo.
     --}}
     <select name="rol" id="rol" required>
+      {{--
+        La opción vacía, y NO es un adorno: es la que impide un ascenso por
+        descuido.
+
+        Quien se autorregistra queda con el rol en cadena vacía, que no está en
+        esta lista. Sin esta opción ninguna quedaba marcada, así que el navegador
+        preseleccionaba la PRIMERA — «Administrador» para un administrador,
+        «Director de escuela» para un director—, y abrir la ficha de un profesor
+        que espera su rol y guardar sin bajar el desplegable lo convertía en
+        administrador sin que nadie lo hubiera pedido ni visto.
+
+        Va deshabilitada, así que con `required` el formulario no se envía hasta
+        que alguien elija a propósito. Solo se pinta cuando hace falta: en una
+        cuenta que ya tiene rol sería una opción muerta en mitad de la lista.
+      --}}
+      @if (old('rol', $perfil->rol) === '')
+        <option value="" selected disabled>Sin rol asignado — elige uno</option>
+      @endif
       @foreach ($roles as $valor)
         <option value="{{ $valor }}" @selected(old('rol', $perfil->rol) === $valor)>
           {{ \App\Models\Perfil::ROLES[$valor] }}

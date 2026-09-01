@@ -130,6 +130,19 @@ class Perfil extends Model
         return $this->hasMany(Clase::class, 'registrada_por_id');
     }
 
+    /**
+     * Las actividades que esta persona tiene a su cargo.
+     *
+     * Existe para que el borrado de una cuenta pueda contarlas antes de
+     * ofrecerse: `actividades.responsable_id` es RESTRICT, o sea que la base
+     * rechaza el borrado, y sin esta relacion la pantalla no podria decirlo
+     * hasta despues de que alguien pulsara.
+     */
+    public function actividadesACargo(): HasMany
+    {
+        return $this->hasMany(Actividad::class, 'responsable_id');
+    }
+
     /** Etiqueta legible del rol, o el aviso de que no tiene ninguno. */
     public function getRolDisplayAttribute(): string
     {

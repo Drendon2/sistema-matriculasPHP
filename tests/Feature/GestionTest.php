@@ -1839,6 +1839,267 @@ class GestionTest extends TestCase
             ->assertDontSee('Lunes tarde · Básico ·');
     }
 
+    // -----------------------------------------------------------------------
+    // Eliminar una cuenta
+    // -----------------------------------------------------------------------
+
+    /** Alguien que se registro por el enlace de profesor: sin rol y sin nada colgando. */
+    private function cuentaPendiente(string $username = 'confundido'): Perfil
+    {
+        return $this->crearPerfil($username, '');
+    }
+
+    public function test_el_administrador_elimina_una_cuenta_sin_historial(): void
+    {
+        $suelta = $this->cuentaPendiente();
+        $userId = $suelta->user_id;
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $suelta), ['password' => 'x'])
+            ->assertRedirect(route('usuario-lista'));
+
+        // La cuenta Y el perfil: `perfiles.user_id` va en cascada.
+        $this->assertNull(User::find($userId));
+        $this->assertNull(Perfil::find($suelta->id));
+    }
+
+    /**
+     * La barrera que sostiene todo lo demas.
+     *
+     * En el esquema `matriculas.estudiante_id` es CASCADE: la base borra el
+     * historial sin una queja. Esta comprobacion es lo unico que hay entre un
+     * clic y perder anos de matriculas.
+     */
+    public function test_una_cuenta_con_matriculas_no_se_elimina(): void
+    {
+        $estudiante = $this->crearEstudiante('conhistorial');
+        $this->matricular($estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $estudiante), ['password' => 'x'])
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertNotNull(Perfil::find($estudiante->id));
+        $this->assertSame(1, Matricula::count());
+    }
+
+    public function test_no_se_elimina_a_quien_dicta_una_promotoria(): void
+    {
+        $this->violin->profesor_id = $this->profesor->id;
+        $this->violin->save();
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $this->profesor), ['password' => 'x']);
+
+        $this->assertNotNull(Perfil::find($this->profesor->id));
+    }
+
+    public function test_sin_la_contrasena_correcta_no_se_elimina_nada(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $suelta), ['password' => 'la-que-no-es'])
+            ->assertSessionHasErrors('password');
+
+        $this->assertNotNull(Perfil::find($suelta->id));
+    }
+
+    /**
+     * Con OTRO administrador de por medio, a proposito.
+     *
+     * La primera version de esta prueba dejaba un solo administrador y pasaba
+     * igual con la comprobacion quitada: lo que la salvaba era otra guarda, no
+     * esta. Con dos administradores, lo unico que impide el borrado es que la
+     * cuenta sea la de quien pulsa.
+     */
+    public function test_el_administrador_no_se_elimina_a_si_mismo(): void
+    {
+        $this->crearPerfil('admin2', 'administrador');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $this->admin), ['password' => 'x']);
+
+        $this->assertNotNull(Perfil::find($this->admin->id));
+    }
+
+    /**
+     * La propiedad que importa: el sistema no se queda sin administradores.
+     *
+     * No la sostiene ninguna comprobacion que se llame asi —se escribio una y
+     * resulto inalcanzable, ver `UsuarioController::impedimento()`—, sino dos
+     * cosas juntas: a la ruta solo llega un administrador, y nadie puede
+     * borrarse a si mismo. Con dos, uno puede eliminar al otro; el que queda ya
+     * no tiene a quien pedirselo ni puede hacerlo el.
+     */
+    public function test_nunca_se_llega_a_cero_administradores(): void
+    {
+        $otro = $this->crearPerfil('admin2', 'administrador');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $otro), ['password' => 'x']);
+        $this->assertNull(Perfil::find($otro->id));
+
+        // Queda uno, y ese uno es el unico que puede entrar a esta ruta.
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $this->admin), ['password' => 'x']);
+
+        $this->assertSame(1, Perfil::where('rol', 'administrador')->count());
+    }
+
+    /**
+     * Cinco intentos de contrasena por minuto, como el propio inicio de sesion.
+     *
+     * La contrasena es lo UNICO que separa una sesion prestada de un borrado
+     * permanente. Sin tope se puede tantear desde dentro todas las veces que
+     * haga falta, con la cuenta ya abierta y sin que nadie se entere.
+     */
+    public function test_el_borrado_se_corta_tras_cinco_intentos_de_contrasena(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        for ($n = 1; $n <= 5; $n++) {
+            $this->actingAs($this->admin->user)
+                ->post(route('usuario-eliminar', $suelta), ['password' => "intento{$n}"])
+                ->assertSessionHasErrors('password');
+        }
+
+        // El sexto ya no llega al controlador: contesta el limitador, y por eso
+        // el aviso va como `error` de sesion y no colgado del campo.
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-eliminar', $suelta), ['password' => 'x'])
+            ->assertSessionHasNoErrors();
+
+        // Y la cuenta sigue ahi pese a que la sexta llevaba la contrasena BUENA:
+        // es lo que prueba que el tope cortó antes de comprobarla.
+        $this->assertNotNull(Perfil::find($suelta->id));
+    }
+
+    /** El borrado es del administrador y de nadie mas: la puerta es la ruta. */
+    public function test_el_director_no_puede_eliminar_cuentas(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        // El middleware de rol no contesta 403: devuelve a la portada con el
+        // aviso, que es como este sistema rechaza por rol en todas partes.
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-eliminar', $suelta))
+            ->assertRedirect(route('post-login'));
+
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-eliminar', $suelta), ['password' => 'x'])
+            ->assertRedirect(route('post-login'));
+
+        $this->assertNotNull(Perfil::find($suelta->id));
+    }
+
+    /**
+     * La pantalla dice la verdad ANTES de preguntar: si esta protegida, no
+     * ofrece ni el boton ni el campo de contrasena.
+     */
+    public function test_la_pantalla_de_confirmacion_no_pregunta_cuando_no_se_puede(): void
+    {
+        $estudiante = $this->crearEstudiante('conhistorial');
+        $this->matricular($estudiante, $this->violin, Matricula::ACTIVA);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('usuario-eliminar', $estudiante))
+            ->assertOk()
+            ->assertSee('No se puede eliminar esta cuenta')
+            ->assertDontSee('name="password"', false);
+    }
+
+    /** Y en el listado tampoco es un enlace, para no hacer perder el viaje. */
+    public function test_el_listado_apaga_eliminar_en_una_cuenta_protegida(): void
+    {
+        $estudiante = $this->crearEstudiante('conhistorial');
+        $this->matricular($estudiante, $this->violin, Matricula::ACTIVA);
+        $suelta = $this->cuentaPendiente();
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-lista'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(route('usuario-eliminar', $suelta), $html);
+        $this->assertStringNotContainsString(route('usuario-eliminar', $estudiante), $html);
+    }
+
+    // -----------------------------------------------------------------------
+    // El enlace de registro de profesor
+    // -----------------------------------------------------------------------
+
+    /**
+     * Fuera del formulario publico: es la causa de que unos estudiantes
+     * acabaran registrados como personal sin rol.
+     */
+    public function test_el_login_ya_no_ofrece_el_registro_de_profesor(): void
+    {
+        $html = $this->get(route('login'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(route('registro'), $html);
+        // El del estudiante sigue donde estaba: no se cerro la puerta publica,
+        // se quito la que no debia estar.
+        $this->assertStringContainsString(route('inscripcion'), $html);
+    }
+
+    /** Pero la ruta sigue viva: es un enlace que se manda, no una puerta cerrada. */
+    public function test_el_registro_de_profesor_sigue_abierto_por_url(): void
+    {
+        $this->get(route('registro'))->assertOk();
+    }
+
+    public function test_gestion_ensena_el_enlace_para_mandarselo_al_profesor(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista'))
+            ->assertOk()
+            ->assertSee(route('registro'));
+    }
+
+    // -----------------------------------------------------------------------
+    // El rol de una cuenta pendiente
+    // -----------------------------------------------------------------------
+
+    /**
+     * Sin la opcion vacia ninguna quedaba marcada y el navegador preseleccionaba
+     * la PRIMERA, que para un administrador es «Administrador»: abrir la ficha
+     * de quien espera su rol y guardar lo ascendia sin que nadie lo pidiera.
+     */
+    public function test_el_formulario_de_un_pendiente_no_preselecciona_ningun_rol(): void
+    {
+        $suelta = $this->cuentaPendiente();
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-editar', $suelta))
+            ->assertOk()
+            ->getContent();
+
+        $select = $this->selectDeRol($html);
+
+        $this->assertStringContainsString('<option value="" selected disabled>', $select);
+        // Y ningun rol de verdad viene marcado.
+        $this->assertDoesNotMatchRegularExpression('/<option value="[a-z]+"\s+selected/', $select);
+    }
+
+    /** En una cuenta que ya tiene rol, esa opcion no se pinta: seria una opcion muerta. */
+    public function test_una_cuenta_con_rol_no_ensena_la_opcion_vacia(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-editar', $this->profesor))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Sin rol asignado', $html);
+    }
+
+    private function selectDeRol(string $html): string
+    {
+        preg_match('/<select name="rol".*?<\/select>/s', $html, $coincidencia);
+
+        return $coincidencia[0] ?? '';
+    }
+
     public function test_los_grupos_se_filtran_por_departamento(): void
     {
         $c = $this->montarCatalogoParaFiltrar();

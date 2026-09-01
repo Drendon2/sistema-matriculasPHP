@@ -13,11 +13,13 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
 use App\Rules\ImagenProcesable;
+use App\Support\Dependencias;
 use App\Support\Imagen;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -72,6 +74,15 @@ class UsuarioController extends Controller
         // de vista.
         $consulta = Perfil::query()
             ->with(['user', 'promotoriasDictadas.area'])
+            // Solo para el administrador, que es el unico que ve «Eliminar»: son
+            // tres subconsultas correlacionadas mas y no hay por que cobrarselas
+            // a un director que nunca va a usar el dato. Van DENTRO de la
+            // consulta paginada, asi que siguen siendo una sola ida a la base
+            // por pagina y no crecen con las filas.
+            ->when(
+                $request->attributes->get('perfil')?->rol === 'administrador',
+                fn ($q) => $q->withCount(Dependencias::nombresDeBloqueos(Perfil::class))
+            )
             ->orderBy('rol')
             ->orderBy('nombre_completo')
             // Desempate por id, que es lo unico unico de la fila. Sin el, dos
@@ -331,6 +342,112 @@ class UsuarioController extends Controller
             'success',
             $user->activo ? 'Cuenta activada.' : 'Cuenta desactivada.'
         );
+    }
+
+    /**
+     * La pantalla que pregunta antes de borrar una cuenta, y que casi siempre
+     * se niega.
+     *
+     * Sigue el molde de `RecursoController::confirmarBorrado` —decir la verdad
+     * ANTES de preguntar, en vez de preguntar «¿seguro?» para negarse
+     * despues—, con una diferencia que justifica la pantalla propia: aqui,
+     * ademas de confirmar, hay que teclear la contrasena de quien borra.
+     *
+     * No es un adorno de seguridad. Borrar una cuenta es la unica accion del
+     * sistema que quita datos de verdad, y una sesion abierta en un celular
+     * prestado o sin bloquear basta para llegar hasta aqui. La contrasena
+     * comprueba que quien pulsa es la persona, no el aparato.
+     */
+    public function confirmarBorrado(Request $request, Perfil $usuario): View
+    {
+        // Borrar es la CUARTA forma de tocar una cuenta, y pasa por la misma
+        // puerta que las otras tres. Hoy no cambia nada —a esta ruta solo llega
+        // un administrador, y un administrador puede con cualquiera—, pero el
+        // comentario de `Permisos::puedeEditarUsuario` avisa de que dejar una
+        // fuera es dejarla entera fuera, y esta era la que faltaba.
+        $this->exigirAccesoA($request, $usuario);
+
+        // Una sola vez: `de()` son seis COUNT, y pedirlos aqui y otra vez dentro
+        // de `impedimento()` eran doce para pintar una pagina.
+        $dependencias = Dependencias::de($usuario);
+
+        return view('gestion.confirma-borrado-usuario', [
+            'usuario' => $usuario,
+            'accion' => route('usuario-eliminar', $usuario),
+            'impedimento' => $this->impedimento($request, $usuario, $dependencias),
+            'arrastre' => $dependencias['arrastre'],
+        ]);
+    }
+
+    public function eliminar(Request $request, Perfil $usuario): RedirectResponse
+    {
+        $this->exigirAccesoA($request, $usuario);
+
+        // Se vuelve a preguntar lo mismo que al pintar la pantalla, y no por
+        // duplicar: entre que se pinto y se pulso pueden haber pasado minutos, y
+        // en ese rato alguien pudo matricular a esta persona o ponerla al frente
+        // de una promotoria. La pantalla informa; esta linea es la que decide.
+        $impedimento = $this->impedimento($request, $usuario);
+
+        if ($impedimento !== null) {
+            return redirect()->route('usuario-lista')->with('error', $impedimento);
+        }
+
+        // La contrasena se valida como un campo del formulario y no con un
+        // `abort()`: escribirla mal es un error corriente de dedo, no un intento
+        // de saltarse nada, y tiene que poder corregirse sin perder la pagina.
+        if (! Hash::check((string) $request->input('password'), $request->user()->password)) {
+            return back()->withErrors([
+                'password' => 'Esa no es tu contraseña. No se eliminó nada.',
+            ]);
+        }
+
+        $nombre = $usuario->nombre_completo;
+
+        // Se borra la CUENTA, no el perfil: `perfiles.user_id` es CASCADE, asi
+        // que el perfil se va con ella. Al reves quedaria una cuenta capaz de
+        // iniciar sesion sin perfil, que es el unico estado que el sistema no
+        // sabe atender —la redireccion posterior al login no tiene a donde
+        // mandarla—.
+        $usuario->user->delete();
+
+        return redirect()->route('usuario-lista')->with('success', "Se eliminó la cuenta de {$nombre}.");
+    }
+
+    /**
+     * Por que NO se puede borrar esta cuenta, o null si se puede.
+     *
+     * Son DOS razones, y hubo una tercera. Se escribio un «es el ultimo
+     * administrador que queda» que resulto ser INALCANZABLE, y no se vio
+     * leyendolo sino al comprobar que su prueba seguia verde con la guarda
+     * quitada: a esta ruta solo llega un administrador, asi que si queda uno
+     * solo, ese uno es QUIEN PULSA, y la comprobacion de la cuenta propia ya lo
+     * paro una linea antes. Queda dicho para que nadie la reponga creyendo que
+     * falta.
+     *
+     * De ahi que la garantia de no quedarse sin administradores la sostengan
+     * dos cosas y ninguna se llame asi: la puerta de la ruta y la cuenta
+     * propia. El dia que el borrado se le de a alguien mas que al
+     * administrador, esa garantia se cae y hay que reponerla aqui de verdad.
+     */
+    /**
+     * @param  array{bloqueos: string, arrastre: string}|null  $dependencias
+     *                                                                        ya calculadas, si quien llama las tenia
+     */
+    private function impedimento(Request $request, Perfil $usuario, ?array $dependencias = null): ?string
+    {
+        if ($usuario->user_id === $request->user()->id) {
+            return 'No puedes eliminar tu propia cuenta.';
+        }
+
+        $bloqueos = ($dependencias ?? Dependencias::de($usuario))['bloqueos'];
+
+        if ($bloqueos !== '') {
+            return "No se puede eliminar a {$usuario->nombre_completo}: todavía tiene {$bloqueos}. "
+                .'Desactiva la cuenta en vez de eliminarla.';
+        }
+
+        return null;
     }
 
     // -----------------------------------------------------------------------

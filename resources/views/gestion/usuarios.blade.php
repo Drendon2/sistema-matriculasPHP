@@ -7,6 +7,47 @@
 <h2>Usuarios</h2>
 <p><a class="btn" href="{{ route('usuario-nuevo') }}">+ Nuevo usuario</a></p>
 
+{{--
+  El enlace de registro de profesor, que ya NO está en la pantalla de inicio de
+  sesión.
+
+  Estuvo ahí, debajo del de estudiante, y la gente se equivocaba de puerta: quien
+  entraba por la de profesor quedaba sin rol, sin documento y sin matrícula.
+  Ahora es un enlace que dirección manda a quien va a dictar, igual que el de una
+  actividad; la ruta sigue abierta, lo que se quitó es el letrero público.
+
+  Plegado y no a la vista: se usa el día que entra un profesor nuevo, no todos
+  los días, y esta pantalla ya llega cargada de filtros en un celular.
+--}}
+<details class="perfil-seccion" style="max-width:none;margin:0 0 1.2rem;">
+  <summary class="perfil-seccion-cabecera" style="margin:0;">
+    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/>
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">El enlace para registrar a un profesor</h3>
+    <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  {{--
+    El margen va escrito a mano porque `.campo-info` trae uno superior NEGATIVO
+    —está pensada para ir pegada bajo un título, que aporta el suyo inferior—, y
+    dentro de un `<details>` eso la sube encima del resumen. Es el mismo apaño
+    que ya lleva la encuesta de Estadísticas, por lo mismo.
+  --}}
+  <p class="campo-info" style="margin:0.9rem 0 0.9rem;">
+    Mándaselo a quien va a dictar. Crea su cuenta y elige su propia contraseña;
+    queda <strong>pendiente de rol</strong> hasta que se lo asignes aquí.
+  </p>
+  <label class="sr-solo" for="enlace_registro">Enlace de registro de profesor</label>
+  <div class="enlace-fila">
+    <input class="enlace-copiable" type="text" id="enlace_registro"
+           readonly value="{{ route('registro') }}">
+  </div>
+</details>
+
 <form method="get" class="filtros">
   {{--
     El buscador va PRIMERO: es el camino directo a una persona concreta, y los
@@ -111,7 +152,16 @@
     <p class="vacio">Todavía no hay usuarios.</p>
   @endif
 @else
-<table>
+{{--
+  `.tabla-personas` porque esto es una lista de REGISTROS de personas, que es
+  justo su caso, y no una rejilla donde la posición de la celda sea el dato.
+
+  Sin ella, a 390px la tabla mide 675 y se queda con `overflow-x`: había que
+  arrastrarla 318px para llegar a «Editar» y «Desactivar», o sea que sus
+  acciones estaban escondidas desde antes de que existiera «Eliminar». Se vio
+  abriendo la página en un ancho de teléfono; ninguna prueba lo miraba.
+--}}
+<table class="tabla-personas">
   <thead>
     <tr>
       <th>Nombre</th>
@@ -123,17 +173,19 @@
     </tr>
   </thead>
   <tbody>
+    {{-- Una vez y no una por fila: el rol de quien mira no cambia a mitad de la tabla. --}}
+    @php($soyAdministrador = $yo?->rol === 'administrador')
     @foreach ($perfiles as $perfil)
     <tr>
-      <td>
+      <td data-celda="nombre">
         @if (\App\Support\Permisos::puedeVerFicha($yo, $perfil))
           <a href="{{ route('detalle-usuario', $perfil) }}">{{ $perfil->nombre_completo }}</a>
         @else
           {{ $perfil->nombre_completo }}
         @endif
       </td>
-      <td>{{ $perfil->user->username }}</td>
-      <td>
+      <td data-label="Usuario">{{ $perfil->user->username }}</td>
+      <td data-label="Rol">
         @if ($perfil->rol)
           {{ $perfil->rol_display }}
         @else
@@ -146,7 +198,7 @@
         vinculada esta persona»— y separarlas en dos columnas dejaría cada una
         medio vacía, porque ninguna persona tiene las dos.
       --}}
-      <td>
+      <td data-label="Promotorías">
         @php($dictadas = $perfil->promotoriasDictadas)
         @php($matriculas = $matriculasPorPerfil[$perfil->id] ?? collect())
         @if ($dictadas->isNotEmpty())
@@ -161,7 +213,7 @@
           <span class="vacio">—</span>
         @endif
       </td>
-      <td>
+      <td data-label="Estado">
         @if ($perfil->user->activo)
           <span class="estado estado-activa">Activo</span>
         @else
@@ -188,7 +240,7 @@
         directiva pegada a una letra.
       --}}
       @php($puedeTocarla = \App\Support\Permisos::puedeEditarUsuario($yo, $perfil))
-      <td style="text-align:right;white-space:nowrap;">
+      <td data-celda="accion" style="text-align:right;white-space:nowrap;">
         <span class="accion-fila">
         @if ($puedeTocarla)
         <a href="{{ route('usuario-editar', $perfil) }}">Editar</a>
@@ -203,6 +255,29 @@
           @endif
         </form>
         @endif
+        {{--
+          «Eliminar» solo lo ve el administrador, y solo está VIVO cuando de
+          verdad se puede borrar. Es la misma regla que la lista de catálogos:
+          con el enlace rojo siempre puesto, la única forma de enterarse de que
+          una cuenta está protegida era pulsarlo y que te lo negaran.
+
+          El conteo que decide viene con la consulta de la página, no se
+          pregunta aquí: `Dependencias::estaBloqueado` usa lo que `withCount()`
+          ya trajo.
+
+          Es un enlace y no un botón: lleva a la pantalla de confirmación, que es
+          la que pide la contraseña. Nada de este listado borra nada.
+        --}}
+        @if ($soyAdministrador && $puedeTocarla && $perfil->user_id !== auth()->id())
+          @if (\App\Support\Dependencias::estaBloqueado($perfil))
+            <span class="campo-info" style="margin:0;display:inline;"
+                  title="No se puede eliminar: tiene historial en el sistema. Desactívala en su lugar.">
+              Eliminar
+            </span>
+          @else
+            <a href="{{ route('usuario-eliminar', $perfil) }}" style="color:var(--danger);">Eliminar</a>
+          @endif
+        @endif
         </span>
       </td>
     </tr>
@@ -212,3 +287,7 @@
 {{ $perfiles->links() }}
 @endif
 @endsection
+
+@push('scripts')
+<script src="@recurso('js/copiar-enlace.js')" defer></script>
+@endpush
