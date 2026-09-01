@@ -78,16 +78,6 @@ class Grupo extends Model
     }
 
     /**
-     * Como se lee el grupo de un vistazo: nombre, nivel, horario y salon.
-     *
-     * Existe para que las pantallas no compongan cada una su version: son diez
-     * las que pintan un grupo, y cuando el nombre se antepuso al nivel hubo que
-     * tocarlas todas. La proxima vez que cambie el orden, se cambia aqui.
-     *
-     * El salon va al final y solo si lo hay: es lo unico que puede faltar en la
-     * practica, y una linea que termine en un separador suelto se ve rota.
-     */
-    /**
      * El horario como texto, armado desde las sesiones.
      *
      * Se DERIVA y no se guarda: cuando existian las dos cosas —la columna de
@@ -134,9 +124,34 @@ class Grupo extends Model
         return $previos.' y '.mb_strtolower($ultimo);
     }
 
+    /**
+     * El grupo sin el salon: nombre, nivel y horario.
+     *
+     * Lo piden las pantallas donde el salon no aporta —los desplegables de
+     * filtro y de reparto, y las tablas de una fila por matricula—, que hasta
+     * ahora escribian «nombre · horario» a mano. Escrito a mano, un grupo al
+     * que todavia no le han puesto sesiones sale «A · Básico ·», con el
+     * separador colgando, porque el horario se DERIVA de las sesiones y sin
+     * ellas es cadena vacia. Aqui las partes vacias se caen solas.
+     */
+    public function getRotuloBreveAttribute(): string
+    {
+        return implode(' · ', array_filter([$this->nombre_con_nivel, $this->horario]));
+    }
+
+    /**
+     * Como se lee el grupo de un vistazo: nombre, nivel, horario y salon.
+     *
+     * Existe para que las pantallas no compongan cada una su version: son diez
+     * las que pintan un grupo, y cuando el nombre se antepuso al nivel hubo que
+     * tocarlas todas. La proxima vez que cambie el orden, se cambia aqui.
+     *
+     * El salon va al final y solo si lo hay: es lo unico que puede faltar en la
+     * practica, y una linea que termine en un separador suelto se ve rota.
+     */
     public function getRotuloAttribute(): string
     {
-        $partes = [$this->nombre_con_nivel, $this->horario];
+        $partes = [$this->rotulo_breve];
 
         if ($this->salon !== '' && $this->salon !== null) {
             $partes[] = $this->salon;

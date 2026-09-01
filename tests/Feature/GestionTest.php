@@ -1820,6 +1820,25 @@ class GestionTest extends TestCase
         ];
     }
 
+    /**
+     * El desplegable de grupos del listado de usuarios.
+     *
+     * Componia «nombre · horario» a mano, y el horario se DERIVA de las
+     * sesiones: un grupo al que todavia no le han puesto el suyo salia
+     * «Lunes tarde · Básico ·», con el separador colgando. Ahora sale del
+     * rotulo del modelo, que deja caer las partes vacias.
+     */
+    public function test_un_grupo_sin_horario_no_cuelga_el_separador_en_el_filtro(): void
+    {
+        $this->montarCatalogoParaFiltrar();
+
+        $this->actingAs($this->director->user)
+            ->get(route('usuario-lista'))
+            ->assertOk()
+            ->assertSee('Lunes tarde · Básico')
+            ->assertDontSee('Lunes tarde · Básico ·');
+    }
+
     public function test_los_grupos_se_filtran_por_departamento(): void
     {
         $c = $this->montarCatalogoParaFiltrar();

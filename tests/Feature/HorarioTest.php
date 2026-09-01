@@ -157,6 +157,35 @@ class HorarioTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Como se lee el grupo entero
+    // -----------------------------------------------------------------------
+
+    public function test_el_rotulo_lleva_nombre_nivel_horario_y_salon(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'A', [[2, '16:00', '18:00']]);
+
+        $this->assertSame(
+            'A · Básico · Martes 4:00 p. m. a 6:00 p. m. · A1',
+            $grupo->rotulo
+        );
+        $this->assertSame('A · Básico · Martes 4:00 p. m. a 6:00 p. m.', $grupo->rotulo_breve);
+    }
+
+    /**
+     * Un grupo recien creado no tiene sesiones hasta que le pongan el horario,
+     * y el horario se DERIVA de ellas. Compuesto a mano salia «A · Básico ·»,
+     * con el separador colgando.
+     */
+    public function test_un_grupo_sin_sesiones_no_deja_el_separador_colgando(): void
+    {
+        $grupo = $this->crearGrupo($this->violin, 'A', []);
+
+        $this->assertSame('', $grupo->horario);
+        $this->assertSame('A · Básico', $grupo->rotulo_breve);
+        $this->assertSame('A · Básico · A1', $grupo->rotulo);
+    }
+
+    // -----------------------------------------------------------------------
     // Lo que el motor no deja pasar
     // -----------------------------------------------------------------------
 

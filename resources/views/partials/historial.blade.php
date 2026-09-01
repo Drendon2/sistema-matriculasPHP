@@ -75,7 +75,7 @@
 
         <td data-label="Grupo">
           @if ($m->grupo)
-            {{ $m->grupo->nombre_con_nivel }} · {{ $m->grupo->horario }}
+            {{ $m->grupo->rotulo_breve }}
           @elseif ($m->estado === \App\Models\Matricula::ACTIVA)
             <span class="vacio">Por asignar</span>
           @else

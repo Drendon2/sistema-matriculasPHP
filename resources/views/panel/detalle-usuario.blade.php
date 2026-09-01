@@ -158,7 +158,7 @@
       <td>{{ $p->area->nombre }}</td>
       <td>
         @forelse ($p->grupos as $g)
-          {{ $g->nombre_con_nivel }} · {{ $g->horario }}@if (! $loop->last)<br>@endif
+          {{ $g->rotulo_breve }}@if (! $loop->last)<br>@endif
         @empty
           <span class="vacio">Sin grupos creados</span>
         @endforelse
