@@ -19,13 +19,15 @@
   --}}
   <h2>No se puede eliminar esta cuenta</h2>
   <p>{{ $impedimento }}</p>
-  <p class="campo-info">
+  <p class="campo-ayuda" style="margin-bottom:1.3rem;">
     Desactivarla le cierra la puerta y conserva su historial. Eliminarla se lo
     llevaría por delante, y por eso el sistema no lo permite.
   </p>
-  <p style="margin-bottom:0;">
+  {{-- En `.modal-botones` aunque sea una sola: es lo que la pone a ancho
+       completo en el teléfono, igual que el par de la otra rama. --}}
+  <div class="modal-botones">
     <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Volver</a>
-  </p>
+  </div>
 @else
   <h2>¿Eliminar la cuenta de «{{ $usuario->nombre_completo }}»?</h2>
 
@@ -65,7 +67,7 @@
       <ul class="errorlist"><li>{{ $message }}</li></ul>
     @enderror
 
-    <div class="modal-botones" style="display:flex;gap:0.6rem;margin-top:0.9rem;">
+    <div class="modal-botones" style="margin-top:0.9rem;">
       <button type="submit" class="btn btn-retirar">Sí, eliminar</button>
       <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
     </div>

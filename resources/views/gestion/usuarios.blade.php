@@ -32,12 +32,13 @@
   </summary>
 
   {{--
-    El margen va escrito a mano porque `.campo-info` trae uno superior NEGATIVO
-    —está pensada para ir pegada bajo un título, que aporta el suyo inferior—, y
-    dentro de un `<details>` eso la sube encima del resumen. Es el mismo apaño
-    que ya lleva la encuesta de Estadísticas, por lo mismo.
+    `.campo-ayuda` y no `.campo-info`: esa trae un margen superior NEGATIVO
+    —está pensada para ir pegada bajo un título, que aporta el suyo inferior— y
+    dentro de un `<details>` se sube encima del resumen. Era el margen escrito a
+    mano que había aquí; ahora la solución tiene nombre y sirve para las cuatro
+    pantallas donde hizo falta.
   --}}
-  <p class="campo-info" style="margin:0.9rem 0 0.9rem;">
+  <p class="campo-ayuda" style="margin-bottom:0.9rem;">
     Mándaselo a quien va a dictar. Crea su cuenta y elige su propia contraseña;
     queda <strong>pendiente de rol</strong> hasta que se lo asignes aquí.
   </p>
@@ -48,20 +49,51 @@
   </div>
 </details>
 
-<form method="get" class="filtros">
+{{--
+  EL BUSCADOR FUERA, LOS CINCO DESPLEGABLES PLEGADOS.
+
+  Medido a 390px: la tarjeta de filtros medía 526px y la primera fila de datos
+  empezaba en y=954 sobre una pantalla de 844 — una pantalla entera de controles
+  antes de ver a una sola persona, en el dispositivo donde más se usa esto.
+
+  El buscador se queda a la vista porque es el camino directo a una persona
+  concreta y lo más frecuente; los cinco desplegables acotan un conjunto y se
+  tocan de vez en cuando. El resumen dice cuántos hay puestos, para que plegado
+  no acabe significando escondido.
+--}}
+<form method="get">
   {{--
     El buscador va PRIMERO: es el camino directo a una persona concreta, y los
     otros cinco son filtros que acotan un conjunto. Buscar por nombre o usuario
     y nada mas — el documento y el telefono no se buscan a proposito, ver el
     comentario del controlador.
   --}}
-  <div class="filtro filtro-buscar">
-    <label for="f-buscar">Buscar</label>
-    <input type="search" name="buscar" id="f-buscar"
-           value="{{ $seleccion['buscar'] }}"
-           placeholder="Nombre o usuario"
-           autocomplete="off">
+  <div class="filtros filtros-solo-buscar">
+    <div class="filtro filtro-buscar">
+      <label for="f-buscar">Buscar</label>
+      <input type="search" name="buscar" id="f-buscar"
+             value="{{ $seleccion['buscar'] }}"
+             placeholder="Nombre o usuario"
+             autocomplete="off">
+    </div>
   </div>
+
+  {{--
+    Cuántos hay puestos, para el rótulo del pliegue. El periodo cuenta solo si
+    NO es el que está en curso: siempre trae valor, así que contarlo tal cual
+    diría «1 puesto» en una pantalla sin filtrar nada.
+  --}}
+  @php($cuantosFiltros = collect([$seleccion['rol'], $seleccion['area'], $seleccion['promotoria'], $seleccion['grupo']])->filter()->count()
+      + (($seleccion['periodo'] && ! $seleccion['periodo']->activo) ? 1 : 0))
+  <details class="filtros-plegables">
+    <summary class="filtros-resumen">
+      Filtros
+      @if ($cuantosFiltros)
+        <span class="filtros-cuenta">{{ $cuantosFiltros }} {{ $cuantosFiltros == 1 ? 'puesto' : 'puestos' }}</span>
+      @endif
+      <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
+    <div class="filtros">
 
   <div class="filtro">
     <label for="f-rol">Rol</label>
@@ -127,7 +159,16 @@
     </select>
   </div>
 
-  <div class="filtro filtro-acciones">
+    </div>
+  </details>
+
+  {{--
+    Los dos botones FUERA del pliegue, no dentro: «Limpiar» es la salida de un
+    filtro puesto y esconderlo detrás del mismo panel que hay que abrir para
+    quitarlo sería dejar la salida dentro de la trampa. Y «Filtrar» sirve
+    también al buscador, que vive arriba.
+  --}}
+  <div class="filtro filtro-acciones filtros-botones">
     <button type="submit" class="btn btn-sm">Filtrar</button>
     @if ($hayFiltros)
       <a class="btn btn-blanco btn-sm" href="{{ route('usuario-lista') }}">Limpiar</a>
@@ -240,7 +281,7 @@
         directiva pegada a una letra.
       --}}
       @php($puedeTocarla = \App\Support\Permisos::puedeEditarUsuario($yo, $perfil))
-      <td data-celda="accion" style="text-align:right;white-space:nowrap;">
+      <td data-celda="accion" class="lista-acciones">
         <span class="accion-fila">
         @if ($puedeTocarla)
         <a href="{{ route('usuario-editar', $perfil) }}">Editar</a>
@@ -270,7 +311,7 @@
         --}}
         @if ($soyAdministrador && $puedeTocarla && $perfil->user_id !== auth()->id())
           @if (\App\Support\Dependencias::estaBloqueado($perfil))
-            <span class="campo-info" style="margin:0;display:inline;"
+            <span class="accion-inerte"
                   title="No se puede eliminar: tiene historial en el sistema. Desactívala en su lugar.">
               Eliminar
             </span>

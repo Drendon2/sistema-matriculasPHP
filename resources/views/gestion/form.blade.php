@@ -83,7 +83,7 @@
     que lo cierra, y en la página suelta es la salida que no obliga a buscar el
     «Volver» de arriba del todo.
   --}}
-  <div class="modal-botones" style="display:flex;gap:0.6rem;">
+  <div class="modal-botones">
     <button type="submit" class="btn">Guardar</button>
     <a href="{{ route($ruta_lista) }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
   </div>

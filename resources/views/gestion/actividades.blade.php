@@ -21,7 +21,14 @@
 @if ($actividades->isEmpty())
   <p class="vacio">Todavía no hay nada aquí.</p>
 @else
-<table>
+{{--
+  `.tabla-personas` porque bajo 640px cada fila pasa a ficha: aqui las acciones
+  son cuatro —abrir o cerrar el enlace, fechas, editar, eliminar— y tres de
+  ellas eran enlaces de texto de 20px pegados con puntos en medio, la ultima el
+  borrado. `.tabla-catalogo` porque la primera celda es una frase, no campos
+  etiquetados. Es una lista de registros, no una rejilla.
+--}}
+<table class="tabla-personas tabla-catalogo">
   <thead>
     <tr>
       <th>Nombre</th>
@@ -40,8 +47,8 @@
     @php($apuntados = $actividad->inscritos_count)
     @php($admite = $actividad->admiteInscripciones($apuntados))
     <tr>
-      <td>
-        {{ $actividad->nombre }}
+      <td data-celda="detalle">
+        <span class="lista-nombre">{{ $actividad->nombre }}</span>
         <span class="tipo-chip">{{ $actividad->etiquetaTipo() }}</span>
         {{--
           Un curso sin fechas está a medio crear: no se puede iniciar nada ni
@@ -49,7 +56,7 @@
           la de uno terminado.
         --}}
         @if ($actividad->llevaFechas())
-          <span class="campo-info" style="margin:0;display:block;">
+          <span class="lista-nota lista-nota-bloque">
             @if ($cuantas)
               {{ $cuantas }} {{ $cuantas == 1 ? 'clase' : 'clases' }}
             @else
@@ -69,14 +76,14 @@
                  readonly value="{{ $actividad->enlace() }}">
         </div>
       </td>
-      <td>
+      <td data-label="Responsable">
         @if (\App\Support\Permisos::puedeVerFicha($yo, $actividad->responsable))
           <a href="{{ route('detalle-usuario', $actividad->responsable) }}">{{ $actividad->responsable->nombre_completo }}</a>
         @else
           {{ $actividad->responsable->nombre_completo }}
         @endif
       </td>
-      <td class="num">
+      <td class="num" data-label="Inscritos">
         {{-- Sin tope no es cero: es que nadie puso uno. --}}
         @if ($actividad->cupo_maximo === null)
           <span class="cupo-cifra cupo-cifra-libre">{{ $apuntados }} / ∞</span>
@@ -91,25 +98,25 @@
           lado, y decir solo «no admite» dejaría adivinando cuál toca.
         --}}
         @if (! $admite)
-          <span class="campo-info" style="margin:0.2rem 0 0;display:block;">
+          <span class="lista-nota lista-nota-bloque">
             {{ $actividad->abierta ? 'Cupos llenos' : 'Enlace cerrado' }}
           </span>
         @endif
       </td>
-      <td style="text-align:right;white-space:nowrap;">
+      <td data-celda="accion" class="lista-acciones">
         <form method="post" action="{{ route($ruta_enlace, $actividad) }}" style="display:inline;">
           @csrf
           <button type="submit" class="btn btn-blanco btn-sm">
             {{ $actividad->abierta ? 'Cerrar enlace' : 'Abrir enlace' }}
           </button>
         </form>
-        <span class="campo-info" style="margin:0.35rem 0 0;display:block;">
+        <span class="accion-fila acciones-secundarias">
           @if ($actividad->llevaFechas())
             <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
-            &nbsp;·&nbsp;
+            <span class="accion-sep">&nbsp;·&nbsp;</span>
           @endif
           <a href="{{ route($ruta_editar, $actividad) }}" @if ($modal ?? false) data-modal @endif>Editar</a>
-          &nbsp;·&nbsp;
+          <span class="accion-sep">&nbsp;·&nbsp;</span>
           <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);" data-modal>Eliminar</a>
         </span>
       </td>

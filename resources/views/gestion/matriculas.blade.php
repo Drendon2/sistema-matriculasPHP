@@ -87,7 +87,10 @@
     @endif
   </div>
   @if ($resumen['periodo_anterior'])
-    <p class="campo-info">
+    {{-- `.campo-ayuda` y no `.campo-info`: esta va debajo del bloque de cifras,
+         no de un titulo, y el margen negativo de la otra la montaba encima de
+         «Antiguos sin renovar» — medido, 10px de solape. --}}
+    <p class="campo-ayuda" style="margin-top:0.9rem;">
       «Antiguos sin renovar» son estudiantes que estuvieron activos en
       {{ $resumen['periodo_anterior']->nombre }} y todavía no aparecen en {{ $periodo->nombre }}.
     </p>

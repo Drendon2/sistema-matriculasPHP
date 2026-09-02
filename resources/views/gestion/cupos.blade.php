@@ -32,7 +32,15 @@
 
 <form method="post" action="{{ route('gestion-cupos-periodo', $periodo) }}">
   @csrf
-  <table>
+  {{--
+    `.tabla-personas` porque bajo 640px esto tiene que dejar de ser tabla: la
+    casilla del cupo es la cuarta columna y a 390px quedaba fuera de la pantalla,
+    al otro lado de un arrastre de 90px. O sea que la pantalla de repartir cupos
+    escondía justo la casilla en la que se reparten. Es una lista de registros y
+    no una rejilla —la posición de la celda no es el dato—, así que cumple la
+    regla del DESIGN.md.
+  --}}
+  <table class="tabla-personas tabla-catalogo">
     <thead>
       <tr>
         <th>Promotoría</th>
@@ -45,18 +53,18 @@
       @foreach ($filas as $fila)
       @php($p = $fila['promotoria'])
       <tr>
-        <td>
-          <span class="tag-dot {{ $p->area->tag_color }}"></span>{{ $p->nombre }}
-          <span class="campo-info" style="margin:0;display:inline;">— {{ $p->area->nombre }}</span>
+        <td data-celda="detalle">
+          <span class="tag-dot {{ $p->area->tag_color }}"></span><span class="lista-nombre">{{ $p->nombre }}</span>
+          <span class="lista-nota">— {{ $p->area->nombre }}</span>
         </td>
-        <td>
+        <td data-label="Profesor">
           @if ($p->profesor && \App\Support\Permisos::puedeVerFicha($yo, $p->profesor))
             <a href="{{ route('detalle-usuario', $p->profesor) }}">{{ $p->profesor->nombre_completo }}</a>
           @else
             {{ $p->profesor?->nombre_completo ?: 'Sin asignar' }}
           @endif
         </td>
-        <td class="num">
+        <td class="num" data-label="Ocupados">
           @if ($fila['cupo'] === null)
             <span class="cupo-cifra cupo-cifra-libre">{{ $fila['ocupados'] }} / ∞</span>
           @elseif ($fila['ocupados'] >= $fila['cupo'])
@@ -65,7 +73,12 @@
             <span class="cupo-cifra">{{ $fila['ocupados'] }} / {{ $fila['cupo'] }}</span>
           @endif
         </td>
-        <td>
+        {{--
+          `data-celda="accion"` y no un `data-label`: en la ficha esto no es un
+          dato que se lee sino el control que se viene a tocar, y esa marca es la
+          que lo baja al final separado por una línea, a ancho completo.
+        --}}
+        <td data-celda="accion" data-label="Cupo">
           <label class="sr-solo" for="cupo-{{ $p->id }}">Cupo máximo de {{ $p->nombre }}</label>
           <input type="number" id="cupo-{{ $p->id }}" name="cupo_{{ $p->id }}"
                  min="0" step="1" value="{{ $fila['cupo'] }}" placeholder="sin tope"

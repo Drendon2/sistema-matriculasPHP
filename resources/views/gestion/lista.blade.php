@@ -46,7 +46,22 @@
 @php($hayFiltros = $hay_filtros ?? false)
 
 @if ($losFiltros)
-<form method="get" class="filtros">
+{{--
+  Plegada. Tres desplegables a 44px son 297px antes de que empiece la tabla, y
+  esta pantalla se usa desde el teléfono. El resumen dice cuántos hay puestos
+  para que plegado no acabe significando escondido. Ver `.filtros-plegables`.
+--}}
+@php($cuantosFiltros = collect($losFiltros)->filter(fn ($f) => (string) $f['valor'] !== '')->count())
+<form method="get">
+<details class="filtros-plegables">
+  <summary class="filtros-resumen">
+    Filtros
+    @if ($cuantosFiltros)
+      <span class="filtros-cuenta">{{ $cuantosFiltros }} {{ $cuantosFiltros == 1 ? 'puesto' : 'puestos' }}</span>
+    @endif
+    <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+  <div class="filtros">
   @foreach ($losFiltros as $f)
   <div class="filtro">
     <label for="f-{{ $f['nombre'] }}">{{ $f['etiqueta'] }}</label>
@@ -71,7 +86,15 @@
   </div>
   @endforeach
 
-  <div class="filtro filtro-acciones">
+  </div>
+</details>
+
+  {{--
+    Los dos botones FUERA del pliegue: «Limpiar» es la salida de un filtro
+    puesto, y esconderla detrás del mismo panel que hay que abrir para quitarlo
+    sería dejar la salida dentro de la trampa.
+  --}}
+  <div class="filtro filtro-acciones filtros-botones">
     <button type="submit" class="btn btn-sm">Filtrar</button>
     @if ($hayFiltros)
       <a class="btn btn-blanco btn-sm" href="{{ route($ruta_lista) }}">Limpiar</a>
@@ -93,19 +116,30 @@
     <p class="vacio">Todavía no hay nada aquí.</p>
   @endif
 @else
-<table>
+{{--
+  `.tabla-personas` no es solo para personas: es la lista de REGISTROS que bajo
+  640px deja de ser tabla y pasa a ser una ficha por fila. Aquí hace falta por lo
+  de siempre —las acciones—: «Editar» y «Eliminar» eran dos enlaces de texto de
+  20px de alto, pegados con un punto en medio, y uno de ellos borra. En la ficha
+  son dos botones a ancho completo, uno debajo del otro.
+
+  `.tabla-catalogo` encima porque esta fila no son campos etiquetados sino una
+  frase, y su primera celda tiene que fluir como texto. No es una rejilla: la
+  posición de la celda no es el dato, así que la regla del DESIGN.md se cumple.
+--}}
+<table class="tabla-personas tabla-catalogo">
   <tbody>
     @foreach ($objetos as $fila)
     @php($obj = $fila['objeto'])
     <tr>
-      <td>
+      <td data-celda="detalle">
         @if ($mostrarTagArea)<span class="tag-dot {{ $obj->tag_color }}"></span>@endif
-        @if ($rutaFila)<a href="{{ route($rutaFila, $obj) }}">{{ $obj }}</a>@else{{ $obj }}@endif
+        <span class="lista-nombre">@if ($rutaFila)<a href="{{ route($rutaFila, $obj) }}">{{ $obj }}</a>@else{{ $obj }}@endif</span>
         @if ($etiquetaPlural && $fila['hijos'] !== null)
-          <span class="campo-info" style="margin:0;display:inline;">— {{ $fila['hijos'] }} {{ $fila['hijos'] == 1 ? $etiquetaSingular : $etiquetaPlural }}</span>
+          <span class="lista-nota">— {{ $fila['hijos'] }} {{ $fila['hijos'] == 1 ? $etiquetaSingular : $etiquetaPlural }}</span>
         @endif
         @if ($fila['protegido'])
-          <span class="campo-info" style="margin:0;display:inline;">· {{ $fila['protegido'] }} {{ $etiquetaProtegido }} en historial</span>
+          <span class="lista-nota">· {{ $fila['protegido'] }} {{ $etiquetaProtegido }} en historial</span>
         @endif
         {{--
           Quién dicta, en su propio renglón: esta lista es la de un catálogo y en
@@ -113,7 +147,7 @@
           que nadie puede registrar clases.
         --}}
         @if ($mostrarProfesor)
-        <span class="campo-info" style="margin:0;display:block;">
+        <span class="lista-nota lista-nota-bloque">
           Profesor:
           @if ($obj->profesor)
             @if (\App\Support\Permisos::puedeVerFicha($yo, $obj->profesor))
@@ -127,9 +161,10 @@
         </span>
         @endif
       </td>
-      <td style="text-align:right;white-space:nowrap;">
+      <td data-celda="accion" class="lista-acciones">
+        <span class="accion-fila">
         <a href="{{ route($ruta_editar, $obj) }}" @if ($abreEnModal) data-modal @endif>Editar</a>
-        &nbsp;·&nbsp;
+        <span class="accion-sep">&nbsp;·&nbsp;</span>
         {{--
           Lo que se cuenta al lado del nombre (grupos, estudiantes activos) no es
           lo que impide borrar: «Títeres — 0 grupos» se lee como vacía y resulta
@@ -138,13 +173,14 @@
           lo negaran. Aquí ya no es un enlace, y dice por qué.
         --}}
         @if ($fila['protegido'])
-          <span class="campo-info" style="margin:0;display:inline;"
+          <span class="accion-inerte"
                 title="No se puede eliminar: tiene {{ $fila['protegido'] }} {{ $etiquetaProtegido }} en su historial.">
             Eliminar
           </span>
         @else
           <a href="{{ route($ruta_eliminar, $obj) }}" style="color:var(--danger);" data-modal>Eliminar</a>
         @endif
+        </span>
       </td>
     </tr>
     @endforeach

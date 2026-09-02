@@ -20,7 +20,7 @@
     <label for="password">Contraseña{{ $esCreacion ? '' : ' temporal' }}</label>
     <input type="password" name="password" id="password" @required($esCreacion) autocomplete="new-password">
     @if (! $esCreacion)
-      <div class="campo-info" style="margin:0.3rem 0 0;">Déjalo en blanco para no cambiar la contraseña.</div>
+      <div class="campo-ayuda">Déjalo en blanco para no cambiar la contraseña.</div>
     @endif
     @error('password')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
@@ -69,7 +69,7 @@
     <label for="correo">Correo electrónico</label>
     <input type="email" name="correo" id="correo" maxlength="255"
            value="{{ old('correo', $perfil->user?->email) }}">
-    <p class="campo-info">Opcional. Puede repetirse: los hermanos suelen compartir el del acudiente.</p>
+    <p class="campo-ayuda">Opcional. Puede repetirse: los hermanos suelen compartir el del acudiente.</p>
     @error('correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
 
@@ -126,7 +126,7 @@
       <label for="acudiente_nombre">Nombre del acudiente</label>
       <input type="text" name="acudiente_nombre" id="acudiente_nombre" maxlength="90"
              value="{{ old('acudiente_nombre', $acudiente?->nombre) }}">
-      <div class="campo-info" style="margin:0.3rem 0 0;">Obligatorio si el estudiante es menor de edad.</div>
+      <div class="campo-ayuda">Obligatorio si el estudiante es menor de edad.</div>
       @error('acudiente_nombre')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
       @error('acudiente')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
     </div>

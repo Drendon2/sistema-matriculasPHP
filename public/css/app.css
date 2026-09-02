@@ -177,6 +177,20 @@
   }
   .campo-info { color: var(--ink-soft); font-size: 0.85rem; margin: -0.6rem 0 1.2rem; }
 
+  /* LA AYUDA QUE VA DEBAJO DE CUALQUIER OTRA COSA.
+     `.campo-info` sube su propio margen (-0.6rem) porque esta hecha para
+     pegarse bajo un titulo, que aporta el inferior que ella descuenta. Debajo
+     de un input, de un <summary> o de un bloque de cifras —que no llevan
+     ninguno— se monta ENCIMA y se solapa con el texto de arriba. Ya mordio
+     cuatro veces, y las tres primeras se taparon escribiendo el margen a mano
+     en cada sitio; esta es la misma solucion, pero con nombre, para que la
+     cuarta no tenga que descubrirse otra vez abriendo la pagina.
+     `.config-ayuda` es como se llamaba cuando solo la usaba Configuracion. */
+  .campo-ayuda, .config-ayuda {
+    margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--ink-soft);
+    line-height: 1.45; max-width: 62ch;
+  }
+
   input, select, textarea {
     font-family: var(--font-body);
     font-size: 1rem;
@@ -1048,6 +1062,70 @@
   .filtro-acciones { flex-direction: row; gap: 0.4rem; }
   .filtros-nota { font-size: 0.82rem; color: var(--ink-soft); margin: 0 0 0.9rem; }
 
+  /* LA BARRA DE FILTROS, PLEGADA.
+     Medido a 390px en Gestion → Usuarios: la tarjeta sola mide 526px y la
+     primera fila de datos empezaba en y=954 sobre una pantalla de 844. O sea
+     que en el telefono se pasaba una pantalla entera de controles antes de ver
+     a una sola persona, y este sistema se usa sobre todo desde el telefono.
+
+     El buscador se queda FUERA del pliegue: es el camino directo a una persona
+     concreta y lo mas frecuente. Lo que se pliega son los desplegables, que
+     acotan un conjunto y se tocan de vez en cuando.
+
+     Cerrado tambien en escritorio, a proposito: forzar un <details> abierto por
+     media query depende de `::details-content`, que hoy solo entiende Chrome, y
+     una barra que en Firefox se queda cerrada sin summary seria una barra
+     inalcanzable. Un solo comportamiento en todas partes, y el resumen dice
+     cuantos filtros hay puestos para que plegado no signifique escondido. */
+  .filtros-plegables { margin-bottom: 0; }
+  .filtros-plegables .filtros { margin-bottom: 0; }
+  /* El buscador va en su propia tarjeta, fuera del pliegue. */
+  .filtros-solo-buscar { margin-bottom: 0.6rem; }
+  /* «Filtrar» y «Limpiar», tambien fuera. */
+  .filtros-botones { margin: 0.7rem 0 0.9rem; }
+  .filtros-resumen {
+    display: flex; align-items: center; gap: 0.5rem;
+    min-height: 44px; padding: 0.4rem 0.2rem;
+    cursor: pointer; list-style: none;
+    font-size: 0.85rem; font-weight: 700; color: var(--ink-soft);
+  }
+  .filtros-resumen::-webkit-details-marker { display: none; }
+  .filtros-resumen:hover { color: var(--ink); }
+  /* Cuantos hay puestos. Con la barra cerrada es lo unico que lo dice, asi que
+     no es decorativo: lleva el acento para que se vea de lejos que la lista de
+     abajo esta acotada. */
+  .filtros-cuenta {
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700;
+    color: var(--accent-dark); background: var(--accent-soft);
+    border-radius: 999px; padding: 0.15rem 0.55rem;
+  }
+
+  /* La descripcion que acompaña al nombre en una fila de catalogo. Es lo mismo
+     que hacian cuatro `<span class="campo-info" style="margin:0;display:inline">`
+     repartidos por las plantillas: la clase existe para no tener que anular a
+     mano, en cada sitio, el margen negativo de una clase pensada para otra cosa. */
+  .lista-nota { color: var(--ink-soft); font-size: 0.85rem; font-weight: 400; }
+  .lista-nota-bloque { display: block; margin-top: 0.15rem; }
+  /* Una accion que existe pero hoy no se puede hacer —«Eliminar» sobre algo con
+     historial—. Se queda a la vista y apagada, no se oculta: si desapareciera,
+     enterarse de que esta protegido exigiria pulsarla y que te lo nieguen. El
+     punteado es el vocabulario de forma del sistema, el mismo de la paginacion
+     inerte. */
+  .accion-inerte { color: var(--ink-faint); cursor: not-allowed; }
+  /* La celda de acciones de un catalogo, en la tabla de escritorio: pegada a la
+     derecha y sin partirse. Antes iba en un `style=` de la plantilla; esta aqui
+     porque bajo 640px hay que anularla y un atributo no se anula desde el CSS. */
+  .lista-acciones { width: 1%; white-space: nowrap; }
+  /* Y sin envolver: `.accion-fila` viene con `flex-wrap: wrap`, que dentro de
+     una celda al 1% parte las acciones en un renglon cada una. */
+  .lista-acciones .accion-fila { justify-content: flex-end; flex-wrap: nowrap; }
+  /* En el catalogo la separacion la pone el punto de en medio, no el hueco del
+     flex: con los dos, «Editar · Eliminar» sale desperdigado. */
+  .tabla-catalogo .lista-acciones .accion-fila { gap: 0; }
+  /* Las acciones secundarias de una actividad van en su propio renglon, debajo
+     del boton de abrir o cerrar el enlace, que es la accion principal. */
+  .acciones-secundarias { margin-top: 0.35rem; font-size: 0.85rem; }
+
   /* Paginacion. El rango va en el centro y los dos controles a los lados
      siempre en el mismo sitio: si el extremo inerte se ocultara en vez de
      quedarse apagado, "Siguiente" saltaria de posicion al llegar a la ultima
@@ -1143,7 +1221,8 @@
      siguiente.
      OJO: la ayuda usa .config-ayuda y NO .campo-info, porque esa lleva
      margin-top negativo (va pegada bajo un título) y aquí, debajo de un campo,
-     se montaba encima del input. */
+     se montaba encima del input. Esa regla vive ahora arriba, junto a
+     .campo-ayuda, que es el mismo apaño con nombre general. */
 
   /* La pantalla mezcla dos cosas distintas —la marca, que solo cambia cómo se
      ve el sistema, y una regla que cambia lo que los estudiantes pueden hacer—,
@@ -1165,10 +1244,6 @@
   .config-etiqueta {
     display: block; font-size: 0.85rem; font-weight: 700;
     color: var(--ink); margin: 0 0 0.4rem;
-  }
-  .config-ayuda {
-    margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--ink-soft);
-    line-height: 1.45; max-width: 62ch;
   }
   /* Campo del logo. El input de archivo nativo se oculta de forma accesible y
      la etiqueta hace de control: el widget del navegador no se puede estilar y
@@ -1406,8 +1481,21 @@
     header nav a { padding: 0.85rem 0.75rem; min-height: 44px; display: inline-flex; align-items: center; }
     header nav form { margin-left: 0.3rem; }
     .btn { padding: 0.75rem 1.15rem; }
-    .btn-sm { padding: 0.6rem 0.9rem; }
+    /* `.btn-sm` anula el min-height de `.btn` para caber en una fila de tabla.
+       En el telefono eso lo dejaba en 37px, y es el boton de las ACCIONES de
+       fila —«Confirmar», «Desactivar», «Filtrar»—, o sea lo que mas se toca del
+       sistema. Recupera los 44px que esta misma media query ya le da a los
+       enlaces de la cabecera y a los controles de la barra de filtros: el piso
+       es del breakpoint, no de cada componente. */
+    .btn-sm { padding: 0.6rem 0.9rem; min-height: 44px; }
     .btn-texto { padding: 0.5rem 0; }
+    /* El enlace de volver es la salida de casi todas las pantallas y medía 20px
+       de alto. El margen inferior baja lo que sube el relleno, para que el
+       hueco hasta el título siga siendo el mismo. */
+    .volver {
+      display: inline-flex; align-items: center; min-height: 44px;
+      padding: 0.5rem 0; margin-bottom: 0.35rem;
+    }
     .card, .form-card { padding: 1.25rem 1.15rem; }
     table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .tarjetas { gap: 0.6rem; }
@@ -1430,6 +1518,12 @@
        este mismo breakpoint. La barra se usa de pie y con el pulgar. */
     .filtro select,
     .filtro input[type="search"] { min-height: 44px; }
+    /* Y la letra sube a 1rem, que es la Regla de los 16px del DESIGN.md. Los
+       0.88rem de escritorio son una decision de densidad que ahi vale; en un
+       telefono un select por debajo de 16px hace que Safari de iOS acerque la
+       pagina al enfocarlo y la deje descuadrada. El buscador ya estaba en 1rem
+       por esto mismo: lo que faltaba era aplicarselo a sus cinco vecinos. */
+    .filtro select { font-size: 1rem; }
     .filtro-acciones { margin-left: 0; }
     /* Y el de la barra de acciones en bloque, por lo mismo: a media fila no se
        lee de qué grupo se trata. */
@@ -1515,13 +1609,49 @@
     .tabla-personas td[data-celda="accion"] {
       margin-top: 0.5rem; padding-top: 0.6rem;
       border-top: 1px solid var(--border);
+      /* Que envuelva: una celda de acciones puede traer mas de un bloque —en
+         una actividad, el boton de abrir el enlace y ademas «Editar» y
+         «Eliminar»—, y sin esto se reparten la misma linea y salen escalonados
+         contra el borde derecho. Cada bloque su renglon. */
+      flex-wrap: wrap;
     }
     .tabla-personas td[data-celda="accion"] ~ td[data-celda="accion"] {
       margin-top: 0; border-top: none; padding-top: 0.15rem;
     }
+    /* La fila de acciones ocupa el ancho de la ficha. Sin esto es un item de
+       flex sin crecimiento dentro de la celda, o sea que mide lo que midan sus
+       botones y estos se quedan a media ficha por mucho `flex:1` que lleven. */
     .tabla-personas td[data-celda="accion"] .accion-fila,
-    .tabla-personas td[data-celda="accion"] form { flex-wrap: wrap; gap: 0.5rem; }
+    .tabla-personas td[data-celda="accion"] form { flex: 1 1 100%; flex-wrap: wrap; gap: 0.5rem; }
     .tabla-personas td[data-celda="accion"] .btn { flex: 1 1 auto; }
+    /* Y los que NO son .btn.
+       Media docena de acciones de fila son enlaces de texto —«Editar»,
+       «Eliminar», «Fechas»— porque dentro de una tabla ancha eso es lo
+       correcto: un botón por celda convierte la tabla en una botonera. Pero en
+       la ficha medían 20px de alto y dos de ellos iban pegados con un punto en
+       medio, uno de ellos el borrado. Aquí toman la forma del botón blanco que
+       ya tienen sus vecinos, sin tocar el escritorio.
+
+       El separador se va: entre dos botones apilados no separa nada, y como es
+       texto suelto dentro de un flex se convertiría en un ítem más. */
+    .tabla-personas td[data-celda="accion"] a:not(.btn),
+    .tabla-personas td[data-celda="accion"] .accion-inerte {
+      flex: 1 1 auto;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 44px; padding: 0.5rem 0.9rem;
+      border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+      font-size: 0.85rem; font-weight: 700; text-decoration: none;
+    }
+    .tabla-personas td[data-celda="accion"] .accion-inerte {
+      border-style: dashed; border-color: var(--border);
+    }
+    .tabla-personas td[data-celda="accion"] .accion-sep { display: none; }
+    /* La casilla de cupo, como el desplegable de al lado: a ancho completo. Es
+       el dato que se viene a editar y a 390px se quedaba fuera de la pantalla,
+       al otro lado de un arrastre de 90px. */
+    .tabla-personas td[data-celda="accion"] input {
+      flex: 1 1 100%; width: 100%; max-width: none; min-width: 0;
+    }
     /* `min-width: 0` no sobra: un elemento flexible no encoge por debajo de su
        contenido sin esto, y el contenido aquí es el rótulo entero de un grupo. */
     .tabla-personas td[data-celda="accion"] select {
@@ -1538,6 +1668,58 @@
     /* El panel de corregir a ancho completo: en la ficha hay sitio, y a 15rem
        fijos se quedaba corto contra el borde. */
     .tabla-personas .corregir-form { width: 100%; }
+
+    /* LOS CATALOGOS SON FICHAS DE PROSA, NO DE DATOS ETIQUETADOS.
+       La fila de una persona son campos con nombre —usuario, rol, estado— y por
+       eso la ficha los reparte en flex con su `data-label` delante. La fila de
+       un catalogo es una frase: «Musica — 5 promotorias · 5 en historial». Su
+       primera celda vuelve a fluir como texto, o cada trozo se convertiria en un
+       item de flex y saldria en su propio renglon. */
+    .tabla-catalogo td[data-celda="detalle"] { display: block; }
+    .tabla-catalogo td[data-celda="detalle"] .lista-nombre {
+      font-weight: 700; font-size: 1.05rem;
+    }
+    /* Y su celda de acciones deja de ir a la derecha y de medir el 1%: en la
+       ficha manda el ancho de la ficha. */
+    .tabla-catalogo td.lista-acciones { width: auto; white-space: normal; }
+    .tabla-catalogo .lista-acciones .accion-fila { justify-content: flex-start; gap: 0.5rem; }
+    /* Una accion por renglon y no dos al lado. En el catalogo el par es
+       «Editar» y «Eliminar», que es justo la adyacencia que habia que deshacer:
+       de lado a lado, el pulgar que apunta a uno alcanza al otro, y uno de los
+       dos borra. */
+    .tabla-catalogo td[data-celda="accion"] a:not(.btn),
+    .tabla-catalogo td[data-celda="accion"] .accion-inerte { flex: 1 1 100%; }
+
+    /* El enlace que se copia y se manda por WhatsApp: el de registro de un
+       profesor y el de una actividad. Iba en 0.7rem —11px— dentro de una caja de
+       23px de alto, o sea ni legible ni tocable, y desde el 01/09 es el unico
+       camino para dar de alta a quien va a dictar.
+
+       Se queda por debajo de 1rem a proposito, y es la unica excepcion a la
+       Regla de los 16px: es de solo lectura, no se escribe en el nunca —lo que
+       se toca es «Copiar»— y a 1rem una URL entera en monoespaciada mostraria
+       cuatro palabras. Lo que si tenia que subir es el area de toque. */
+    .enlace-copiable { font-size: 0.85rem; padding: 0.6rem 0.55rem; min-height: 44px; }
+
+    /* Los ultimos controles por debajo del piso, y ninguno es texto corrido:
+       las fichas de periodo de Cupos y su casilla, los dos botones redondos de
+       «Mi perfil» y las cabeceras plegables. Un enlace DENTRO de una frase se
+       queda como esta —el criterio de tamano no le aplica y estirarlo partiria
+       el renglon—; estos son controles sueltos. */
+    .cupo-periodo { min-height: 44px; display: inline-flex; align-items: center; }
+    .cupo-input { min-height: 44px; }
+    /* El boton redondo de editar crece por DENTRO y no por fuera: a 44px de
+       diametro, un circulo en el acento macizo al lado de «Teléfono: …» pesa
+       mas que el dato al que acompaña. El area invisible lo lleva a 44 y el
+       circulo se queda en 26. */
+    .perfil-editar-btn { position: relative; }
+    .perfil-editar-btn::after { content: ""; position: absolute; inset: -9px; }
+    .perfil-seccion-cabecera, .dep-cabecera, .corregir-abrir { min-height: 44px; }
+    .periodo-flecha { min-height: 44px; min-width: 44px; }
+    /* Con la letra tambien: es un desplegable de verdad —se elige a que
+       promotoria se mueve una matricula— y por debajo de 16px iOS acerca la
+       pagina al enfocarlo. La Regla de los 16px. */
+    .corregir-form select { min-height: 44px; font-size: 1rem; }
   }
 
   /* ---------------------------------------------------------------------
@@ -1618,6 +1800,12 @@
   dialog.modal .form-card > :first-child { margin-top: 0; }
   dialog.modal .card > :last-child,
   dialog.modal .form-card > :last-child { margin-bottom: 0; }
+
+  /* La fila de botones con que acaba lo que se abre en un modal. Estuvo escrita
+     como `style="display:flex;gap:0.6rem"` en cada uno de los cuatro sitios, y
+     el quinto —la salida sola de «no se puede eliminar»— se olvido y salio a
+     media pantalla. Con la clase, lo que hace falta recordar es el nombre. */
+  .modal-botones { display: flex; gap: 0.6rem; }
 
   /* Mientras el envio va en camino, igual que `main[aria-busy]`. */
   dialog.modal[aria-busy="true"] .card,

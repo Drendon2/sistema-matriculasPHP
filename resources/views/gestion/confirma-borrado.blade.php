@@ -22,13 +22,18 @@
     Todavía tiene <strong>{{ $bloqueos }}</strong>. Borrarlo se llevaría por
     delante ese historial, así que el sistema no lo permite.
   </p>
-  <p class="campo-info">
+  <p class="campo-ayuda" style="margin-bottom:1.3rem;">
     Si ya no se va a ofrecer, ponle <strong>cupo 0</strong> en el periodo nuevo
     en vez de borrarlo: nadie se puede matricular y lo ya cursado se conserva.
   </p>
-  <p style="margin-bottom:0;">
+  {{--
+    La salida va en `.modal-botones` aunque sea una sola: es lo que en el
+    teléfono la pone a ancho completo, como el par de la otra rama. Suelta, era
+    el único botón del sistema que se quedaba a media pantalla y a la izquierda.
+  --}}
+  <div class="modal-botones">
     <a href="{{ route($ruta_lista) }}" class="btn btn-secundario" data-modal-cerrar>Volver</a>
-  </p>
+  </div>
 @else
   <h2>¿Eliminar «{{ $objeto }}»?</h2>
   @if ($arrastre)
@@ -45,7 +50,7 @@
   <p class="campo-info" style="margin-top:-0.6rem;">Esta acción no se puede deshacer.</p>
   @endif
 
-  <form method="post" action="{{ $accion }}" class="modal-botones" style="display:flex;gap:0.6rem;">
+  <form method="post" action="{{ $accion }}" class="modal-botones">
     @csrf
     <input type="hidden" name="volver" value="{{ $volver }}">
     <button type="submit" class="btn btn-retirar">Sí, eliminar</button>
