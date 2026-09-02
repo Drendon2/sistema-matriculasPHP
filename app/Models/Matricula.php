@@ -141,6 +141,16 @@ class Matricula extends Model
         });
     }
 
+    /**
+     * Quien cursa la matricula.
+     *
+     * El tipo va ANOTADO y no solo en el `belongsTo`: sin el, el analizador ve
+     * un `Model` generico y cada `$matricula->estudiante->nombre_completo` de
+     * las pantallas sale como propiedad inexistente. Habia dos de esas en la
+     * linea base y con esto se van las dos.
+     *
+     * @return BelongsTo<Perfil, $this>
+     */
     public function estudiante(): BelongsTo
     {
         return $this->belongsTo(Perfil::class, 'estudiante_id');

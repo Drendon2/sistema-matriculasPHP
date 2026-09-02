@@ -1,0 +1,200 @@
+<?php
+
+namespace App\Support;
+
+use App\Models\Asistencia;
+use App\Models\ConfiguracionInstitucion;
+use App\Models\Grupo;
+use App\Models\Matricula;
+use App\Models\Periodo;
+use App\Models\SesionGrupo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * LAS DOS ALERTAS DE LA BANDEJA, calculadas y no guardadas.
+ *
+ * Ninguna se almacena. Las dos salen de cruzar lo que DEBERIA haber pasado con
+ * lo que hay registrado, cada vez que se abre la pantalla:
+ *
+ * - CLASE NO DICTADA: el grupo tiene el martes en su horario, el martes ya paso
+ *   y no hay ninguna fila en `clases` de ese grupo con esa fecha. Quien dicta
+ *   tiene todo el dia para oprimir «Iniciar clase» y pasar lista; el aviso sale
+ *   cuando el dia termino y no lo hizo.
+ *
+ * - POSIBLE ABANDONO: un estudiante con matricula activa que acumula N faltas
+ *   SEGUIDAS y sin excusa en las ultimas clases de su grupo. Se aviso; no se
+ *   retira a nadie. Retirar libera el cupo y la ranura, que es una consecuencia
+ *   sobre OTRA persona —la que espera ese cupo—, y en este sistema ninguna
+ *   matricula cambia de estado sin que alguien lo decida.
+ *
+ * Guardarlas seria guardar algo que puede quedar viejo: el profesor registra la
+ * clase tarde, el estudiante vuelve. Calculadas dicen siempre la verdad de
+ * ahora, y ademas no hay que decidir quien las crea ni quien las limpia.
+ *
+ * EL COSTE NO CRECE CON LOS DATOS, que es la regla del proyecto y aqui no es
+ * teorica: esto recorre el periodo entero. Son CUATRO consultas fijas —el
+ * horario de todos los grupos, las clases del periodo, las omisiones archivadas
+ * y las faltas— y todo el cruce se hace en memoria sobre esas filas. Ni una
+ * consulta por grupo ni una por estudiante.
+ */
+class Alertas
+{
+    /**
+     * Los dias del periodo en los que un grupo tenia clase y no la hubo.
+     *
+     * @return Collection<int, array{grupo: Grupo, fecha: Carbon, dia: string}>
+     */
+    public static function clasesNoDictadas(Periodo $periodo): Collection
+    {
+        // El horario de todos los grupos con matriculas en este periodo, de una
+        // vez. Un grupo sin sesiones no tiene dia asignado y no puede faltar a
+        // nada, asi que el join lo deja fuera solo.
+        $sesiones = DB::table('sesiones_grupo')
+            ->join('grupos', 'grupos.id', '=', 'sesiones_grupo.grupo_id')
+            ->select('sesiones_grupo.grupo_id', 'sesiones_grupo.dia')
+            ->distinct()
+            ->get()
+            ->groupBy('grupo_id')
+            ->map(fn ($filas) => $filas->pluck('dia')->all());
+
+        if ($sesiones->isEmpty()) {
+            return collect();
+        }
+
+        // Lo que SI se registro, y lo que ya se archivo. Dos consultas y no una
+        // por fecha: lo que se busca es la AUSENCIA de una fila, y eso no se
+        // pregunta, se deduce de tener la lista entera delante.
+        $dictadas = DB::table('clases')
+            ->where('periodo_id', $periodo->id)
+            ->selectRaw('grupo_id, DATE(fecha_hora) as fecha')
+            ->distinct()
+            ->get()
+            ->map(fn ($f) => $f->grupo_id.'|'.$f->fecha)
+            ->flip();
+
+        $archivadas = DB::table('omisiones_archivadas')
+            ->select('grupo_id', 'fecha')
+            ->get()
+            ->map(fn ($f) => $f->grupo_id.'|'.Carbon::parse($f->fecha)->toDateString())
+            ->flip();
+
+        $grupos = Grupo::with('promotoria.area', 'promotoria.profesor')
+            ->whereIn('id', $sesiones->keys())
+            ->get()
+            ->keyBy('id');
+
+        $desde = Carbon::parse($periodo->fecha_inicio)->startOfDay();
+        // Hasta AYER: hoy no ha terminado, y quien dicta tiene todo el dia.
+        $hasta = Carbon::today()->subDay();
+        $fin = Carbon::parse($periodo->fecha_fin)->startOfDay();
+
+        if ($fin->lt($hasta)) {
+            $hasta = $fin;
+        }
+
+        $faltantes = collect();
+
+        if ($desde->gt($hasta)) {
+            return $faltantes;
+        }
+
+        foreach ($sesiones as $grupoId => $dias) {
+            $grupo = $grupos->get($grupoId);
+
+            if ($grupo === null) {
+                continue;
+            }
+
+            $fecha = $desde->copy();
+
+            while ($fecha->lte($hasta)) {
+                if (in_array($fecha->dayOfWeekIso, $dias, true)) {
+                    $clave = $grupoId.'|'.$fecha->toDateString();
+
+                    if (! $dictadas->has($clave) && ! $archivadas->has($clave)) {
+                        $faltantes->push([
+                            'grupo' => $grupo,
+                            'fecha' => $fecha->copy(),
+                            'dia' => SesionGrupo::DIAS[$fecha->dayOfWeekIso] ?? '',
+                        ]);
+                    }
+                }
+
+                $fecha->addDay();
+            }
+        }
+
+        // La mas reciente arriba: es la que todavia se puede recuperar hablando
+        // con quien dicta.
+        return $faltantes->sortByDesc(fn ($f) => $f['fecha']->timestamp)->values();
+    }
+
+    /**
+     * Matriculas activas con demasiadas faltas seguidas.
+     *
+     * @return Collection<int, array{matricula: Matricula, faltas: int, desde: Carbon}>
+     */
+    public static function posiblesAbandonos(Periodo $periodo): Collection
+    {
+        $umbral = ConfiguracionInstitucion::actual()->faltas_para_abandono;
+
+        // Todas las marcas del periodo, con la fecha de su clase, en una sola
+        // consulta. Se ordena por fecha DESCENDENTE porque la racha que importa
+        // es la del final: se cuenta hacia atras desde la ultima clase y se para
+        // en cuanto aparece algo que no sea una falta.
+        $marcas = DB::table('asistencias')
+            ->join('clases', 'clases.id', '=', 'asistencias.clase_id')
+            ->where('clases.periodo_id', $periodo->id)
+            ->select('asistencias.matricula_id', 'asistencias.estado', 'clases.fecha_hora')
+            ->orderByDesc('clases.fecha_hora')
+            ->get()
+            ->groupBy('matricula_id');
+
+        $rachas = [];
+
+        foreach ($marcas as $matriculaId => $suyas) {
+            $seguidas = 0;
+            $desde = null;
+
+            foreach ($suyas as $marca) {
+                // La EXCUSA rompe la racha, y es la decision de producto que
+                // hace util a esta alerta: quien avisa de que no puede ir es lo
+                // contrario de quien desaparece sin decir nada.
+                if ($marca->estado !== Asistencia::FALTO) {
+                    break;
+                }
+
+                $seguidas++;
+                $desde = $marca->fecha_hora;
+            }
+
+            if ($seguidas >= $umbral) {
+                $rachas[$matriculaId] = ['faltas' => $seguidas, 'desde' => $desde];
+            }
+        }
+
+        if ($rachas === []) {
+            return collect();
+        }
+
+        // Solo las ACTIVAS: una retirada ya no abandona nada, y una con la
+        // cancelacion pedida ya esta en la bandeja de al lado.
+        /** @var Collection<int, array{matricula: Matricula, faltas: int, desde: Carbon}> $casos */
+        $casos = Matricula::query()
+            ->whereIn('id', array_keys($rachas))
+            ->where('estado', Matricula::ACTIVA)
+            ->with(['estudiante.datosEstudiante.acudiente', 'promotoria.area', 'grupo'])
+            ->get()
+            ->map(fn (Matricula $m) => [
+                'matricula' => $m,
+                'faltas' => $rachas[$m->id]['faltas'],
+                'desde' => Carbon::parse($rachas[$m->id]['desde']),
+            ])
+            ->sortByDesc('faltas')
+            ->values();
+
+        return $casos;
+    }
+}

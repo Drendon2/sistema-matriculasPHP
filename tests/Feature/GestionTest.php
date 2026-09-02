@@ -263,14 +263,21 @@ class GestionTest extends TestCase
         $this->assertSame(Matricula::RETIRADA, $enTramite->fresh()->estado);
     }
 
-    public function test_la_portada_avisa_de_las_cancelaciones_pendientes(): void
+    /**
+     * La ficha de la portada dice cuantas cosas hay esperando.
+     *
+     * Desde el 02/09/2026 se llama «Alertas y cancelaciones» y su cifra cuenta
+     * las TRES cosas de esa bandeja: si contara solo las cancelaciones, diria
+     * «0» teniendo veinte clases sin registrar dentro.
+     */
+    public function test_la_portada_avisa_de_lo_que_hay_por_atender(): void
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
         $this->actingAs($this->director->user)
             ->get(route('gestion-inicio'))
             ->assertOk()
-            ->assertSee('Cancelaciones');
+            ->assertSee('Alertas y cancelaciones');
     }
 
     // -----------------------------------------------------------------------
@@ -1434,6 +1441,7 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa de la Cultura El Santuario',
                 'color_acento' => '#0a7a59',
                 'limite_promotorias_por_periodo' => 3,
+                'faltas_para_abandono' => 5,
                 'promotorias_visibles_para_estudiantes' => 1,
             ])
             ->assertSessionHas('success');
@@ -1455,6 +1463,7 @@ class GestionTest extends TestCase
                 'nombre_institucion' => 'Casa',
                 'color_acento' => '#ffee00',
                 'limite_promotorias_por_periodo' => 2,
+                'faltas_para_abandono' => 5,
             ])
             ->assertSessionHas('success')
             ->assertSessionHas('error');

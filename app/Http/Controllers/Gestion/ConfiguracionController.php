@@ -61,6 +61,11 @@ class ConfiguracionController extends Controller
                 'required', 'integer', 'min:1', 'max:'.ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA,
             ],
             'promotorias_visibles_para_estudiantes' => ['nullable', 'boolean'],
+            'alerta_clase_no_dictada' => ['nullable', 'boolean'],
+            'alerta_abandono' => ['nullable', 'boolean'],
+            // El maximo no es capricho: una racha mas larga que el periodo no
+            // se alcanza nunca y la alerta quedaria apagada sin decirlo.
+            'faltas_para_abandono' => ['required', 'integer', 'min:2', 'max:20'],
         ], [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
         ], [
@@ -119,6 +124,9 @@ class ConfiguracionController extends Controller
         $configuracion->color_acento = strtolower($datos['color_acento']);
         $configuracion->limite_promotorias_por_periodo = $datos['limite_promotorias_por_periodo'];
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');
+        $configuracion->alerta_clase_no_dictada = $request->boolean('alerta_clase_no_dictada');
+        $configuracion->alerta_abandono = $request->boolean('alerta_abandono');
+        $configuracion->faltas_para_abandono = (int) $request->input('faltas_para_abandono');
         $configuracion->save();
 
         $respuesta = redirect()->route('gestion-configuracion')

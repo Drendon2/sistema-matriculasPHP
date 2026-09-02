@@ -475,6 +475,7 @@ class CertificadoTest extends TestCase
             'nombre_institucion' => 'Casa de la Cultura',
             'color_acento' => '#0a7a59',
             'limite_promotorias_por_periodo' => 2,
+            'faltas_para_abandono' => 5,
             'firma' => UploadedFile::fake()->image('firma.png', 600, 200),
             'firmante_nombre' => 'Marta Ruiz',
             'firmante_cargo' => 'Directora',
@@ -499,6 +500,7 @@ class CertificadoTest extends TestCase
             'nombre_institucion' => 'Casa de la Cultura',
             'color_acento' => '#0a7a59',
             'limite_promotorias_por_periodo' => 2,
+            'faltas_para_abandono' => 5,
             'firma' => UploadedFile::fake()->image('firma.png', 600, 200),
         ]);
 
@@ -509,6 +511,7 @@ class CertificadoTest extends TestCase
             'nombre_institucion' => 'Casa de la Cultura',
             'color_acento' => '#0a7a59',
             'limite_promotorias_por_periodo' => 2,
+            'faltas_para_abandono' => 5,
             'quitar_firma' => '1',
         ]);
 
@@ -538,6 +541,7 @@ class CertificadoTest extends TestCase
             'nombre_institucion' => 'Casa de la Cultura',
             'color_acento' => '#0a7a59',
             'limite_promotorias_por_periodo' => 2,
+            'faltas_para_abandono' => 5,
             'firma' => UploadedFile::fake()->image('firma.png', 600, 200),
         ]);
 

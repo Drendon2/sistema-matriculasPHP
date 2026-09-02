@@ -110,6 +110,16 @@ class Perfil extends Model
         return $this->hasMany(EncuestaSatisfaccion::class, 'perfil_id');
     }
 
+    /**
+     * Lo que solo tiene un estudiante: documento, encuesta y acudiente.
+     *
+     * El tipo va ANOTADO por lo mismo que en `Matricula::estudiante()`: sin el,
+     * el analizador ve un `Model` generico y toda la cadena
+     * `estudiante->datosEstudiante->acudiente` sale como propiedad inexistente
+     * en las pantallas que la recorren.
+     *
+     * @return HasOne<DatosEstudiante, $this>
+     */
     public function datosEstudiante(): HasOne
     {
         return $this->hasOne(DatosEstudiante::class, 'perfil_id');

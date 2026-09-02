@@ -31,21 +31,9 @@ parameters:
 			path: app/Console/Commands/Simular.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento_identidad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
-			message: '#^Parameter \#2 \$estudiante of method App\\Http\\Controllers\\CertificadoController\:\:generar\(\) expects App\\Models\\Perfil, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
 			path: app/Http/Controllers/CertificadoController.php
 
 		-
@@ -79,28 +67,10 @@ parameters:
 			path: app/Http/Controllers/ClaseController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$acudiente\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/FichaController.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:documentosFaltantes\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Http/Controllers/FichaController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/Gestion/AreaController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_completo\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Gestion/CancelacionesController.php
 
 		-
 			message: '#^Cannot call method format\(\) on string\.$#'
@@ -277,12 +247,6 @@ parameters:
 			path: app/Http/Controllers/Gestion/GrupoController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$datosEstudiante\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Gestion/GrupoController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 1
@@ -341,24 +305,6 @@ parameters:
 			identifier: catch.neverThrown
 			count: 1
 			path: app/Http/Controllers/Gestion/RecursoController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$acudiente\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Gestion/UsuarioController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Gestion/UsuarioController.php
-
-		-
-			message: '#^Parameter \#3 \$existentes of method App\\Http\\Controllers\\Gestion\\UsuarioController\:\:guardarDatosEstudiante\(\) expects App\\Models\\DatosEstudiante\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/Gestion/UsuarioController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Matricula\:\:\$periodos\.$#'
@@ -427,25 +373,7 @@ parameters:
 			path: app/Http/Controllers/InformeController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$acudiente_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/MatricularController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$autoriza_tratamiento_datos\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$copia_documento\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documentos\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/MiPerfilController.php
@@ -454,12 +382,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fecha_autorizacion\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/MiPerfilController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
 			path: app/Http/Controllers/MiPerfilController.php
 
 		-
@@ -529,21 +451,9 @@ parameters:
 			path: app/Http/Controllers/PanelActividadController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$datosEstudiante\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/PanelController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/PanelController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_completo\.$#'
-			identifier: property.notFound
-			count: 7
 			path: app/Http/Controllers/PanelController.php
 
 		-
@@ -619,18 +529,6 @@ parameters:
 			path: app/Models/DatosEstudiante.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/DatosEstudiante.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:filter\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: bool\)\|null, Closure\(App\\Models\\DocumentoEstudiante\)\: bool given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Models/DatosEstudiante.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between non\-empty\-string and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
@@ -691,19 +589,7 @@ parameters:
 			path: app/Models/Matricula.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$es_menor\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_completo\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Models/Matricula.php
@@ -931,30 +817,6 @@ parameters:
 			path: tests/Feature/EncabezadoTest.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$copia_documento\.$#'
-			identifier: property.notFound
-			count: 2
-			path: tests/Feature/EstudianteTest.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:documentosFaltantes\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: tests/Feature/EstudianteTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$acudiente_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/GestionTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento_identidad\.$#'
-			identifier: property.notFound
-			count: 3
-			path: tests/Feature/GestionTest.php
-
-		-
 			message: '#^Cannot call method toDateString\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 2
@@ -965,12 +827,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: tests/Feature/InformeTest.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento_identidad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: tests/Feature/InscripcionTest.php
 
 		-
 			message: '#^Property Tests\\Feature\\InscripcionTest\:\:\$teatro is never read, only written\.$#'

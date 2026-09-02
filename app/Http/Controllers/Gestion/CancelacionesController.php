@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Gestion;
 
 use App\Http\Controllers\Controller;
+use App\Models\ConfiguracionInstitucion;
 use App\Models\Matricula;
+use App\Models\OmisionArchivada;
+use App\Models\Periodo;
+use App\Support\Alertas;
 use App\Support\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,12 +15,29 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
- * Cancelaciones pedidas por estudiantes y todavia sin resolver.
+ * ALERTAS Y CANCELACIONES: la bandeja de lo que hay que atender.
  *
- * Solo direccion: quien dicta las ve marcadas en su panel, pero no decide.
- * Aprobar retira la matricula de verdad y libera el cupo; rechazar la devuelve a
- * activa, y eso ultimo solo cabe con menores de edad (ver
+ * Nacio para las cancelaciones pedidas por estudiantes y desde el 02/09/2026
+ * lleva ademas dos alertas que NO las pide nadie — las deduce el sistema
+ * cruzando lo que deberia haber pasado con lo que hay registrado:
+ *
+ * - Clases que un grupo tenia en su horario y no se dictaron.
+ * - Estudiantes con demasiadas faltas seguidas, o sea un posible abandono sin
+ *   cancelar la matricula.
+ *
+ * Las tres cosas comparten pantalla porque comparten publico y momento: son lo
+ * que direccion revisa cuando se sienta a ver que hace falta atender. Las dos
+ * alertas se calculan al abrir y no se guardan (ver `Support\Alertas`), y cada
+ * institucion las enciende o las apaga desde Configuracion.
+ *
+ * Solo direccion: quien dicta ve sus cancelaciones marcadas en su panel, pero no
+ * decide. Aprobar retira la matricula de verdad y libera el cupo; rechazar la
+ * devuelve a activa, y eso ultimo solo cabe con menores de edad (ver
  * `Matricula::$cancelacion_es_rechazable`).
+ *
+ * NINGUNA alerta cambia nada por su cuenta. La de abandono trae al lado la
+ * accion de retirar, y la aprieta una persona: retirar libera el cupo y la
+ * ranura, que es una consecuencia sobre quien esta esperando ese cupo.
  */
 class CancelacionesController extends Controller
 {
@@ -29,6 +50,16 @@ class CancelacionesController extends Controller
      * entero de solicitudes que nadie atendio.
      */
     public const POR_PAGINA = 50;
+
+    /**
+     * Cuantas clases no dictadas se enseñan de una vez.
+     *
+     * No se paginan: se archivan, y una lista que se vacia por arriba con la
+     * pagina 2 debajo se lee mal. Se enseñan las mas recientes —que son las que
+     * todavia se pueden recuperar hablando con quien dicta— y se dice cuantas
+     * quedan detras.
+     */
+    public const OMISIONES_VISIBLES = 50;
 
     public function index(): View|RedirectResponse
     {
@@ -63,7 +94,86 @@ class CancelacionesController extends Controller
             return redirect()->route('gestion-cancelaciones', ['page' => $pendientes->lastPage()]);
         }
 
-        return view('gestion.cancelaciones', ['pendientes' => $pendientes]);
+        $config = ConfiguracionInstitucion::actual();
+        $periodo = Periodo::enCurso();
+
+        // Sin periodo en curso no hay nada que cruzar: ni horario que mirar ni
+        // clases que buscar. Las dos alertas se apagan solas.
+        $omisiones = ($config->alerta_clase_no_dictada && $periodo)
+            ? Alertas::clasesNoDictadas($periodo)
+            : collect();
+
+        return view('gestion.cancelaciones', [
+            'pendientes' => $pendientes,
+            // Se enseñan las mas recientes y se dice cuantas hay. En la base de
+            // desarrollo salieron 596 de golpe —un periodo desde enero con 26
+            // grupos y 41 clases registradas—, y una tabla de 596 filas no es
+            // una bandeja de trabajo: es un muro. Las recientes son ademas las
+            // unicas que todavia se pueden recuperar hablando con quien dicta.
+            'clasesNoDictadas' => $omisiones->take(self::OMISIONES_VISIBLES),
+            'omisionesTotales' => $omisiones->count(),
+            'abandonos' => ($config->alerta_abandono && $periodo)
+                ? Alertas::posiblesAbandonos($periodo)
+                : collect(),
+            'periodo' => $periodo,
+        ]);
+    }
+
+    /**
+     * Archiva una clase no dictada: «ya lo hable con quien dicta».
+     *
+     * Es lo UNICO que se guarda de las alertas, y es porque esta no se arregla
+     * nunca: el martes 12 ya paso. Sin archivar, la bandeja arrastraria el
+     * periodo entero y dejaria de servir para ver lo que falta por atender.
+     *
+     * `updateOrCreate` y no `create`: dos personas pueden archivar la misma
+     * desde dos pestañas, y la clave unica (grupo, fecha) haria fallar la
+     * segunda. Que gane la ultima es exactamente lo que se quiere.
+     */
+    public function archivarOmision(Request $request): RedirectResponse
+    {
+        $datos = $request->validate([
+            'grupo_id' => ['required', 'exists:grupos,id'],
+            'fecha' => ['required', 'date'],
+        ]);
+
+        OmisionArchivada::updateOrCreate(
+            ['grupo_id' => $datos['grupo_id'], 'fecha' => $datos['fecha']],
+            ['archivada_por_id' => auth()->user()?->perfil?->id],
+        );
+
+        return $this->volver('Aviso archivado.', exito: true);
+    }
+
+    /**
+     * Retira la matricula de quien dejo de venir.
+     *
+     * Es la misma consecuencia que aprobar una cancelacion —la matricula queda
+     * retirada y el cupo se libera— pero por un camino distinto: aqui nadie
+     * pidio salirse. Por eso queda en la auditoria: es una salida que decidio
+     * la institucion, no el estudiante, y de esas conviene saber quien y cuando.
+     */
+    public function retirarPorAbandono(Matricula $matricula): RedirectResponse
+    {
+        abort_unless($matricula->estado === Matricula::ACTIVA, 404);
+
+        $nombre = $matricula->estudiante->nombre_completo;
+        $promotoria = $matricula->promotoria;
+
+        $matricula->estado = Matricula::RETIRADA;
+        $matricula->grupo_id = null;
+        $matricula->save();
+
+        Auditoria::registrar('matricula.retirada_por_abandono', [
+            'matricula_id' => $matricula->id,
+            'estudiante_id' => $matricula->estudiante_id,
+            'promotoria_id' => $matricula->promotoria_id,
+        ], auth()->user()?->perfil);
+
+        return $this->volver(
+            "{$nombre} quedó retirado de {$promotoria}. Su cupo vuelve a estar libre.",
+            exito: true
+        );
     }
 
     public function resolver(Matricula $matricula, string $decision): RedirectResponse

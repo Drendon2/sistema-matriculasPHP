@@ -1,12 +1,32 @@
 @extends('layouts.app')
 
-@section('title', 'Cancelaciones')
+@section('title', 'Alertas y cancelaciones')
 
 @section('content')
-<a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
-<h2>Cancelaciones por resolver</h2>
+{{--
+  LA BANDEJA DE LO QUE HAY QUE ATENDER.
 
-<p class="campo-info" style="margin-top:-0.8rem;">
+  Eran solo las cancelaciones. Desde el 02/09/2026 lleva además dos alertas que
+  no las pide nadie: el sistema las deduce cruzando lo que debería haber pasado
+  con lo que hay registrado. Comparten pantalla porque comparten público y
+  momento — es lo que dirección revisa cuando se sienta a ver qué falta.
+
+  Las cancelaciones van PRIMERO y las alertas debajo, y ese orden no es
+  alfabético: una cancelación es alguien esperando una respuesta que solo puede
+  dar dirección, y mientras tanto ocupa un cupo. Una alerta es información.
+--}}
+<a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
+<h2>Alertas y cancelaciones</h2>
+
+@if ($periodo)
+  <p class="campo-ayuda" style="margin-bottom:1.4rem;">
+    Las alertas se calculan sobre <strong>{{ $periodo->nombre }}</strong>, el periodo en
+    curso. Se encienden y se apagan en Gestión → Institución.
+  </p>
+@endif
+
+<h3>Cancelaciones por resolver</h3>
+<p class="campo-ayuda" style="margin-bottom:1rem;">
   Mientras una cancelación esté aquí, el estudiante <strong>sigue matriculado</strong> y su
   cupo sigue ocupado. Aprobarla lo retira y libera el cupo.
 </p>
@@ -121,6 +141,141 @@
 </table>
 </div>
 {{ $pendientes->links() }}
+@endif
+
+{{--
+  ALERTA 1: las clases que un grupo tenía en su horario y no se dictaron.
+
+  No se pueden arreglar —el martes 12 ya pasó— así que la acción es archivar:
+  «ya hablé con quien dicta». Es lo único de esta pantalla que se guarda.
+
+  `.tabla-personas` porque bajo 640px esto tiene que dejar de ser tabla: la
+  acción quedaría al otro lado de un arrastre.
+--}}
+<h3 style="margin-top:2.4rem;">Clases que no se dictaron</h3>
+<p class="campo-ayuda" style="margin-bottom:1rem;">
+  El grupo tenía clase ese día y nadie la registró. Quien dicta tiene todo el día
+  para iniciarla y pasar lista; esto aparece al día siguiente.
+  @if ($omisionesTotales > $clasesNoDictadas->count())
+    <br><strong>Hay {{ $omisionesTotales }} en total</strong> y se muestran las
+    {{ $clasesNoDictadas->count() }} más recientes; las demás van apareciendo a
+    medida que archives estas.
+  @endif
+</p>
+
+@if ($clasesNoDictadas->isEmpty())
+  <p class="vacio">
+    @if ($periodo)
+      Ninguna clase quedó sin registrar en {{ $periodo->nombre }}.
+    @else
+      Ningún periodo está en curso, así que no hay horario que revisar.
+    @endif
+  </p>
+@else
+<table class="tabla-personas tabla-catalogo">
+  <thead>
+    <tr>
+      <th>Grupo</th>
+      <th>Día</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    @foreach ($clasesNoDictadas as $falta)
+    <tr>
+      <td data-celda="detalle">
+        {{-- `nombre_con_nivel` y no `rotulo_breve`: ese trae ademas el horario
+             semanal, y aqui al lado va la fecha concreta. «Martes 4:00 p.m. ·
+             Martes 30/06» dice dos veces lo mismo. --}}
+        <span class="tag-dot {{ $falta['grupo']->promotoria->area->tag_color }}"></span><span class="lista-nombre">{{ $falta['grupo']->nombre_con_nivel }}</span>
+        <span class="lista-nota lista-nota-bloque">
+          {{ $falta['grupo']->promotoria->nombre }} ·
+          @if ($falta['grupo']->promotoria->profesor)
+            {{ $falta['grupo']->promotoria->profesor->nombre_completo }}
+          @else
+            Sin profesor asignado
+          @endif
+        </span>
+      </td>
+      <td data-label="Día">
+        {{ $falta['dia'] }} {{ $falta['fecha']->format('d/m/Y') }}
+      </td>
+      <td data-celda="accion" class="lista-acciones">
+        <span class="accion-fila">
+          <form method="post" action="{{ route('gestion-archivar-omision') }}">
+            @csrf
+            <input type="hidden" name="grupo_id" value="{{ $falta['grupo']->id }}">
+            <input type="hidden" name="fecha" value="{{ $falta['fecha']->toDateString() }}">
+            <button type="submit" class="btn btn-blanco btn-sm">Archivar</button>
+          </form>
+        </span>
+      </td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
+@endif
+
+{{--
+  ALERTA 2: quien lleva demasiadas faltas seguidas sin excusa.
+
+  Desaparece sola en cuanto el estudiante vuelve o alguien retira su matrícula,
+  así que no hay nada que archivar. La acción retira de verdad: libera el cupo y
+  la ranura, y por eso la aprieta una persona y no el sistema.
+--}}
+<h3 style="margin-top:2.4rem;">Posibles abandonos</h3>
+<p class="campo-ayuda" style="margin-bottom:1rem;">
+  Faltas seguidas <strong>sin excusa</strong> a las últimas clases de su grupo. Una
+  excusa corta la racha. Nadie queda retirado hasta que alguien lo decida aquí.
+</p>
+
+@if ($abandonos->isEmpty())
+  <p class="vacio">Nadie acumula faltas suficientes ahora mismo.</p>
+@else
+<table class="tabla-personas tabla-catalogo">
+  <thead>
+    <tr>
+      <th>Estudiante</th>
+      <th>Promotoría</th>
+      <th class="num">Faltas</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    @foreach ($abandonos as $caso)
+    @php($m = $caso['matricula'])
+    <tr>
+      <td data-celda="detalle">
+        <span class="lista-nombre"><a href="{{ route('detalle-estudiante', $m->estudiante) }}">{{ $m->estudiante->nombre_completo }}</a></span>
+        @if ($m->estudiante->datosEstudiante?->acudiente)
+          <span class="lista-nota lista-nota-bloque">
+            Acudiente: {{ $m->estudiante->datosEstudiante->acudiente->nombre_completo }}
+            · {{ $m->estudiante->datosEstudiante->acudiente->telefono }}
+          </span>
+        @elseif ($m->estudiante->telefono)
+          <span class="lista-nota lista-nota-bloque">Teléfono: {{ $m->estudiante->telefono }}</span>
+        @endif
+      </td>
+      <td data-label="Promotoría">
+        <span class="tag-dot {{ $m->promotoria->area->tag_color }}"></span>{{ $m->promotoria->nombre }}
+        @if ($m->grupo)<span class="lista-nota"> · {{ $m->grupo->rotulo_breve }}</span>@endif
+      </td>
+      <td class="num" data-label="Faltas">
+        {{ $caso['faltas'] }}
+        <span class="lista-nota lista-nota-bloque">desde el {{ $caso['desde']->format('d/m/Y') }}</span>
+      </td>
+      <td data-celda="accion" class="lista-acciones">
+        <span class="accion-fila">
+          <form method="post" action="{{ route('gestion-retirar-abandono', $m) }}">
+            @csrf
+            <button type="submit" class="btn btn-retirar btn-sm">Retirar la matrícula</button>
+          </form>
+        </span>
+      </td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
 @endif
 @endsection
 

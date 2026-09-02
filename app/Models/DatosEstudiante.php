@@ -32,11 +32,21 @@ class DatosEstudiante extends Model
         return $this->belongsTo(Perfil::class);
     }
 
+    /** @return BelongsTo<Acudiente, $this> */
     public function acudiente(): BelongsTo
     {
         return $this->belongsTo(Acudiente::class);
     }
 
+    /**
+     * Las copias de documento entregadas.
+     *
+     * Anotada por lo mismo que sus vecinas: sin el tipo, cada `filter()` o
+     * `first()` sobre esta coleccion se lee como si trajera `Model` a secas y
+     * el cierre tipado de al lado no cuadra.
+     *
+     * @return HasMany<DocumentoEstudiante, $this>
+     */
     public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoEstudiante::class, 'datos_estudiante_id');

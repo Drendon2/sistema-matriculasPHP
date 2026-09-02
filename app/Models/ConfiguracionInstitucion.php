@@ -52,6 +52,9 @@ class ConfiguracionInstitucion extends Model
         'color_acento',
         'limite_promotorias_por_periodo',
         'promotorias_visibles_para_estudiantes',
+        'alerta_clase_no_dictada',
+        'alerta_abandono',
+        'faltas_para_abandono',
     ];
 
     /**
@@ -76,6 +79,16 @@ class ConfiguracionInstitucion extends Model
         'color_acento' => '#0a7a59',
         'limite_promotorias_por_periodo' => 2,
         'promotorias_visibles_para_estudiantes' => true,
+        // Las tres de las alertas van AQUI y no solo en la migracion, como
+        // todas sus vecinas: `actual()` crea la fila con `firstOrCreate` y esa
+        // instancia NO relee lo que la base puso por defecto. Sin esta linea,
+        // una instalacion recien migrada devolvia null en las tres — los dos
+        // interruptores se leian como apagados y el umbral como cero, o sea
+        // que las alertas salian apagadas y, si alguien las encendia, la de
+        // abandono avisaba de todo el mundo.
+        'alerta_clase_no_dictada' => true,
+        'alerta_abandono' => true,
+        'faltas_para_abandono' => 5,
     ];
 
     protected function casts(): array
@@ -83,6 +96,9 @@ class ConfiguracionInstitucion extends Model
         return [
             'limite_promotorias_por_periodo' => 'integer',
             'promotorias_visibles_para_estudiantes' => 'boolean',
+            'alerta_clase_no_dictada' => 'boolean',
+            'alerta_abandono' => 'boolean',
+            'faltas_para_abandono' => 'integer',
         ];
     }
 

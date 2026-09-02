@@ -44,17 +44,21 @@
       que es, y con seis fichas que ahora empiezan todas por su nombre, esa era
       la unica que empezaba por otra cosa. A la derecha se sigue viendo de lejos,
       que es para lo que esta.
+
+      Y cuenta las TRES cosas de la bandeja. Con solo las cancelaciones, la
+      ficha diria «0» teniendo veinte clases sin registrar dentro.
     --}}
+    @php($porAtender = $cancelacionesPendientes + $alertasPendientes)
     <span class="tarjeta-titulo">
-      Cancelaciones
-      @if ($cancelacionesPendientes)<span class="num">{{ $cancelacionesPendientes }}</span>@endif
+      Alertas y cancelaciones
+      @if ($porAtender)<span class="num">{{ $porAtender }}</span>@endif
     </span>
     <span class="tarjeta-nota">
-      @if ($cancelacionesPendientes)
-        {{ $cancelacionesPendientes == 1 ? 'Una persona pidió' : 'Personas que pidieron' }}
-        salirse y {{ $cancelacionesPendientes == 1 ? 'espera' : 'esperan' }} respuesta.
+      @if ($porAtender)
+        Quien pidió salirse, las clases que no se dictaron y los posibles
+        abandonos.
       @else
-        Quien pide salirse de una promotoría espera aquí. Ahora mismo no hay nadie.
+        Aquí espera lo que hay que atender. Ahora mismo no hay nada.
       @endif
     </span>
   </a>

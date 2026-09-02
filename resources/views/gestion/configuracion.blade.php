@@ -168,6 +168,59 @@
 
     </fieldset>
 
+    {{--
+      Las alertas van en su propio grupo, y no sueltas con las de arriba: son
+      avisos que el sistema DEDUCE, no reglas que cambien lo que la gente puede
+      hacer. Apagarlas no cambia ninguna matrícula ni ningún cupo; solo deja de
+      mirar. Por eso también se pueden apagar: hay instituciones que llevan la
+      asistencia en papel y para las que estos avisos serían ruido.
+    --}}
+    <fieldset class="config-seccion">
+      <legend class="config-seccion-titulo">Alertas</legend>
+
+      <div class="config-campo">
+        <label class="config-interruptor">
+          <input type="checkbox" name="alerta_clase_no_dictada" value="1"
+                 @checked(old('alerta_clase_no_dictada', $institucion->alerta_clase_no_dictada))>
+          <span class="config-etiqueta">Avisar de las clases que no se dictaron</span>
+        </label>
+        <p class="config-ayuda">
+          Si un grupo tenía clase el martes y nadie la registró, aparece en
+          <strong>Alertas y cancelaciones</strong> al día siguiente. Quien dicta
+          tiene todo el día para iniciarla y pasar lista.
+        </p>
+      </div>
+
+      <div class="config-campo">
+        <label class="config-interruptor">
+          <input type="checkbox" name="alerta_abandono" value="1"
+                 @checked(old('alerta_abandono', $institucion->alerta_abandono))>
+          <span class="config-etiqueta">Avisar de posibles abandonos</span>
+        </label>
+        <p class="config-ayuda">
+          Un estudiante que falta varias clases seguidas sin excusa aparece en la
+          misma pantalla. <strong>No se retira a nadie solo</strong>: el aviso
+          trae la acción al lado y la decide dirección.
+        </p>
+      </div>
+
+      <div class="config-campo">
+        <label class="config-etiqueta" for="faltas_para_abandono">
+          Faltas seguidas para avisar
+        </label>
+        <input type="number" name="faltas_para_abandono" id="faltas_para_abandono"
+               min="2" max="20" required style="max-width:8rem;"
+               value="{{ old('faltas_para_abandono', $institucion->faltas_para_abandono) }}">
+        @error('faltas_para_abandono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+        <p class="config-ayuda">
+          Solo cuentan las faltas <strong>sin excusa</strong>: una excusa corta la
+          racha, porque avisar de que no se puede ir es lo contrario de
+          desaparecer. El número justo depende de cada cuánto se ve el grupo — uno
+          que se reúne una vez por semana no aguanta lo mismo que uno de tres.
+        </p>
+      </div>
+    </fieldset>
+
     <button type="submit" class="btn">Guardar</button>
   </form>
 </div>
