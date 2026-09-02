@@ -1180,6 +1180,7 @@
      es donde de verdad se pulsan. Lo que se rebajo es el peso en la fila, no el
      area de toque de la accion. */
   .menu-fila-panel a,
+  .menu-fila-panel button,
   .menu-fila-panel .menu-fila-inerte {
     display: flex; align-items: center;
     min-height: 44px; padding: 0 0.8rem;
@@ -1187,7 +1188,17 @@
     font-size: 0.9rem; font-weight: 600; text-decoration: none;
     color: var(--ink); white-space: nowrap;
   }
-  .menu-fila-panel a:hover { background: var(--surface-alt); }
+  .menu-fila-panel a:hover,
+  .menu-fila-panel button:hover { background: var(--surface-alt); }
+  /* Lo que cambia datos es un formulario: «Desactivar» apaga una cuenta, y un
+     GET que cambia algo lo dispara cualquier cosa que precargue enlaces. Desde
+     fuera tiene que verse igual que las demas opciones, asi que el formulario
+     no ocupa sitio y el boton pierde su forma de boton. */
+  .menu-fila-panel form { margin: 0; display: contents; }
+  .menu-fila-panel button {
+    width: 100%; border: none; background: none; cursor: pointer;
+    font-family: var(--font-body); text-align: left;
+  }
   /* El rojo vive AQUI dentro y no en la fila. En la fila era lo que mas tiraba
      del ojo en una pantalla donde borrar es lo que menos se hace; en el menu es
      donde hace falta, que es el momento de elegir.
@@ -1774,12 +1785,18 @@
        medio, uno de ellos el borrado. Aquí toman la forma del botón blanco que
        ya tienen sus vecinos, sin tocar el escritorio.
 
-       Va sobre los hijos DIRECTOS de `.accion-fila` y no sobre cualquier enlace
-       de la celda: dentro de la celda tambien vive el panel del menu de fila, y
-       sus opciones ya tienen su propia forma. Sin acotarlo, «Editar» salia ahi
-       dentro con recuadro de boton y «Eliminar» sin el. */
-    .tabla-personas td[data-celda="accion"] > .accion-fila > a:not(.btn),
-    .tabla-personas td[data-celda="accion"] > .accion-fila > .accion-inerte {
+       Lo que se excluye es el panel del MENU de fila, cuyas opciones ya tienen su
+       propia forma: sin eso, «Editar» salia ahi dentro con recuadro de boton.
+
+       Y se excluye por el padre y NO exigiendo `.accion-fila`, que fue el primer
+       intento y costo una regresion: en el Panel los enlaces cuelgan directos
+       del `<td>` —`<td data-celda="accion"><a>Ver detalle</a></td>`— asi que
+       pedir ese envoltorio los dejo en 67x22px en el telefono. No lo vio nadie
+       porque el cuerpo de una promotoria se carga por `fetch` y las pantallas
+       que se estaban midiendo no lo traian. */
+    .tabla-personas td[data-celda="accion"] :not(.menu-fila-panel) > a:not(.btn),
+    .tabla-personas td[data-celda="accion"] > a:not(.btn),
+    .tabla-personas td[data-celda="accion"] :not(.menu-fila-panel) > .accion-inerte {
       flex: 1 1 auto;
       display: inline-flex; align-items: center; justify-content: center;
       min-height: 44px; padding: 0.5rem 0.9rem;
@@ -1852,7 +1869,8 @@
       margin: 0; padding: 0; border-top: none; width: auto;
     }
     /* Sitio para el menu, para que el nombre no pase por debajo. */
-    .tabla-menu-esquina td[data-celda="detalle"] { padding-right: 2.6rem; }
+    .tabla-menu-esquina td[data-celda="detalle"],
+    .tabla-menu-esquina td[data-celda="nombre"] { padding-right: 2.6rem; }
     /* En la otra, el boton visible y el menu COMPARTEN el renglon del final.
        Sin esto el formulario se lleva el ancho entero —lo pide la regla general
        de la ficha— y el menu cae debajo, solo, a la izquierda y con medio

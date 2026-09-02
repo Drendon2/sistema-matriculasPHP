@@ -202,7 +202,7 @@
   acciones estaban escondidas desde antes de que existiera «Eliminar». Se vio
   abriendo la página en un ancho de teléfono; ninguna prueba lo miraba.
 --}}
-<table class="tabla-personas">
+<table class="tabla-personas tabla-menu-esquina">
   <thead>
     <tr>
       <th>Nombre</th>
@@ -281,45 +281,58 @@
         directiva pegada a una letra.
       --}}
       @php($puedeTocarla = \App\Support\Permisos::puedeEditarUsuario($yo, $perfil))
-      <td data-celda="accion" class="lista-acciones">
-        <span class="accion-fila">
-        @if ($puedeTocarla)
-        <a href="{{ route('usuario-editar', $perfil) }}">Editar</a>
-        @endif
-        @if ($puedeTocarla && $perfil->user_id !== auth()->id())
-        <form action="{{ route('usuario-alternar-activo', $perfil) }}" method="post" style="display:inline;">
-          @csrf
-          @if ($perfil->user->activo)
-            <button type="submit" class="btn btn-retirar btn-sm">Desactivar</button>
-          @else
-            <button type="submit" class="btn btn-sm">Activar</button>
-          @endif
-        </form>
-        @endif
-        {{--
-          «Eliminar» solo lo ve el administrador, y solo está VIVO cuando de
-          verdad se puede borrar. Es la misma regla que la lista de catálogos:
-          con el enlace rojo siempre puesto, la única forma de enterarse de que
-          una cuenta está protegida era pulsarlo y que te lo negaran.
+      {{--
+        Las tres acciones, en el menú de la fila.
 
-          El conteo que decide viene con la consulta de la página, no se
-          pregunta aquí: `Dependencias::estaBloqueado` usa lo que `withCount()`
-          ya trajo.
+        Antes iban sueltas, y en el teléfono eran el 45% del alto de cada ficha:
+        dos botones a ancho completo y uno corto, con el borrado en rojo tirando
+        del ojo. A esta pantalla se viene sobre todo a BUSCAR a alguien y a
+        asignarle rol; desactivar y eliminar son de vez en cuando.
 
-          Es un enlace y no un botón: lleva a la pantalla de confirmación, que es
-          la que pide la contraseña. Nada de este listado borra nada.
-        --}}
-        @if ($soyAdministrador && $puedeTocarla && $perfil->user_id !== auth()->id())
-          @if (\App\Support\Dependencias::estaBloqueado($perfil))
-            <span class="accion-inerte"
-                  title="No se puede eliminar: tiene historial en el sistema. Desactívala en su lugar.">
-              Eliminar
-            </span>
-          @else
-            <a href="{{ route('usuario-eliminar', $perfil) }}" style="color:var(--danger);" data-modal>Eliminar</a>
-          @endif
-        @endif
-        </span>
+        Cada una puede no estar: a la cuenta de uno mismo no se le hace nada
+        desde aquí, y la de un administrador solo la toca otro. Si no queda
+        ninguna, el parcial no pinta ni el botón.
+      --}}
+      <td data-celda="accion" class="lista-acciones lista-acciones-menu">
+        @include('partials.menu-fila', [
+            'etiqueta' => $perfil->nombre_completo,
+            'opciones' => [
+                $puedeTocarla
+                    ? ['texto' => 'Editar', 'url' => route('usuario-editar', $perfil)]
+                    : null,
+                {{-- Cambia datos: formulario y no enlace. Ver el parcial. --}}
+                ($puedeTocarla && $perfil->user_id !== auth()->id())
+                    ? [
+                        'texto' => $perfil->user->activo ? 'Desactivar' : 'Activar',
+                        'url' => route('usuario-alternar-activo', $perfil),
+                        'post' => true,
+                    ]
+                    : null,
+                {{--
+                  «Eliminar» solo lo ve el administrador, y solo está VIVO
+                  cuando de verdad se puede borrar: con la opción siempre
+                  encendida, la única forma de enterarse de que una cuenta está
+                  protegida era pulsarla y que te lo negaran. El conteo que
+                  decide viene con la consulta de la página —`estaBloqueado` usa
+                  lo que `withCount()` ya trajo—, no se pregunta aquí.
+
+                  Es un enlace y no un formulario aunque borre: lleva a la
+                  confirmación, que es la que pide la contraseña. Nada de este
+                  listado borra nada por sí mismo.
+                --}}
+                ($soyAdministrador && $puedeTocarla && $perfil->user_id !== auth()->id())
+                    ? [
+                        'texto' => 'Eliminar',
+                        'url' => \App\Support\Dependencias::estaBloqueado($perfil)
+                            ? null
+                            : route('usuario-eliminar', $perfil),
+                        'modal' => true,
+                        'borrar' => true,
+                        'porque' => 'Tiene historial en el sistema. Desactívala en su lugar.',
+                    ]
+                    : null,
+            ],
+        ])
       </td>
     </tr>
     @endforeach

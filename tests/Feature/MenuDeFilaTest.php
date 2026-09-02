@@ -73,6 +73,26 @@ class MenuDeFilaTest extends TestCase
         ]);
     }
 
+    /**
+     * El HTML del panel que contiene esa marca.
+     *
+     * Hace falta porque el PRIMER menu de Usuarios puede ser el de la cuenta
+     * propia, que solo trae «Editar»: a uno mismo no se le desactiva ni se le
+     * borra desde el listado.
+     */
+    private function panelCon(string $html, string $marca): string
+    {
+        $donde = strpos($html, $marca);
+        $this->assertNotFalse($donde, "No aparece «{$marca}» en la pantalla.");
+
+        $ini = strrpos(substr($html, 0, $donde), 'menu-fila-panel');
+        $this->assertNotFalse($ini, "«{$marca}» no está dentro de ningún menú.");
+
+        $fin = strpos($html, '</div>', $ini);
+
+        return substr($html, $ini, $fin - $ini);
+    }
+
     /** El HTML del panel del primer menu de la pagina. */
     private function panel(string $html): string
     {
@@ -197,11 +217,12 @@ class MenuDeFilaTest extends TestCase
     // -----------------------------------------------------------------------
 
     /**
-     * Sin JavaScript el menu se abre igual y sus opciones llevan a una URL de
-     * verdad: son enlaces, no botones que llame un guion. Es la misma regla que
-     * el modal de confirmacion, que tambien sigue siendo una pagina.
+     * Sin JavaScript el menu se abre igual y sus opciones siguen funcionando:
+     * cada una es un enlace a una URL de verdad o un formulario que envia. Nada
+     * de esto depende de un guion, que es la misma regla del modal de
+     * confirmacion.
      */
-    public function test_las_opciones_son_enlaces_de_verdad(): void
+    public function test_las_opciones_no_dependen_de_javascript(): void
     {
         $html = $this->actingAs($this->admin->user)
             ->get(route('gestion-programas'))->assertOk()->getContent();
@@ -209,6 +230,82 @@ class MenuDeFilaTest extends TestCase
         $panel = $this->panel($html);
 
         $this->assertStringContainsString('<a href=', $panel);
+        // Un boton solo vale dentro de un formulario que envie de verdad.
         $this->assertStringNotContainsString('<button', $panel);
+    }
+
+    // -----------------------------------------------------------------------
+    // Usuarios
+
+    /**
+     * Las tres acciones de un usuario tambien pasan al menu (01/09/2026). Ahi el
+     * bloque de acciones era el 45% del alto de cada ficha en el telefono: dos
+     * botones a ancho completo y uno corto, con el borrado en rojo tirando del
+     * ojo. A esa pantalla se viene sobre todo a buscar a alguien y a asignarle
+     * rol.
+     */
+    public function test_las_acciones_de_un_usuario_van_en_el_menu(): void
+    {
+        $otro = $this->crearPerfil('otro', 'profesor');
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-lista'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('tabla-menu-esquina', $html);
+
+        $panel = $this->panelCon($html, route('usuario-editar', $otro));
+        $this->assertStringContainsString('Editar', $panel);
+        $this->assertStringContainsString('Desactivar', $panel);
+        $this->assertStringContainsString('Eliminar', $panel);
+    }
+
+    /**
+     * «Desactivar» apaga una cuenta, asi que es un FORMULARIO y no un enlace. Un
+     * GET que cambia algo lo dispara cualquier cosa que precargue enlaces —un
+     * antivirus, el propio navegador— sin que nadie haya pulsado nada.
+     */
+    public function test_desactivar_es_un_formulario_y_no_un_enlace(): void
+    {
+        $otro = $this->crearPerfil('otro', 'profesor');
+        $accion = route('usuario-alternar-activo', $otro);
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-lista'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<form method="post" action="'.$accion.'"', $html);
+        $this->assertStringNotContainsString('<a href="'.$accion.'"', $html);
+    }
+
+    /**
+     * A la cuenta de uno mismo no se le hace nada desde el listado: ni
+     * desactivar ni borrar. Queda «Editar», asi que el menu si se pinta.
+     */
+    public function test_a_uno_mismo_no_se_le_ofrece_ni_desactivar_ni_borrar(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-lista', ['buscar' => 'Admin']))->assertOk()->getContent();
+
+        $panel = $this->panel($html);
+        $this->assertStringContainsString('Editar', $panel);
+        $this->assertStringNotContainsString('Eliminar', $panel);
+        $this->assertStringNotContainsString('Desactivar', $panel);
+    }
+
+    /**
+     * Y cuando NO queda ninguna, el menu no se pinta: un botón que se abre vacío
+     * es peor que no tenerlo.
+     *
+     * El caso real es un director mirando la ficha de un administrador — esa
+     * cuenta solo la toca otro administrador, así que no hay nada que ofrecer.
+     */
+    public function test_sin_acciones_no_se_pinta_el_menu(): void
+    {
+        $director = $this->crearPerfil('dire', 'director');
+
+        $html = $this->actingAs($director->user)
+            ->get(route('usuario-lista', ['buscar' => 'Admin']))->assertOk()->getContent();
+
+        $this->assertStringContainsString($this->admin->nombre_completo, $html);
+        $this->assertStringNotContainsString('menu-fila', $html);
     }
 }

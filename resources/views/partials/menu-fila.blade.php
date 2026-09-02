@@ -11,11 +11,22 @@
     texto ..... lo que se lee
     url ....... a dónde lleva; si falta, la opción sale APAGADA
     modal ..... si se abre en el modal de `acciones.js`
+    post ...... si CAMBIA datos: entonces es un formulario y no un enlace
     borrar .... si es la acción destructiva (se pinta en rojo)
     porque .... el `title` de una opción apagada, que dice por qué no se puede
 
   Y `$etiqueta`, para que un lector de pantalla no oiga «botón» catorce veces
   seguidas sin saber de cuál fila es.
+
+  LO QUE CAMBIA DATOS VA EN UN FORMULARIO, no en un enlace, y no es purismo:
+  «Desactivar» de Usuarios apaga una cuenta. Un GET que cambia algo lo dispara
+  cualquier cosa que precargue enlaces — un antivirus, el propio navegador— sin
+  que nadie haya pulsado nada. Se ve igual que las demás opciones porque desde
+  fuera es lo mismo: una cosa de la lista que se puede hacer.
+
+  Si no hay ninguna opción no se pinta nada: un menú que se abre vacío es peor
+  que no tenerlo. Pasa en la fila de uno mismo, que no se puede ni desactivar ni
+  borrar.
 
   Es un `<details>` nativo: llega con el teclado, lo anuncian los lectores de
   pantalla y funciona sin JavaScript. Y NO lleva `id` a propósito — `acciones.js`
@@ -23,6 +34,9 @@
   lista tras una acción lo devuelve cerrado, que es lo que uno espera y evita
   que quede abierto sobre una fila recién borrada.
 --}}
+@php($lasOpciones = array_values(array_filter($opciones)))
+
+@if ($lasOpciones)
 <details class="menu-fila">
   <summary class="menu-fila-boton" title="Acciones" aria-label="Acciones de {{ $etiqueta }}">
     {{-- Tres puntos dibujados, no el carácter «⋮»: el sistema tiene sus iconos
@@ -34,11 +48,16 @@
     </svg>
   </summary>
   <div class="menu-fila-panel">
-    @foreach ($opciones as $opcion)
+    @foreach ($lasOpciones as $opcion)
       @if (empty($opcion['url']))
         {{-- Apagada y a la vista, no escondida: si desapareciera, enterarse de
              que algo está protegido exigiría pulsarla y que te lo nieguen. --}}
         <span class="menu-fila-inerte" title="{{ $opcion['porque'] ?? '' }}">{{ $opcion['texto'] }}</span>
+      @elseif (! empty($opcion['post']))
+        <form method="post" action="{{ $opcion['url'] }}">
+          @csrf
+          <button type="submit" @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])>{{ $opcion['texto'] }}</button>
+        </form>
       @else
         <a href="{{ $opcion['url'] }}"
            @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])
@@ -47,3 +66,4 @@
     @endforeach
   </div>
 </details>
+@endif
