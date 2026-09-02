@@ -37,16 +37,18 @@
 @else
 {{--
   `.tabla-personas` no es solo para personas: es la lista de REGISTROS que bajo
-  640px deja de ser tabla y pasa a ser una ficha por fila. Aquí hace falta por lo
-  de siempre —las acciones—: «Editar» y «Eliminar» eran dos enlaces de texto de
-  20px de alto, pegados con un punto en medio, y uno de ellos borra. En la ficha
-  son dos botones a ancho completo, uno debajo del otro.
+  640px deja de ser tabla y pasa a ser una ficha por fila.
+
+  Las acciones van en un menú (`.menu-fila`), no sueltas en la fila: no son lo
+  que se viene a hacer a un catálogo, y puestas a la vista eran lo único
+  pulsable de cada fila. `.tabla-menu` es lo que en el teléfono pega ese menú
+  arriba a la derecha de la ficha, junto al nombre.
 
   `.tabla-catalogo` encima porque esta fila no son campos etiquetados sino una
   frase, y su primera celda tiene que fluir como texto. No es una rejilla: la
   posición de la celda no es el dato, así que la regla del DESIGN.md se cumple.
 --}}
-<table class="tabla-personas tabla-catalogo">
+<table class="tabla-personas tabla-catalogo tabla-menu-esquina">
   <tbody>
     @foreach ($objetos as $fila)
     @php($obj = $fila['objeto'])
@@ -80,26 +82,27 @@
         </span>
         @endif
       </td>
-      <td data-celda="accion" class="lista-acciones">
-        <span class="accion-fila">
-        <a href="{{ route($ruta_editar, $obj) }}" @if ($abreEnModal) data-modal @endif>Editar</a>
-        <span class="accion-sep">&nbsp;·&nbsp;</span>
-        {{--
-          Lo que se cuenta al lado del nombre (grupos, estudiantes activos) no es
-          lo que impide borrar: «Títeres — 0 grupos» se lee como vacía y resulta
-          que sostiene diecinueve matrículas, retiradas incluidas. Con el enlace
-          en rojo ahí puesto, la única forma de enterarse era pulsarlo y que te
-          lo negaran. Aquí ya no es un enlace, y dice por qué.
-        --}}
-        @if ($fila['protegido'])
-          <span class="accion-inerte"
-                title="No se puede eliminar: tiene {{ $fila['protegido'] }} {{ $etiquetaProtegido }} en su historial.">
-            Eliminar
-          </span>
-        @else
-          <a href="{{ route($ruta_eliminar, $obj) }}" style="color:var(--danger);" data-modal>Eliminar</a>
-        @endif
-        </span>
+      {{--
+        Lo que se cuenta al lado del nombre (grupos, estudiantes activos) no es
+        lo que impide borrar: «Títeres — 0 grupos» se lee como vacía y resulta
+        que sostiene diecinueve matrículas, retiradas incluidas. Por eso la
+        opción de borrar sale APAGADA y con su porqué, en vez de dejar que la
+        pulses para que te lo nieguen.
+      --}}
+      <td data-celda="accion" class="lista-acciones lista-acciones-menu">
+        @include('partials.menu-fila', [
+            'etiqueta' => $obj,
+            'opciones' => [
+                ['texto' => 'Editar', 'url' => route($ruta_editar, $obj), 'modal' => $abreEnModal],
+                [
+                    'texto' => 'Eliminar',
+                    'url' => $fila['protegido'] ? null : route($ruta_eliminar, $obj),
+                    'modal' => true,
+                    'borrar' => true,
+                    'porque' => 'Tiene '.$fila['protegido'].' '.$etiquetaProtegido.' en su historial.',
+                ],
+            ],
+        ])
       </td>
     </tr>
     @endforeach

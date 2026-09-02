@@ -1124,12 +1124,91 @@
   /* Y sin envolver: `.accion-fila` viene con `flex-wrap: wrap`, que dentro de
      una celda al 1% parte las acciones en un renglon cada una. */
   .lista-acciones .accion-fila { justify-content: flex-end; flex-wrap: nowrap; }
-  /* En el catalogo la separacion la pone el punto de en medio, no el hueco del
-     flex: con los dos, «Editar · Eliminar» sale desperdigado. */
-  .tabla-catalogo .lista-acciones .accion-fila { gap: 0; }
-  /* Las acciones secundarias de una actividad van en su propio renglon, debajo
-     del boton de abrir o cerrar el enlace, que es la accion principal. */
-  .acciones-secundarias { margin-top: 0.35rem; font-size: 0.85rem; }
+  /* ---------------------------------------------------------------------
+     EL MENU DE FILA (`.menu-fila`)
+
+     «Editar» y «Eliminar» no son lo que se viene a hacer a una lista de
+     catalogo: se entra a mirar, o a bajar un nivel. Estaban sin embargo puestos
+     como dos botones a ancho completo en cada ficha del telefono —media ficha
+     de alto— y como lo unico pulsable a la derecha en escritorio, asi que
+     parecian la funcion principal de la pantalla. Aqui pasan a un menu.
+
+     Es un `<details>` NATIVO y no un menu escrito a mano: llega con el teclado,
+     lo anuncian los lectores de pantalla y funciona sin JavaScript, que es la
+     regla de esta aplicacion. Lo unico que aporta el guion es cerrar los demas
+     al abrir uno y atender a Escape; sin el se quedan abiertos, que es
+     incomodo y no es un fallo.
+
+     NO LLEVA `id`, y es a proposito: `acciones.js` solo conserva el estado
+     abierto de los `<details>` que tienen uno. Sin id, repintar la lista tras
+     una accion devuelve el menu cerrado — que es lo que uno espera despues de
+     usarlo, y evita que quede abierto sobre una fila que acaba de borrarse.
+
+     El panel se posiciona en absoluto para no estirar la fila al abrirse. La
+     tabla no lo recorta: en escritorio no hay overflow, y bajo 640px
+     `.tabla-personas` lleva `overflow-x: visible` a proposito.
+     --------------------------------------------------------------------- */
+  .menu-fila { position: relative; display: inline-block; }
+  .menu-fila-boton {
+    display: inline-flex; align-items: center; justify-content: center;
+    /* 44px, la medida de toque de este breakpoint. No pesa mas que a 36: en
+       reposo no tiene fondo, asi que lo que crece es el area, no la mancha. */
+    width: 44px; height: 44px;
+    border-radius: var(--radius-sm);
+    color: var(--ink-faint); cursor: pointer;
+    list-style: none;
+    transition: background 0.12s ease, color 0.12s ease;
+  }
+  .menu-fila-boton::-webkit-details-marker { display: none; }
+  .menu-fila-boton:hover { background: var(--surface-alt); color: var(--ink); }
+  .menu-fila-boton:focus-visible {
+    outline: none; color: var(--ink);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .menu-fila[open] > .menu-fila-boton { background: var(--surface-alt); color: var(--ink); }
+
+  .menu-fila-panel {
+    position: absolute; right: 0; top: calc(100% + 0.25rem); z-index: 20;
+    min-width: 11rem; padding: 0.3rem;
+    display: flex; flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lift);
+  }
+  /* Dentro del menu SI mide 44px cada opcion: aqui ya no compiten con nada, y
+     es donde de verdad se pulsan. Lo que se rebajo es el peso en la fila, no el
+     area de toque de la accion. */
+  .menu-fila-panel a,
+  .menu-fila-panel .menu-fila-inerte {
+    display: flex; align-items: center;
+    min-height: 44px; padding: 0 0.8rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem; font-weight: 600; text-decoration: none;
+    color: var(--ink); white-space: nowrap;
+  }
+  .menu-fila-panel a:hover { background: var(--surface-alt); }
+  /* El rojo vive AQUI dentro y no en la fila. En la fila era lo que mas tiraba
+     del ojo en una pantalla donde borrar es lo que menos se hace; en el menu es
+     donde hace falta, que es el momento de elegir.
+
+     Los dos selectores llevan `.menu-fila-panel` delante y NO sobra: la regla
+     de arriba, que da la forma a las opciones, lo lleva tambien, asi que una
+     clase suelta pierde por especificidad y el rojo y el gris no llegaban a
+     verse. Se vio en una captura con el menu abierto. */
+  .menu-fila-panel .menu-fila-borrar { color: var(--danger); }
+  .menu-fila-panel .menu-fila-borrar:hover { background: var(--danger-bg); color: var(--danger); }
+  .menu-fila-panel .menu-fila-inerte { color: var(--ink-faint); cursor: not-allowed; }
+
+  /* La celda que lleva el menu, con o sin una accion visible al lado.
+     NO se hace `display: flex` aqui: un `td` en flex sale del reparto de
+     columnas de la tabla, y en escritorio dejaba noventa pixeles muertos a su
+     derecha con el menu descolgado del borde. Quien reparte es `.accion-fila`,
+     que va DENTRO. */
+  .lista-acciones-menu { text-align: right; }
+  /* El formulario de la accion que SI se queda a la vista —el interruptor del
+     enlace, «Poner en curso»— es un elemento de esa fila, no un bloque. */
+  .actividad-enlace-form { display: inline-flex; }
 
   /* ---------------------------------------------------------------------
      SECCIONES DE «PROGRAMAS FORMATIVOS» (y la de periodos, en Matriculas).
@@ -1695,10 +1774,12 @@
        medio, uno de ellos el borrado. Aquí toman la forma del botón blanco que
        ya tienen sus vecinos, sin tocar el escritorio.
 
-       El separador se va: entre dos botones apilados no separa nada, y como es
-       texto suelto dentro de un flex se convertiría en un ítem más. */
-    .tabla-personas td[data-celda="accion"] a:not(.btn),
-    .tabla-personas td[data-celda="accion"] .accion-inerte {
+       Va sobre los hijos DIRECTOS de `.accion-fila` y no sobre cualquier enlace
+       de la celda: dentro de la celda tambien vive el panel del menu de fila, y
+       sus opciones ya tienen su propia forma. Sin acotarlo, «Editar» salia ahi
+       dentro con recuadro de boton y «Eliminar» sin el. */
+    .tabla-personas td[data-celda="accion"] > .accion-fila > a:not(.btn),
+    .tabla-personas td[data-celda="accion"] > .accion-fila > .accion-inerte {
       flex: 1 1 auto;
       display: inline-flex; align-items: center; justify-content: center;
       min-height: 44px; padding: 0.5rem 0.9rem;
@@ -1708,7 +1789,6 @@
     .tabla-personas td[data-celda="accion"] .accion-inerte {
       border-style: dashed; border-color: var(--border);
     }
-    .tabla-personas td[data-celda="accion"] .accion-sep { display: none; }
     /* La casilla de cupo, como el desplegable de al lado: a ancho completo. Es
        el dato que se viene a editar y a 390px se quedaba fuera de la pantalla,
        al otro lado de un arrastre de 90px. */
@@ -1746,12 +1826,43 @@
        ficha manda el ancho de la ficha. */
     .tabla-catalogo td.lista-acciones { width: auto; white-space: normal; }
     .tabla-catalogo .lista-acciones .accion-fila { justify-content: flex-start; gap: 0.5rem; }
-    /* Una accion por renglon y no dos al lado. En el catalogo el par es
-       «Editar» y «Eliminar», que es justo la adyacencia que habia que deshacer:
-       de lado a lado, el pulgar que apunta a uno alcanza al otro, y uno de los
-       dos borra. */
-    .tabla-catalogo td[data-celda="accion"] a:not(.btn),
-    .tabla-catalogo td[data-celda="accion"] .accion-inerte { flex: 1 1 100%; }
+
+    /* LA CELDA QUE SOLO LLEVA EL MENU se sale del flujo de la ficha y se pega
+       arriba a la derecha, junto al nombre. Es donde vive el menu de una ficha
+       en cualquier sitio, y ademas evita lo que se venia haciendo: una linea
+       separadora y un renglon entero al final para un boton de 36px.
+
+       Va por su propia clase y no por `data-celda="accion"`, que tambien lo
+       llevan la casilla de Cupos y las acciones de Usuarios: sacarlas del flujo
+       a ellas las romperia.
+
+       Son DOS tablas distintas y no una con un `:has()`. `.tabla-menu-esquina`
+       es la que lleva SOLO el menu —los catalogos—; `.tabla-menu-fila` la que
+       ademas tiene una accion visible que se queda en su sitio: el interruptor
+       del enlace de una actividad, «Poner en curso» de un periodo. Pinar esa
+       celda arriba subiria tambien el boton, encima del nombre.
+
+       El gancho es una clase de la plantilla y no un `:has()` sobre la celda:
+       si el navegador no entendiera `:has()`, la fila se quedaria sin
+       `position: relative` y la celda suelta iria a colocarse contra un
+       antepasado cualquiera. Una clase no falla en ningun navegador. */
+    .tabla-menu-esquina tr { position: relative; }
+    .tabla-menu-esquina td.lista-acciones-menu {
+      position: absolute; top: 0.55rem; right: 0.55rem;
+      margin: 0; padding: 0; border-top: none; width: auto;
+    }
+    /* Sitio para el menu, para que el nombre no pase por debajo. */
+    .tabla-menu-esquina td[data-celda="detalle"] { padding-right: 2.6rem; }
+    /* En la otra, el boton visible y el menu COMPARTEN el renglon del final.
+       Sin esto el formulario se lleva el ancho entero —lo pide la regla general
+       de la ficha— y el menu cae debajo, solo, a la izquierda y con medio
+       renglon vacio al lado. El boton crece, el menu se queda de su tamaño, y
+       cuando no hay boton el menu se va al borde derecho en vez de quedarse
+       colgando a la izquierda. */
+    .tabla-menu-fila td[data-celda="accion"] .accion-fila {
+      justify-content: flex-end; flex-wrap: nowrap;
+    }
+    .tabla-menu-fila td[data-celda="accion"] .accion-fila > form { flex: 1 1 auto; }
 
     /* El enlace que se copia y se manda por WhatsApp: el de registro de un
        profesor y el de una actividad. Iba en 0.7rem —11px— dentro de una caja de

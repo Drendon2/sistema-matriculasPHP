@@ -22,7 +22,7 @@
   borrado. `.tabla-catalogo` porque la primera celda es una frase, no campos
   etiquetados. Es una lista de registros, no una rejilla.
 --}}
-<table class="tabla-personas tabla-catalogo">
+<table class="tabla-personas tabla-catalogo tabla-menu-fila">
   <thead>
     <tr>
       <th>Nombre</th>
@@ -97,21 +97,35 @@
           </span>
         @endif
       </td>
-      <td data-celda="accion" class="lista-acciones">
-        <form method="post" action="{{ route($ruta_enlace, $actividad) }}" style="display:inline;">
+      {{--
+        El interruptor del enlace se queda A LA VISTA y el resto pasa al menú, y
+        la línea entre los dos es la frecuencia: abrir o cerrar el enlace es lo
+        que se hace con una actividad en marcha —«ya empezamos, no reciban
+        más»—, mientras que poner fechas, editar o borrar son de montarla.
+      --}}
+      <td data-celda="accion" class="lista-acciones lista-acciones-menu">
+        <span class="accion-fila">
+        <form method="post" action="{{ route($ruta_enlace, $actividad) }}" class="actividad-enlace-form">
           @csrf
           <button type="submit" class="btn btn-blanco btn-sm">
             {{ $actividad->abierta ? 'Cerrar enlace' : 'Abrir enlace' }}
           </button>
         </form>
-        <span class="accion-fila acciones-secundarias">
-          @if ($actividad->llevaFechas())
-            <a href="{{ route('actividad-curso-fechas', $actividad) }}">Fechas</a>
-            <span class="accion-sep">&nbsp;·&nbsp;</span>
-          @endif
-          <a href="{{ route($ruta_editar, $actividad) }}" @if ($modal ?? false) data-modal @endif>Editar</a>
-          <span class="accion-sep">&nbsp;·&nbsp;</span>
-          <a href="{{ route($ruta_eliminar, $actividad) }}" style="color:var(--danger);" data-modal>Eliminar</a>
+        @include('partials.menu-fila', [
+            'etiqueta' => $actividad->nombre,
+            'opciones' => array_values(array_filter([
+                $actividad->llevaFechas()
+                    ? ['texto' => 'Fechas', 'url' => route('actividad-curso-fechas', $actividad)]
+                    : null,
+                ['texto' => 'Editar', 'url' => route($ruta_editar, $actividad), 'modal' => $modal ?? false],
+                [
+                    'texto' => 'Eliminar',
+                    'url' => route($ruta_eliminar, $actividad),
+                    'modal' => true,
+                    'borrar' => true,
+                ],
+            ])),
+        ])
         </span>
       </td>
     </tr>

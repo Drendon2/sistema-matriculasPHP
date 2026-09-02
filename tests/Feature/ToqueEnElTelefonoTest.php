@@ -107,7 +107,12 @@ class ToqueEnElTelefonoTest extends TestCase
 
         // `.tabla-personas` es lo que bajo 640px convierte cada fila en ficha, y
         // `.tabla-catalogo` lo que deja su primera celda fluyendo como texto.
-        $this->assertStringContainsString('class="tabla-personas tabla-catalogo"', $html);
+        // `.tabla-menu-esquina` es lo que pega el menú de la fila arriba a la
+        // derecha de la ficha en vez de dejarlo en un renglón al final.
+        $this->assertStringContainsString(
+            'class="tabla-personas tabla-catalogo tabla-menu-esquina"',
+            $html
+        );
     }
 
     public function test_las_acciones_del_catalogo_van_en_una_celda_de_accion(): void
@@ -131,7 +136,7 @@ class ToqueEnElTelefonoTest extends TestCase
      * vista APAGADO en vez de desaparecer: si desapareciera, enterarse de que
      * esta protegido exigiria pulsarlo y que te lo nieguen.
      *
-     * `.accion-inerte` es lo que lo pinta apagado y con el borde punteado, que
+     * `.menu-fila-inerte` es lo que lo pinta apagado dentro del menú, que
      * es el vocabulario de forma del sistema. Antes era un `.campo-info` con el
      * margen anulado a mano en el atributo `style`, y ahi estaba el problema:
      * un `style=` no se puede anular desde la hoja, asi que en la ficha del
@@ -144,7 +149,8 @@ class ToqueEnElTelefonoTest extends TestCase
 
         $celda = $this->celdaQueContiene($html, 'Eliminar');
 
-        $this->assertStringContainsString('accion-inerte', $celda);
+        // Desde el 01/09 vive dentro del menú de la fila, apagada.
+        $this->assertStringContainsString('menu-fila-inerte', $celda);
         $this->assertStringNotContainsString(route('area-eliminar', $this->musica), $html);
     }
 
@@ -163,6 +169,9 @@ class ToqueEnElTelefonoTest extends TestCase
             ->get(route('gestion-cupos'))->assertOk()->getContent();
 
         $this->assertStringContainsString('class="tabla-personas tabla-catalogo"', $html);
+        // Cupos NO lleva menú de fila: su acción es la casilla, que se edita
+        // ahí mismo. Sacar esa celda del flujo la mandaría a la esquina.
+        $this->assertStringNotContainsString('tabla-menu-esquina', $html);
 
         // La casilla es lo que se viene a tocar a esta pantalla. `data-celda`
         // es lo que en el telefono la baja al final de la ficha a ancho

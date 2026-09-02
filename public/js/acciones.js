@@ -325,6 +325,45 @@
     });
   });
 
+  /*
+   * LOS MENUS DE FILA, que son `<details>` normales.
+   *
+   * Sin esto funcionan: se abren, se cierran y llegan con el teclado, porque el
+   * elemento es nativo. Lo que falta es lo que un <details> no hace y un menu
+   * si: que abrir uno cierre el anterior, y que Escape cierre el que este
+   * abierto. Con veinte filas, sin lo primero se acaba con media pantalla de
+   * menus abiertos.
+   *
+   * Va en `document` y no en `main` porque los menus se repintan con la lista y
+   * un manejador colgado de una fila concreta se iria con ella.
+   */
+  document.addEventListener("toggle", function (evento) {
+    var menu = evento.target;
+    if (!menu.open || !menu.classList || !menu.classList.contains("menu-fila")) { return; }
+    document.querySelectorAll("details.menu-fila[open]").forEach(function (otro) {
+      if (otro !== menu) { otro.open = false; }
+    });
+  }, true);
+
+  document.addEventListener("keydown", function (evento) {
+    if (evento.key !== "Escape") { return; }
+    var abierto = document.querySelector("details.menu-fila[open]");
+    if (!abierto) { return; }
+    abierto.open = false;
+    // El foco vuelve al boton que lo abrio: si se quedara en el aire, el
+    // siguiente tabulador empezaria desde el principio del documento.
+    var boton = abierto.querySelector("summary");
+    if (boton) { boton.focus(); }
+  });
+
+  // Tocar fuera cierra, como cualquier menu. No `blur`: el foco pasa por dentro
+  // del propio panel al elegir una opcion.
+  document.addEventListener("click", function (evento) {
+    document.querySelectorAll("details.menu-fila[open]").forEach(function (menu) {
+      if (!menu.contains(evento.target)) { menu.open = false; }
+    });
+  });
+
   // Atras/adelante entre entradas que comparten este documento (las que pusimos
   // con pushState). El navegador cambia la URL pero no vuelve a cargar nada, y
   // el <main> que se ve es el que dejamos pintado: hay que pedir la pagina de

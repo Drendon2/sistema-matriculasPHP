@@ -130,7 +130,7 @@
 @if ($periodos->isEmpty())
   <p class="vacio">Todavía no hay periodos. Crea el primero para poder abrir matrículas.</p>
 @else
-<table class="tabla-personas tabla-catalogo">
+<table class="tabla-personas tabla-catalogo tabla-menu-fila">
   <tbody>
     @foreach ($periodos as $p)
     @php($protegido = $p->matriculas_count + $p->clases_count)
@@ -147,31 +147,39 @@
           @endif
         </span>
       </td>
-      <td data-celda="accion" class="lista-acciones">
+      {{--
+        «Poner en curso» se queda a la vista y Editar/Eliminar pasan al menú:
+        aquí la línea es la misma que en las actividades, la frecuencia. Poner
+        en curso es lo que se viene a hacer a esta lista; corregir el nombre de
+        un periodo o borrar uno vacío, no.
+
+        Es un formulario y no un enlace: pone en curso este periodo y cierra las
+        matrículas del anterior en la misma transacción, o sea que cambia datos.
+        `acciones.js` lo envía sin recargar como al resto.
+      --}}
+      <td data-celda="accion" class="lista-acciones lista-acciones-menu">
         <span class="accion-fila">
         @if (! $p->activo)
-        {{--
-          Un formulario y no un enlace: pone en curso este periodo y cierra las
-          matrículas del anterior en la misma transacción, o sea que cambia
-          datos. `acciones.js` lo envía sin recargar como al resto.
-        --}}
-        <form method="post" action="{{ route('gestion-matriculas') }}">
+        <form method="post" action="{{ route('gestion-matriculas') }}" class="actividad-enlace-form">
           @csrf
           <input type="hidden" name="accion" value="poner_en_curso">
           <input type="hidden" name="periodo_id" value="{{ $p->id }}">
           <button type="submit" class="btn btn-blanco btn-sm">Poner en curso</button>
         </form>
         @endif
-        <a href="{{ route('periodo-editar', $p) }}" data-modal>Editar</a>
-        <span class="accion-sep">&nbsp;·&nbsp;</span>
-        @if ($protegido)
-          <span class="accion-inerte"
-                title="No se puede eliminar: tiene {{ $protegido }} {{ $protegido == 1 ? 'registro' : 'registros' }} en su historial.">
-            Eliminar
-          </span>
-        @else
-          <a href="{{ route('periodo-eliminar', $p) }}" style="color:var(--danger);" data-modal>Eliminar</a>
-        @endif
+        @include('partials.menu-fila', [
+            'etiqueta' => $p->nombre,
+            'opciones' => [
+                ['texto' => 'Editar', 'url' => route('periodo-editar', $p), 'modal' => true],
+                [
+                    'texto' => 'Eliminar',
+                    'url' => $protegido ? null : route('periodo-eliminar', $p),
+                    'modal' => true,
+                    'borrar' => true,
+                    'porque' => 'Tiene '.$protegido.' '.($protegido == 1 ? 'registro' : 'registros').' en su historial.',
+                ],
+            ],
+        ])
         </span>
       </td>
     </tr>
