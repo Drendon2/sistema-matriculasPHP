@@ -56,29 +56,12 @@ class PeriodoController extends RecursoController
         ];
     }
 
-    protected function mensajes(Request $request, ?Model $objeto): array
-    {
-        return [
-            'alertas_desde.after_or_equal' => 'Las alertas no pueden empezar antes que el periodo.',
-            'alertas_desde.before_or_equal' => 'Las alertas no pueden empezar después de que el periodo termine: '
-                .'así no saldría ninguna.',
-        ];
-    }
-
     protected function campos(Request $request, ?Model $objeto): array
     {
         return [
             'nombre' => ['etiqueta' => 'Nombre', 'tipo' => 'text', 'max' => 20, 'ayuda' => 'Por ejemplo, 2026-1'],
             'fecha_inicio' => ['etiqueta' => 'Fecha de inicio', 'tipo' => 'date'],
             'fecha_fin' => ['etiqueta' => 'Fecha de fin', 'tipo' => 'date'],
-            'alertas_desde' => [
-                'etiqueta' => 'Las alertas empiezan el',
-                'tipo' => 'date',
-                'opcional' => true,
-                'ayuda' => 'El día de la primera clase. Antes de eso no hay clase que '
-                    .'registrar ni falta que acumular. Déjala vacía para contar desde el '
-                    .'inicio del periodo.',
-            ],
         ];
     }
 
@@ -88,14 +71,6 @@ class PeriodoController extends RecursoController
             'nombre' => ['required', 'string', 'max:20', Rule::unique('periodos', 'nombre')->ignore($objeto?->id)],
             'fecha_inicio' => ['required', 'date'],
             'fecha_fin' => ['required', 'date', 'after:fecha_inicio'],
-            // Dentro del periodo: una fecha fuera no apaga la alerta, la deja
-            // sin sentido —anterior al inicio no cambia nada, posterior al fin
-            // la apaga entera— y las dos formas de equivocarse son silenciosas.
-            'alertas_desde' => [
-                'nullable', 'date',
-                'after_or_equal:fecha_inicio',
-                'before_or_equal:fecha_fin',
-            ],
         ];
     }
 }

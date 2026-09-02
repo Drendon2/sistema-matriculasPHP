@@ -26,7 +26,6 @@ class Periodo extends Model
         'fecha_fin',
         'activo',
         'matriculas_abiertas',
-        'alertas_desde',
     ];
 
     protected function casts(): array
@@ -36,24 +35,7 @@ class Periodo extends Model
             'fecha_fin' => 'date',
             'activo' => 'boolean',
             'matriculas_abiertas' => 'boolean',
-            'alertas_desde' => 'date',
         ];
-    }
-
-    /**
-     * Desde cuando cuentan las alertas de este periodo.
-     *
-     * El periodo arranca cuando se abren las matriculas, y entre eso y la
-     * primera clase hay semanas de inscribir gente y armar grupos. Contar desde
-     * `fecha_inicio` llenaba la bandeja de avisos de dias en los que nadie tenia
-     * que dar clase todavia: 596 en produccion el primer dia.
-     *
-     * Vacia significa «desde el inicio», que es como se comportaba antes de
-     * existir esta columna.
-     */
-    public function alertasDesde(): Carbon
-    {
-        return Carbon::parse($this->alertas_desde ?? $this->fecha_inicio)->startOfDay();
     }
 
     // La tabla tiene ademas `activo_marca`, la columna generada que emula el

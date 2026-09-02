@@ -42,6 +42,33 @@ use Illuminate\Support\Facades\DB;
 class Alertas
 {
     /**
+     * Desde cuando cuentan las alertas.
+     *
+     * Un periodo academico INCLUYE su periodo de matriculas: semanas de
+     * inscribir gente y armar grupos antes de que nadie de una clase. Contar
+     * desde `fecha_inicio` llenaba la bandeja de dias en los que nadie tenia que
+     * dar clase todavia — 596 avisos el primer dia en produccion, correctos e
+     * inutiles. Asi que lo decide quien administra, en Configuracion.
+     *
+     * Nula significa el inicio del periodo, que es como se comportaba antes. Y
+     * se toma siempre la MAS TARDIA de las dos: una fecha anterior al periodo no
+     * puede hacer que se miren dias que ese periodo no tiene.
+     */
+    private static function desde(Periodo $periodo): Carbon
+    {
+        $inicio = Carbon::parse($periodo->fecha_inicio)->startOfDay();
+        $configurada = ConfiguracionInstitucion::actual()->alertas_desde;
+
+        if ($configurada === null) {
+            return $inicio;
+        }
+
+        $configurada = Carbon::parse($configurada)->startOfDay();
+
+        return $configurada->gt($inicio) ? $configurada : $inicio;
+    }
+
+    /**
      * Los dias del periodo en los que un grupo tenia clase y no la hubo.
      *
      * @return Collection<int, array{grupo: Grupo, fecha: Carbon, dia: string}>
@@ -85,11 +112,7 @@ class Alertas
             ->get()
             ->keyBy('id');
 
-        // No desde que empieza el periodo, sino desde que empiezan las CLASES.
-        // Entre lo uno y lo otro hay semanas de matricular y armar grupos, y
-        // contar desde ahi llenaba la bandeja de dias en los que nadie tenia
-        // que dar clase todavia. Ver `Periodo::alertasDesde()`.
-        $desde = $periodo->alertasDesde();
+        $desde = self::desde($periodo);
         // Hasta AYER: hoy no ha terminado, y quien dicta tiene todo el dia.
         $hasta = Carbon::today()->subDay();
         $fin = Carbon::parse($periodo->fecha_fin)->startOfDay();
@@ -154,7 +177,7 @@ class Alertas
             // La misma frontera que la otra alerta: lo anterior al arranque de
             // las clases no cuenta. Sin esto, mover la fecha limpiaria una
             // bandeja y no la otra.
-            ->whereDate('clases.fecha_hora', '>=', $periodo->alertasDesde())
+            ->whereDate('clases.fecha_hora', '>=', self::desde($periodo))
             ->select('asistencias.matricula_id', 'asistencias.estado', 'clases.fecha_hora')
             ->orderByDesc('clases.fecha_hora')
             ->get()

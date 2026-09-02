@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DocumentoRequerido;
+use App\Models\Periodo;
 use App\Rules\ImagenProcesable;
 use App\Support\Imagen;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,11 @@ class ConfiguracionController extends Controller
     {
         return view('gestion.configuracion', [
             'institucion' => ConfiguracionInstitucion::actual(),
+            // Para el aviso de la fecha de las alertas. Tenerla aqui y no en el
+            // periodo tiene un riesgo conocido: que se quede vieja al cambiar de
+            // semestre y apague las alertas sin decirlo. Eso no lo arregla el
+            // esquema; lo arregla que la pantalla lo diga.
+            'periodoEnCurso' => Periodo::enCurso(),
             // Los desactivados tambien se listan: son los que dejaron de pedirse
             // pero conservan lo entregado, y esconderlos haria creer que se
             // perdieron.
@@ -66,6 +72,7 @@ class ConfiguracionController extends Controller
             // El maximo no es capricho: una racha mas larga que el periodo no
             // se alcanza nunca y la alerta quedaria apagada sin decirlo.
             'faltas_para_abandono' => ['required', 'integer', 'min:2', 'max:20'],
+            'alertas_desde' => ['nullable', 'date'],
         ], [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
         ], [
@@ -127,6 +134,13 @@ class ConfiguracionController extends Controller
         $configuracion->alerta_clase_no_dictada = $request->boolean('alerta_clase_no_dictada');
         $configuracion->alerta_abandono = $request->boolean('alerta_abandono');
         $configuracion->faltas_para_abandono = (int) $request->input('faltas_para_abandono');
+        // Vacia se guarda como NULL: es lo que significa «desde el inicio del
+        // periodo». Quien lo consigue de verdad es el middleware
+        // `ConvertEmptyStringsToNull` de Laravel; el `?: null` es el cinturon
+        // para el dia que ese middleware se quite, y no es adorno — con una
+        // cadena vacia, MariaDB rechaza el INSERT con «Incorrect date value» y
+        // la pantalla contesta un 500.
+        $configuracion->alertas_desde = $request->input('alertas_desde') ?: null;
         $configuracion->save();
 
         $respuesta = redirect()->route('gestion-configuracion')

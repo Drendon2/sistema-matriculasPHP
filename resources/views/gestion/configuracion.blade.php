@@ -204,6 +204,45 @@
         </p>
       </div>
 
+      {{--
+        DESDE CUÁNDO cuentan las dos.
+
+        Un periodo académico incluye su periodo de matrículas: semanas de
+        inscribir gente y armar grupos antes de que nadie dé una clase. Contando
+        desde el inicio del periodo, la bandeja se llenaba de días en los que
+        nadie tenía que dar clase — 596 avisos el primer día en producción.
+
+        Vive aquí, junto a los interruptores, porque quien enciende una alerta es
+        quien decide desde cuándo cuenta. El riesgo de tenerla aquí y no en el
+        periodo es que se quede vieja al cambiar de semestre; por eso el aviso de
+        abajo, que es lo que impide que apague las alertas en silencio.
+      --}}
+      <div class="config-campo">
+        <label class="config-etiqueta" for="alertas_desde">
+          Las alertas empiezan el
+        </label>
+        <input type="date" name="alertas_desde" id="alertas_desde" style="max-width:14rem;"
+               value="{{ old('alertas_desde', $institucion->alertas_desde?->format('Y-m-d')) }}">
+        @error('alertas_desde')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+        <p class="config-ayuda">
+          El día en que empiezan las clases. Antes de esa fecha no hay clase que
+          registrar ni falta que acumular, así que no se avisa de nada.
+          <strong>Déjala vacía</strong> para contar desde el inicio del periodo en
+          curso.
+          @if ($periodoEnCurso)
+            @php($desde = $institucion->alertas_desde)
+            @if ($desde && $desde->gt($periodoEnCurso->fecha_fin))
+              <br><strong style="color:var(--danger);">Está después de que termine
+              {{ $periodoEnCurso->nombre }}</strong> ({{ $periodoEnCurso->fecha_fin->format('d/m/Y') }}),
+              así que ahora mismo no sale ninguna alerta. Muévela al empezar cada periodo.
+            @elseif ($desde && $desde->lt($periodoEnCurso->fecha_inicio))
+              <br>Es anterior a {{ $periodoEnCurso->nombre }}, que empezó el
+              {{ $periodoEnCurso->fecha_inicio->format('d/m/Y') }}: se cuenta desde ese día.
+            @endif
+          @endif
+        </p>
+      </div>
+
       <div class="config-campo">
         <label class="config-etiqueta" for="faltas_para_abandono">
           Faltas seguidas para avisar

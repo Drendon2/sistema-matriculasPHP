@@ -228,19 +228,22 @@ class AlertasTest extends TestCase
     // Desde cuando cuentan
 
     /**
-     * El periodo arranca cuando se abren las matriculas, no cuando empiezan las
-     * clases: entre lo uno y lo otro hay semanas de inscribir gente y armar
-     * grupos. Sin esta fecha, la bandeja se llenaba de dias en los que nadie
-     * tenia que dar clase todavia — 596 avisos el primer dia en produccion.
+     * Un periodo academico INCLUYE su periodo de matriculas: semanas de
+     * inscribir gente y armar grupos antes de que nadie de una clase. Sin esta
+     * fecha, la bandeja se llenaba de dias en los que nadie tenia que dar clase
+     * todavia — 596 avisos el primer dia en produccion, correctos e inutiles.
+     *
+     * La pone quien administra, junto a los interruptores de las alertas: quien
+     * enciende una es quien decide desde cuando cuenta.
      */
     public function test_lo_anterior_al_arranque_de_las_clases_no_avisa(): void
     {
         // Martes: el 3 y el 10 caen dentro del periodo.
         $this->horarioEn(2);
 
-        $this->periodo->update(['alertas_desde' => '2026-03-09']);
+        ConfiguracionInstitucion::actual()->update(['alertas_desde' => '2026-03-09']);
 
-        $faltantes = Alertas::clasesNoDictadas($this->periodo->fresh());
+        $faltantes = Alertas::clasesNoDictadas($this->periodo);
 
         $this->assertCount(1, $faltantes);
         $this->assertSame('2026-03-10', $faltantes->first()['fecha']->toDateString());
@@ -251,11 +254,22 @@ class AlertasTest extends TestCase
     {
         $this->horarioEn(2);
 
-        $this->assertNull($this->periodo->alertas_desde);
-        $this->assertSame(
-            Carbon::parse($this->periodo->fecha_inicio)->toDateString(),
-            $this->periodo->alertasDesde()->toDateString()
-        );
+        $this->assertNull(ConfiguracionInstitucion::actual()->alertas_desde);
+        $this->assertCount(2, Alertas::clasesNoDictadas($this->periodo));
+    }
+
+    /**
+     * Una fecha ANTERIOR al periodo no puede hacer que se miren dias que ese
+     * periodo no tiene. Importa porque la fecha es global y los periodos van
+     * cambiando: la de un semestre queda vieja para el siguiente.
+     */
+    public function test_una_fecha_anterior_al_periodo_no_amplia_la_ventana(): void
+    {
+        $this->horarioEn(2);
+
+        ConfiguracionInstitucion::actual()->update(['alertas_desde' => '2025-01-01']);
+
+        // Las mismas dos del periodo, ni una mas.
         $this->assertCount(2, Alertas::clasesNoDictadas($this->periodo));
     }
 
@@ -279,44 +293,68 @@ class AlertasTest extends TestCase
 
         $this->assertCount(1, Alertas::posiblesAbandonos($this->periodo));
 
-        $this->periodo->update(['alertas_desde' => '2026-03-05']);
+        ConfiguracionInstitucion::actual()->update(['alertas_desde' => '2026-03-05']);
 
         // Solo quedan dos faltas dentro de la ventana: por debajo del umbral.
-        $this->assertCount(0, Alertas::posiblesAbandonos($this->periodo->fresh()));
+        $this->assertCount(0, Alertas::posiblesAbandonos($this->periodo));
     }
 
-    public function test_la_fecha_se_edita_en_el_periodo(): void
+    public function test_la_fecha_se_edita_donde_se_encienden_las_alertas(): void
     {
         $this->actingAs($this->admin->user)
-            ->post(route('periodo-editar', $this->periodo), [
-                'nombre' => '2026-1',
-                'fecha_inicio' => '2026-03-02',
-                'fecha_fin' => '2026-06-30',
+            ->post(route('gestion-configuracion'), [
+                'nombre_institucion' => 'Casa de la Cultura',
+                'color_acento' => '#0a7a59',
+                'limite_promotorias_por_periodo' => 2,
+                'faltas_para_abandono' => 5,
                 'alertas_desde' => '2026-03-09',
             ])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHas('success');
 
         $this->assertSame(
             '2026-03-09',
-            Carbon::parse($this->periodo->fresh()->alertas_desde)->toDateString()
+            Carbon::parse(ConfiguracionInstitucion::actual()->fresh()->alertas_desde)->toDateString()
         );
     }
 
-    /** Fuera del periodo no se acepta: las dos formas de errar son silenciosas. */
-    public function test_una_fecha_fuera_del_periodo_se_rechaza(): void
+    /**
+     * Y vaciarla vuelve a «desde el inicio del periodo», no a una cadena vacia.
+     *
+     * OJO: quien hace pasar esto es el middleware `ConvertEmptyStringsToNull` de
+     * Laravel, no el `?: null` del controlador — se comprobo quitandolo y la
+     * prueba siguio verde. Lo que vigila es el camino entero: que el formulario
+     * vacio acabe en NULL. Con una cadena vacia, MariaDB rechaza el INSERT.
+     */
+    public function test_vaciar_la_fecha_la_deja_nula(): void
     {
-        foreach (['2026-02-01', '2026-08-01'] as $fuera) {
-            $this->actingAs($this->admin->user)
-                ->post(route('periodo-editar', $this->periodo), [
-                    'nombre' => '2026-1',
-                    'fecha_inicio' => '2026-03-02',
-                    'fecha_fin' => '2026-06-30',
-                    'alertas_desde' => $fuera,
-                ])
-                ->assertSessionHasErrors('alertas_desde');
-        }
+        ConfiguracionInstitucion::actual()->update(['alertas_desde' => '2026-03-09']);
 
-        $this->assertNull($this->periodo->fresh()->alertas_desde);
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-configuracion'), [
+                'nombre_institucion' => 'Casa de la Cultura',
+                'color_acento' => '#0a7a59',
+                'limite_promotorias_por_periodo' => 2,
+                'faltas_para_abandono' => 5,
+                'alertas_desde' => '',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertNull(ConfiguracionInstitucion::actual()->fresh()->alertas_desde);
+    }
+
+    /**
+     * El riesgo de tener la fecha aqui y no en el periodo es que se quede vieja
+     * al cambiar de semestre y apague las alertas SIN DECIRLO. No lo arregla el
+     * esquema: lo arregla que la pantalla avise.
+     */
+    public function test_la_pantalla_avisa_si_la_fecha_dejo_fuera_al_periodo(): void
+    {
+        ConfiguracionInstitucion::actual()->update(['alertas_desde' => '2026-12-01']);
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-configuracion'))
+            ->assertOk()
+            ->assertSee('no sale ninguna alerta', false);
     }
 
     // -----------------------------------------------------------------------

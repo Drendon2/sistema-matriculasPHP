@@ -55,6 +55,7 @@ class ConfiguracionInstitucion extends Model
         'alerta_clase_no_dictada',
         'alerta_abandono',
         'faltas_para_abandono',
+        'alertas_desde',
     ];
 
     /**
@@ -89,6 +90,11 @@ class ConfiguracionInstitucion extends Model
         'alerta_clase_no_dictada' => true,
         'alerta_abandono' => true,
         'faltas_para_abandono' => 5,
+        // `alertas_desde` NO va aqui, y es deliberado: sus vecinas estan porque
+        // tienen un valor que la instancia no leeria de la base, y esa es nula.
+        // Declararla no cambiaria nada — se comprobo quitandola y la prueba
+        // siguio en verde — y una linea que no hace nada acaba leyendose como
+        // si hiciera algo.
     ];
 
     protected function casts(): array
@@ -99,6 +105,7 @@ class ConfiguracionInstitucion extends Model
             'alerta_clase_no_dictada' => 'boolean',
             'alerta_abandono' => 'boolean',
             'faltas_para_abandono' => 'integer',
+            'alertas_desde' => 'date',
         ];
     }
 
