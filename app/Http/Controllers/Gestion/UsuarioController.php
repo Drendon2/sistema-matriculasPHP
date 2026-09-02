@@ -172,7 +172,11 @@ class UsuarioController extends Controller
                 ->orderBy('promotorias.nombre')
                 ->select('promotorias.*')
                 ->get(),
-            'grupos' => Grupo::with('promotoria')
+            // `sesiones` NO sobra: el desplegable pinta `rotulo_breve`, que se
+            // compone con el HORARIO, y el horario se lee de las sesiones. Sin
+            // esto era una consulta por grupo — 26 de las 45 de esta pantalla en
+            // la base de desarrollo, y creciendo con cada grupo que se cree.
+            'grupos' => Grupo::with(['promotoria', 'sesiones'])
                 ->join('promotorias', 'promotorias.id', '=', 'grupos.promotoria_id')
                 ->orderBy('promotorias.nombre')
                 ->orderBy('grupos.nivel')

@@ -6,6 +6,7 @@ use App\Http\Controllers\Gestion\UsuarioController;
 use App\Http\Controllers\PanelActividadController;
 use App\Models\Actividad;
 use App\Models\Area;
+use App\Models\Grupo;
 use App\Models\InscritoActividad;
 use App\Models\Matricula;
 use App\Models\Perfil;
@@ -215,7 +216,70 @@ class PaginacionTest extends TestCase
         $this->assertStringContainsString('se llenaron los cupos', $html);
     }
 
+    /**
+     * Y tampoco crece con los GRUPOS que haya, que es el otro eje.
+     *
+     * La prueba de arriba varia cuanta GENTE hay, y por eso no vio esto: el
+     * desplegable «Grupo» de la barra de filtros pinta `rotulo_breve`, que se
+     * compone con el horario, y el horario se lee de las sesiones del grupo. Sin
+     * `with('sesiones')` era una consulta por grupo —26 de las 45 de la pantalla
+     * en la base de desarrollo— y crecia con cada grupo que alguien creara,
+     * mientras el numero de usuarios seguia igual.
+     *
+     * Se descubrio el 02/09/2026 buscando por que Usuarios devolvia un 504 en
+     * produccion. Que fuera LA causa no esta probado; que el coste creciera solo,
+     * si.
+     */
+    public function test_el_coste_de_usuarios_no_crece_con_los_grupos(): void
+    {
+        $this->poblar(10);
+
+        $this->sembrarGrupos(2);
+        [$pocos] = $this->medir(route('usuario-lista'));
+
+        $this->sembrarGrupos(18);
+        [$muchos] = $this->medir(route('usuario-lista'));
+
+        $this->assertSame(
+            $pocos,
+            $muchos,
+            "Con 2 grupos la pantalla hace {$pocos} consultas y con 20 hace {$muchos}: "
+                .'el coste crece con los grupos, que es un N+1 en el desplegable del filtro.'
+        );
+    }
+
     // -----------------------------------------------------------------------
+
+    /**
+     * Grupos con horario, que es lo que importa: un grupo SIN sesiones no
+     * dispara la consulta que esta prueba busca —una relacion vacia se resuelve
+     * igual, pero el N+1 solo se nota si hay algo que traer— y la prueba pasaria
+     * sin comprobar nada.
+     */
+    private function sembrarGrupos(int $cuantos): void
+    {
+        $area = Area::firstOrCreate(['nombre' => 'Musica']);
+        $promotoria = Promotoria::firstOrCreate(
+            ['nombre' => 'Violin'],
+            ['area_id' => $area->id, 'profesor_id' => $this->admin->id]
+        );
+
+        for ($i = 0; $i < $cuantos; $i++) {
+            /** @var Grupo $grupo */
+            $grupo = $promotoria->grupos()->create([
+                'nombre' => 'Grupo '.uniqid(),
+                'nivel' => 'basico',
+                'cupo_maximo' => 10,
+                'salon' => '',
+            ]);
+
+            $grupo->sesiones()->create([
+                'dia' => 1,
+                'hora_inicio' => '08:00',
+                'hora_fin' => '10:00',
+            ]);
+        }
+    }
 
     private function sembrarActividad(int $inscritos, ?int $cupo = null): Actividad
     {
