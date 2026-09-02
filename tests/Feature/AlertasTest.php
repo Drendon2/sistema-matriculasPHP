@@ -225,6 +225,101 @@ class AlertasTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Desde cuando cuentan
+
+    /**
+     * El periodo arranca cuando se abren las matriculas, no cuando empiezan las
+     * clases: entre lo uno y lo otro hay semanas de inscribir gente y armar
+     * grupos. Sin esta fecha, la bandeja se llenaba de dias en los que nadie
+     * tenia que dar clase todavia — 596 avisos el primer dia en produccion.
+     */
+    public function test_lo_anterior_al_arranque_de_las_clases_no_avisa(): void
+    {
+        // Martes: el 3 y el 10 caen dentro del periodo.
+        $this->horarioEn(2);
+
+        $this->periodo->update(['alertas_desde' => '2026-03-09']);
+
+        $faltantes = Alertas::clasesNoDictadas($this->periodo->fresh());
+
+        $this->assertCount(1, $faltantes);
+        $this->assertSame('2026-03-10', $faltantes->first()['fecha']->toDateString());
+    }
+
+    /** Vacia se comporta como antes de que la columna existiera. */
+    public function test_sin_fecha_cuenta_desde_el_inicio_del_periodo(): void
+    {
+        $this->horarioEn(2);
+
+        $this->assertNull($this->periodo->alertas_desde);
+        $this->assertSame(
+            Carbon::parse($this->periodo->fecha_inicio)->toDateString(),
+            $this->periodo->alertasDesde()->toDateString()
+        );
+        $this->assertCount(2, Alertas::clasesNoDictadas($this->periodo));
+    }
+
+    /**
+     * Y la MISMA frontera para la otra alerta. Si solo la respetara una, mover
+     * la fecha limpiaria una bandeja y dejaria la otra contando faltas de
+     * cuando no habia clases.
+     */
+    public function test_las_faltas_anteriores_al_arranque_no_cuentan(): void
+    {
+        $matricula = $this->estudianteMatriculado('ana');
+
+        foreach (['03-02', '03-03', '03-04', '03-05', '03-06'] as $dia) {
+            $clase = $this->clase("2026-{$dia} 08:00:00");
+            Asistencia::create([
+                'clase_id' => $clase->id,
+                'matricula_id' => $matricula->id,
+                'estado' => Asistencia::FALTO,
+            ]);
+        }
+
+        $this->assertCount(1, Alertas::posiblesAbandonos($this->periodo));
+
+        $this->periodo->update(['alertas_desde' => '2026-03-05']);
+
+        // Solo quedan dos faltas dentro de la ventana: por debajo del umbral.
+        $this->assertCount(0, Alertas::posiblesAbandonos($this->periodo->fresh()));
+    }
+
+    public function test_la_fecha_se_edita_en_el_periodo(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->post(route('periodo-editar', $this->periodo), [
+                'nombre' => '2026-1',
+                'fecha_inicio' => '2026-03-02',
+                'fecha_fin' => '2026-06-30',
+                'alertas_desde' => '2026-03-09',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            '2026-03-09',
+            Carbon::parse($this->periodo->fresh()->alertas_desde)->toDateString()
+        );
+    }
+
+    /** Fuera del periodo no se acepta: las dos formas de errar son silenciosas. */
+    public function test_una_fecha_fuera_del_periodo_se_rechaza(): void
+    {
+        foreach (['2026-02-01', '2026-08-01'] as $fuera) {
+            $this->actingAs($this->admin->user)
+                ->post(route('periodo-editar', $this->periodo), [
+                    'nombre' => '2026-1',
+                    'fecha_inicio' => '2026-03-02',
+                    'fecha_fin' => '2026-06-30',
+                    'alertas_desde' => $fuera,
+                ])
+                ->assertSessionHasErrors('alertas_desde');
+        }
+
+        $this->assertNull($this->periodo->fresh()->alertas_desde);
+    }
+
+    // -----------------------------------------------------------------------
     // Posibles abandonos
 
     public function test_las_faltas_seguidas_levantan_la_alerta(): void

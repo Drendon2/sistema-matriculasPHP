@@ -85,7 +85,11 @@ class Alertas
             ->get()
             ->keyBy('id');
 
-        $desde = Carbon::parse($periodo->fecha_inicio)->startOfDay();
+        // No desde que empieza el periodo, sino desde que empiezan las CLASES.
+        // Entre lo uno y lo otro hay semanas de matricular y armar grupos, y
+        // contar desde ahi llenaba la bandeja de dias en los que nadie tenia
+        // que dar clase todavia. Ver `Periodo::alertasDesde()`.
+        $desde = $periodo->alertasDesde();
         // Hasta AYER: hoy no ha terminado, y quien dicta tiene todo el dia.
         $hasta = Carbon::today()->subDay();
         $fin = Carbon::parse($periodo->fecha_fin)->startOfDay();
@@ -147,6 +151,10 @@ class Alertas
         $marcas = DB::table('asistencias')
             ->join('clases', 'clases.id', '=', 'asistencias.clase_id')
             ->where('clases.periodo_id', $periodo->id)
+            // La misma frontera que la otra alerta: lo anterior al arranque de
+            // las clases no cuenta. Sin esto, mover la fecha limpiaria una
+            // bandeja y no la otra.
+            ->whereDate('clases.fecha_hora', '>=', $periodo->alertasDesde())
             ->select('asistencias.matricula_id', 'asistencias.estado', 'clases.fecha_hora')
             ->orderByDesc('clases.fecha_hora')
             ->get()
