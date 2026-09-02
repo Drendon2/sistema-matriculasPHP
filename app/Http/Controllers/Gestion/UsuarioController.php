@@ -198,6 +198,10 @@ class UsuarioController extends Controller
             'datos' => null,
             'acudiente' => null,
             'roles' => $this->rolesQuePuedeRepartir($request),
+            // Se abre en el modal del listado, como los catalogos. El porque
+            // esta en la plantilla: es el formulario que mas se abre.
+            'modal' => true,
+            'volver' => Regreso::consulta($request, route('usuario-lista')),
         ]);
     }
 
@@ -236,7 +240,8 @@ class UsuarioController extends Controller
             return back()->withInput()->withErrors($e->errors());
         }
 
-        return redirect()->route('usuario-lista')->with('success', 'Usuario creado.');
+        return redirect(Regreso::url(route('usuario-lista'), $request->input('volver')))
+            ->with('success', 'Usuario creado.');
     }
 
     public function editar(Request $request, Perfil $usuario): View
@@ -253,6 +258,11 @@ class UsuarioController extends Controller
             'datos' => $datos,
             'acudiente' => $datos?->acudiente,
             'roles' => $this->rolesQuePuedeRepartir($request),
+            'modal' => true,
+            // Los filtros y la pagina de la lista de la que se viene, para
+            // devolverlos puestos: sin esto, editar a alguien de la pagina 3
+            // aterrizaba en la 1.
+            'volver' => Regreso::consulta($request, route('usuario-lista')),
         ]);
     }
 
@@ -306,7 +316,8 @@ class UsuarioController extends Controller
             return back()->withInput()->withErrors($e->errors());
         }
 
-        return redirect()->route('usuario-lista')->with('success', 'Usuario actualizado.');
+        return redirect(Regreso::url(route('usuario-lista'), $request->input('volver')))
+            ->with('success', 'Usuario actualizado.');
     }
 
     /**

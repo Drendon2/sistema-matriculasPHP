@@ -291,6 +291,89 @@ class MenuDeFilaTest extends TestCase
         $this->assertStringNotContainsString('Desactivar', $panel);
     }
 
+    // -----------------------------------------------------------------------
+    // El formulario que abre el menu
+
+    /**
+     * «Editar» de un usuario abre en el MODAL desde el 02/09/2026.
+     *
+     * Era el ejemplo que DESIGN.md daba de lo que NO va en un modal, por sus
+     * once campos; se cambio a peticion del usuario porque es el formulario que
+     * mas se abre —asignar rol a quien se acaba de registrar— y sacarlo de la
+     * lista para eso costaba el viaje de ida y vuelta.
+     *
+     * Las dos marcas tienen que estar: `data-modal` en el enlace y
+     * `data-modal-cuerpo` en el formulario. Si falta la segunda, `acciones.js`
+     * no encuentra que meter en el dialogo, se rinde y NAVEGA — o sea que la
+     * pantalla sigue funcionando y el modal simplemente no aparece. Es de los
+     * fallos que no se notan leyendo el codigo.
+     */
+    public function test_editar_un_usuario_abre_en_modal(): void
+    {
+        $otro = $this->crearPerfil('otro', 'profesor');
+
+        $lista = $this->actingAs($this->admin->user)
+            ->get(route('usuario-lista'))->assertOk()->getContent();
+
+        $panel = $this->panelCon($lista, route('usuario-editar', $otro));
+        $this->assertStringContainsString('data-modal', $panel);
+
+        $formulario = $this->actingAs($this->admin->user)
+            ->get(route('usuario-editar', $otro))->assertOk()->getContent();
+
+        $this->assertStringContainsString('data-modal-cuerpo', $formulario);
+    }
+
+    /**
+     * Y el guion del formulario va DENTRO de el.
+     *
+     * Es el que muestra u oculta los campos de estudiante segun el rol. El modal
+     * se lleva solo lo marcado con `data-modal-cuerpo`, asi que fuera del
+     * formulario se quedaria en la pagina: el dialogo abriria con esos campos en
+     * el estado en que el servidor los dejo y el desplegable no haria nada. No
+     * falla ni avisa, deja de responder.
+     *
+     * OJO CON EL ALCANCE: esto vigila que el guion ESTE dentro. Que ademas se
+     * EJECUTE al insertarlo lo resuelve `acciones.js` recreando el <script> —un
+     * <script> insertado en el DOM no corre por si solo— y eso no lo puede
+     * vigilar ninguna prueba de PHP. Comprobado a mano en el navegador:
+     * importando el cuerpo tal cual, cambiar el rol no hacia nada; recreando el
+     * guion, si.
+     */
+    public function test_el_guion_del_formulario_viaja_dentro_del_cuerpo_del_modal(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('usuario-nuevo'))->assertOk()->getContent();
+
+        $abre = strpos($html, 'data-modal-cuerpo');
+        $cierra = strpos($html, '</form>', $abre);
+        $guion = strpos($html, 'campos-estudiante');
+
+        $this->assertNotFalse($guion, 'No está el guion que muestra los campos de estudiante.');
+        $this->assertLessThan(
+            $cierra,
+            $guion,
+            'El guion del formulario quedó FUERA del cuerpo que el modal se lleva.'
+        );
+    }
+
+    /** Y al guardar se vuelve a la lista con sus filtros y su pagina puestos. */
+    public function test_al_guardar_un_usuario_se_vuelve_con_los_filtros(): void
+    {
+        $otro = $this->crearPerfil('otro', 'profesor');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $otro), [
+                'username' => 'otro',
+                'rol' => 'profesor',
+                'nombre_completo' => 'Otro Cambiado',
+                'fecha_nacimiento' => '1990-01-01',
+                'telefono' => '3000000000',
+                'volver' => 'page=2',
+            ])
+            ->assertRedirect(route('usuario-lista', ['page' => 2]));
+    }
+
     /**
      * Y cuando NO queda ninguna, el menu no se pinta: un botón que se abre vacío
      * es peor que no tenerlo.

@@ -5,7 +5,9 @@
 @section('content')
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>Usuarios</h2>
-<p><a class="btn" href="{{ route('usuario-nuevo') }}">+ Nuevo usuario</a></p>
+{{-- En modal como «Editar»: es el mismo formulario, y que se abriera de dos
+     formas distintas segun la puerta se leeria como un fallo. --}}
+<p><a class="btn" href="{{ route('usuario-nuevo') }}" data-modal>+ Nuevo usuario</a></p>
 
 {{--
   El enlace de registro de profesor, que ya NO está en la pantalla de inicio de
@@ -298,7 +300,7 @@
             'etiqueta' => $perfil->nombre_completo,
             'opciones' => [
                 $puedeTocarla
-                    ? ['texto' => 'Editar', 'url' => route('usuario-editar', $perfil)]
+                    ? ['texto' => 'Editar', 'url' => route('usuario-editar', $perfil), 'modal' => true]
                     : null,
                 {{-- Cambia datos: formulario y no enlace. Ver el parcial. --}}
                 ($puedeTocarla && $perfil->user_id !== auth()->id())

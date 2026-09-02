@@ -230,6 +230,30 @@
     d.appendChild(document.importNode(cuerpo, true));
     d.removeAttribute("aria-busy");
 
+    /*
+     * Los <script> que vengan DENTRO de la tarjeta se vuelven a crear para que
+     * corran.
+     *
+     * Un <script> insertado por `importNode` o por `innerHTML` no se ejecuta
+     * NUNCA: el navegador lo deja ahi como texto. Es una regla del DOM y no un
+     * fallo, pero aqui muerde de una forma silenciosa — el formulario de usuario
+     * lleva uno que muestra u oculta los campos de estudiante segun el rol, y
+     * sin esto el modal se abria con esos campos en el estado en que el servidor
+     * los dejo y el desplegable no hacia nada. No falla, no avisa: simplemente
+     * deja de responder.
+     *
+     * Se copia el contenido y los atributos a un <script> nuevo, que es la unica
+     * forma de que el navegador lo trate como codigo.
+     */
+    d.querySelectorAll("script").forEach(function (viejo) {
+      var nuevo = document.createElement("script");
+      for (var i = 0; i < viejo.attributes.length; i++) {
+        nuevo.setAttribute(viejo.attributes[i].name, viejo.attributes[i].value);
+      }
+      nuevo.textContent = viejo.textContent;
+      viejo.parentNode.replaceChild(nuevo, viejo);
+    });
+
     if (!d.open) { d.showModal(); }
 
     // El foco al primer campo que haya, y si no al primer boton. `showModal()`

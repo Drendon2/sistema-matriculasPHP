@@ -4,10 +4,25 @@
 
 @section('content')
 <a href="{{ route('usuario-lista') }}" class="volver">&larr; Volver al listado</a>
-<h2>{{ $titulo }}</h2>
 
-<form method="post" action="{{ $accion }}" enctype="multipart/form-data" class="form-card">
+{{--
+  `data-modal-cuerpo` es lo que el modal se lleva dentro cuando se abre desde el
+  listado, y por eso el título vive AQUÍ y ya no encima: suelto quedaría flotando
+  sobre el fondo oscurecido, fuera de la tarjeta. Sigue siendo una página con su
+  URL —sin JavaScript se abre y se rellena igual—, y es la misma tarjeta en los
+  dos casos.
+
+  Este formulario es el caso que DESIGN.md daba como ejemplo de lo que NO va en
+  un modal, por sus once campos. Se cambió el 02/09/2026 a petición del usuario:
+  es el que más se abre —asignar rol a quien se acaba de registrar— y sacarlo de
+  la lista para eso costaba el viaje de ida y vuelta. El diálogo se ancla arriba
+  y la tarjeta se desplaza por dentro, que es lo que hace que quepa.
+--}}
+<form method="post" action="{{ $accion }}" enctype="multipart/form-data" class="form-card"
+      @if ($modal ?? false) data-modal-cuerpo @endif>
   @csrf
+  <input type="hidden" name="volver" value="{{ $volver ?? '' }}">
+  <h2 style="margin-top:0;">{{ $titulo }}</h2>
 
   <div class="field">
     <label for="username">Usuario</label>
@@ -139,10 +154,23 @@
     </div>
   </div>
 
-  <button type="submit" class="btn">Guardar</button>
-</form>
+  {{--
+    «Cancelar» sirve en los dos sitios: dentro del modal es lo que lo cierra, y
+    en la página suelta es la salida que no obliga a subir hasta el «Volver».
+  --}}
+  <div class="modal-botones" style="margin-top:1.3rem;">
+    <button type="submit" class="btn">Guardar</button>
+    <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
+  </div>
 
-<script>
+  {{--
+    El guion va DENTRO del formulario y no después, y no es cosmético: el modal
+    se lleva lo que esté marcado con `data-modal-cuerpo`, así que ahí fuera se
+    quedaría en la página y dentro del diálogo el desplegable de rol no haría
+    nada. Que además se ejecute al insertarlo lo resuelve `acciones.js`, porque
+    un <script> insertado en el DOM no corre por sí solo.
+  --}}
+  <script>
   (function () {
     var rol = document.getElementById("rol");
     var camposEstudiante = document.getElementById("campos-estudiante");
@@ -155,5 +183,6 @@
     rol.addEventListener("change", actualizar);
     actualizar();
   })();
-</script>
+  </script>
+</form>
 @endsection
