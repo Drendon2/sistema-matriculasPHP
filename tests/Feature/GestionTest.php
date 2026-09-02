@@ -543,7 +543,7 @@ class GestionTest extends TestCase
     {
         $this->actingAs($this->director->user)
             ->post(route('area-nueva'), ['nombre' => 'Teatro'])
-            ->assertRedirect(route('area-lista'));
+            ->assertRedirect(route('gestion-programas'));
 
         $this->assertNotNull(Area::where('nombre', 'Teatro')->first());
     }
@@ -2199,10 +2199,17 @@ class GestionTest extends TestCase
             ->assertDontSee('data-modal-cuerpo', false);
     }
 
+    /**
+     * La lista de la que se viene es «Programas formativos» desde el
+     * 01/09/2026: ahi es donde vive el catalogo de departamentos, y `Regreso`
+     * solo conserva la consulta si el camino del referente coincide con el del
+     * destino. Con el listado plano puesto aqui, esta prueba pasaria en verde
+     * sin comprobar nada — el referente no cuadraria y `volver` saldria vacio.
+     */
     public function test_al_editar_un_catalogo_se_vuelve_a_la_lista_con_sus_filtros(): void
     {
         $this->actingAs($this->director->user)
-            ->get(route('area-editar', $this->musica), ['referer' => route('area-lista', ['page' => 2])])
+            ->get(route('area-editar', $this->musica), ['referer' => route('gestion-programas', ['page' => 2])])
             ->assertOk()
             ->assertSee('name="volver" value="page=2"', false);
 
@@ -2211,7 +2218,7 @@ class GestionTest extends TestCase
                 'nombre' => 'Música y sonido',
                 'volver' => 'page=2',
             ])
-            ->assertRedirect(route('area-lista', ['page' => 2]));
+            ->assertRedirect(route('gestion-programas', ['page' => 2]));
     }
 
     // -----------------------------------------------------------------------

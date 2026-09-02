@@ -97,7 +97,7 @@ class RechazoDeFormularioTest extends TestCase
         $this->actingAs($this->director())
             ->withHeaders(self::COMO_ACCIONES_JS)
             ->post(route('area-nueva'), ['nombre' => 'Artes plásticas'])
-            ->assertRedirect(route('area-lista'));
+            ->assertRedirect(route('gestion-programas'));
 
         $this->assertNotNull(Area::where('nombre', 'Artes plásticas')->first());
     }

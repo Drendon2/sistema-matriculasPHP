@@ -51,7 +51,10 @@ class CursoTallerController extends ActividadController
             'titulo' => 'Cursos y talleres',
             'titulo_nuevo' => 'Nuevo curso o taller',
             'titulo_editar' => 'Editar curso o taller',
-            'ruta_lista' => 'actividad-curso-lista',
+            // Vuelve a «Programas formativos»: ahi es donde vive esta lista
+            // desde el 01/09/2026, y donde estaba quien abrio el modal. La
+            // pantalla de solo este tipo sigue existiendo en su URL.
+            'ruta_lista' => 'gestion-programas',
             'ruta_nuevo' => 'actividad-curso-nueva',
             'ruta_editar' => 'actividad-curso-editar',
             'ruta_eliminar' => 'actividad-curso-eliminar',
@@ -208,8 +211,10 @@ class CursoTallerController extends ActividadController
             $actividad->save();
         });
 
+        // A «Programas formativos», que es donde vive esta lista desde el
+        // 01/09/2026 y de donde se sale a poner las fechas.
         return redirect()
-            ->route('actividad-curso-lista')
+            ->route('gestion-programas')
             ->with('success', 'Fechas guardadas.');
     }
 

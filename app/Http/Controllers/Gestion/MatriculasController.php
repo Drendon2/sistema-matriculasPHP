@@ -10,11 +10,19 @@ use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /**
- * Iniciar y finalizar las matriculas del periodo en curso.
+ * MATRICULAS: todo lo que pasa con un periodo, en una pantalla.
  *
- * La institucion no recibe gente todo el ano: abre al principio y a mitad. Este
- * interruptor es lo que separa "el periodo esta en curso" de "se admiten
- * inscripciones y renovaciones ahora mismo".
+ * La institucion no recibe gente todo el ano: abre al principio y a mitad. El
+ * interruptor de esta pantalla es lo que separa "el periodo esta en curso" de
+ * "se admiten inscripciones y renovaciones ahora mismo".
+ *
+ * Desde el 01/09/2026 se llama solo «Matriculas» y se lleva ademas la lista de
+ * PERIODOS, que era una ficha propia en la portada de Gestion. Crear un periodo
+ * no es mantener un catalogo aparte: es el primer paso de abrir uno, y quien
+ * llega aqui a abrir matriculas de 2026-2 y descubre que ese periodo todavia no
+ * existe tenia que volver a la portada, entrar a otra pantalla, crearlo y
+ * regresar. Los cupos siguen en su propia pantalla —son un formulario de una
+ * fila por promotoria— pero se llega desde aqui, que es cuando se reparten.
  */
 class MatriculasController extends Controller
 {
@@ -25,7 +33,12 @@ class MatriculasController extends Controller
         return view('gestion.matriculas', [
             'periodo' => $periodo,
             'resumen' => $periodo === null ? null : $this->resumen($periodo),
-            'periodos' => Periodo::orderByDesc('fecha_inicio')->get(),
+            // Con lo que impide borrar cada uno, igual que en el catalogo: un
+            // periodo con matriculas o clases sostiene historial. El conteo
+            // viene con la consulta y no se pregunta fila a fila.
+            'periodos' => Periodo::withCount(['matriculas', 'clases'])
+                ->orderByDesc('fecha_inicio')
+                ->get(),
         ]);
     }
 

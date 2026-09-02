@@ -537,6 +537,11 @@
   .perfil-tel-hint { border-bottom: 1px dashed var(--border-strong); }
 
   .perfil-stats { display: flex; justify-content: center; gap: 1.1rem; margin: 0; }
+  /* Las mismas cifras dentro de una tarjeta de ancho completo. Centradas —que es
+     lo correcto bajo el avatar del perfil, donde la tarjeta es estrecha— se
+     quedan flotando en mitad de la fila y sin alinearse con el titulo de arriba.
+     Envuelven, porque en un telefono cuatro cifras no caben en un renglon. */
+  .perfil-stats-fila { justify-content: flex-start; flex-wrap: wrap; gap: 1.1rem 1.8rem; }
   .perfil-stat-num { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 1.15rem; color: var(--ink); }
   .perfil-stat-label { font-size: 0.68rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; }
 
@@ -1126,6 +1131,36 @@
      del boton de abrir o cerrar el enlace, que es la accion principal. */
   .acciones-secundarias { margin-top: 0.35rem; font-size: 0.85rem; }
 
+  /* ---------------------------------------------------------------------
+     SECCIONES DE «PROGRAMAS FORMATIVOS» (y la de periodos, en Matriculas).
+
+     Tres listas seguidas en una pantalla necesitan que se vea donde acaba una y
+     empieza la siguiente. Lo hace el espacio y una linea, no una tarjeta por
+     seccion: las tablas ya traen la suya, y una tarjeta dentro de otra es la
+     forma segura de que nada se lea como el nivel que es.
+
+     La cabecera pone el titulo y su «+ Nuevo» en el mismo renglon. En el
+     telefono el boton NO baja a su propia linea: mide 44px y cabe al lado de un
+     titulo de dos palabras, y bajarlo alejaria «+ Nuevo» de la lista a la que
+     pertenece justo cuando mas cuesta relacionarlos.
+     --------------------------------------------------------------------- */
+  .programa-seccion + .programa-seccion {
+    margin-top: 2.2rem; padding-top: 1.8rem; border-top: 1px solid var(--border);
+  }
+  .programa-cabecera {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; margin-bottom: 0.2rem;
+  }
+  .programa-cabecera h3 { margin: 0; }
+  .programa-cabecera .btn { flex: 0 0 auto; }
+  /* Los dos atajos a las listas planas. Enlaces de texto y no botones: son la
+     salida de emergencia de esta pantalla —ver todo lo de un nivel de golpe—,
+     no lo que se viene a hacer aqui. */
+  .programa-atajos { margin: 0.9rem 0 0; font-size: 0.85rem; }
+  .programa-atajo-sep { color: var(--ink-faint); margin: 0 0.4rem; }
+  /* El paso a repartir cupos, dentro de la ficha del periodo en curso. */
+  .matriculas-cupos { margin: 1.1rem 0 0; font-size: 0.9rem; font-weight: 700; }
+
   /* Paginacion. El rango va en el centro y los dos controles a los lados
      siempre en el mismo sitio: si el extremo inerte se ocultara en vez de
      quedarse apagado, "Siguiente" saltaria de posicion al llegar a la ultima
@@ -1439,7 +1474,19 @@
   }
 
   /* Pestañas de Gestión: tarjetas pineadas en la cartelera, no pestañas de carpeta. */
-  .tarjetas { display: flex; gap: 1rem; flex-wrap: wrap; }
+  /* LA PORTADA DE GESTION.
+     Rejilla de columnas iguales y no una fila que se envuelve. Desde el
+     01/09/2026 cada ficha lleva un renglon que dice que hay dentro, y con
+     anchos distintos —cada ficha midiendo lo que pidiera su texto mas largo—
+     ese renglon salia partido en dos lineas en unas y en tres en otras, con lo
+     que las fichas dejaban de alinearse entre si. Es el mismo razonamiento que
+     el de la barra de filtros: el ancho lo pone la rejilla, no el contenido.
+     `auto-fit` la baja sola a una columna en el telefono. */
+  .tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem;
+  }
   .tarjeta-enlace {
     position: relative;
     display: block;
@@ -1461,6 +1508,22 @@
   }
   .tarjeta-enlace:hover { border-color: var(--accent); box-shadow: var(--shadow-lift); transform: translateY(-3px); color: var(--ink); }
   .tarjeta-enlace .num { display: block; font-family: var(--font-mono); font-size: 1.6rem; color: var(--accent); margin-bottom: 0.15rem; }
+  /* Que hay dentro de la ficha.
+     Al agrupar doce destinos en seis, el nombre de una ficha dejo de nombrar
+     una pantalla y paso a nombrar un SITIO —«Programas formativos» no dice si
+     los grupos de proyeccion estan ahi—, asi que este renglon no es adorno: sin
+     el habria que entrar a averiguar donde se guardo cada cosa. `font-weight`
+     explicito porque la ficha entera va en negrita. */
+  .tarjeta-nota {
+    display: block; margin-top: 0.35rem;
+    font-size: 0.85rem; font-weight: 400; line-height: 1.45;
+    color: var(--ink-soft);
+  }
+  /* El nombre de la ficha y su cifra, cuando la lleva. La cifra a la derecha:
+     encima del nombre, la ficha se leia «18 · Cancelaciones» y el numero
+     llegaba antes que la palabra que dice de que es. */
+  .tarjeta-titulo { display: flex; align-items: baseline; gap: 0.6rem; }
+  .tarjeta-titulo .num { display: inline; margin: 0 0 0 auto; font-size: 1.4rem; }
 
   .aviso {
     background: var(--surface-alt); color: var(--ink-soft);
@@ -1716,6 +1779,12 @@
     .perfil-editar-btn::after { content: ""; position: absolute; inset: -9px; }
     .perfil-seccion-cabecera, .dep-cabecera, .corregir-abrir { min-height: 44px; }
     .periodo-flecha { min-height: 44px; min-width: 44px; }
+    /* Los dos atajos de «Programas formativos» y el paso a repartir cupos: van
+       solos en su renglon, no dentro de una frase, asi que les toca el piso.
+       La fila envuelve porque a 390px los dos atajos no caben juntos. */
+    .programa-atajos { display: flex; flex-wrap: wrap; align-items: center; }
+    .programa-atajos a,
+    .matriculas-cupos a { display: inline-flex; align-items: center; min-height: 44px; }
     /* Con la letra tambien: es un desplegable de verdad —se elige a que
        promotoria se mueve una matricula— y por debajo de 16px iOS acerca la
        pagina al enfocarlo. La Regla de los 16px. */

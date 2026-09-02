@@ -23,7 +23,10 @@ class AreaController extends RecursoController
             'titulo' => 'Departamentos',
             'titulo_nuevo' => 'Nueva área',
             'titulo_editar' => 'Editar área',
-            'ruta_lista' => 'area-lista',
+            // Vuelve a «Programas formativos» y no al listado plano: ahi es
+            // donde vive esta lista desde el 01/09/2026, y donde estaba quien
+            // abrio el modal.
+            'ruta_lista' => 'gestion-programas',
             'ruta_nuevo' => 'area-nueva',
             'ruta_editar' => 'area-editar',
             'ruta_eliminar' => 'area-eliminar',

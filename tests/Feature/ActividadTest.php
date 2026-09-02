@@ -283,7 +283,7 @@ class ActividadTest extends TestCase
 
         $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
             'fechas' => ['2026-09-03', '', '2026-09-10', ''],
-        ])->assertRedirect(route('actividad-curso-lista'));
+        ])->assertRedirect(route('gestion-programas'));
 
         $this->assertSame(
             ['2026-09-03', '2026-09-10'],
@@ -362,7 +362,7 @@ class ActividadTest extends TestCase
 
         $this->actingAs($this->admin->user)->post(route('actividad-curso-fechas', $curso), [
             'fechas' => ['2026-09-03', '2026-09-17'],
-        ])->assertRedirect(route('actividad-curso-lista'));
+        ])->assertRedirect(route('gestion-programas'));
 
         // La que sigue en la lista conserva su id y su hora de inicio: no se
         // borra y se vuelve a crear.
@@ -387,7 +387,7 @@ class ActividadTest extends TestCase
             'responsable_id' => $this->director->id,
             'cupo_maximo' => '',
             'tipo' => Actividad::CURSO,
-        ])->assertRedirect(route('actividad-proyeccion-lista'));
+        ])->assertRedirect(route('gestion-programas'));
 
         $this->assertSame(Actividad::PROYECCION, Actividad::firstWhere('nombre', 'Coro institucional')->tipo);
     }
@@ -619,7 +619,7 @@ class ActividadTest extends TestCase
 
         $this->actingAs($this->admin->user)
             ->post(route('actividad-proyeccion-enlace', $banda))
-            ->assertRedirect(route('actividad-proyeccion-lista'));
+            ->assertRedirect(route('gestion-programas'));
 
         $this->assertFalse($banda->fresh()->abierta);
 
@@ -665,7 +665,7 @@ class ActividadTest extends TestCase
             'responsable_id' => $this->profesor->id,
             'cupo_maximo' => '',
             'abierta' => '0',
-        ])->assertRedirect(route('actividad-proyeccion-lista'));
+        ])->assertRedirect(route('gestion-programas'));
 
         $this->assertTrue($banda->fresh()->abierta);
     }

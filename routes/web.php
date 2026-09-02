@@ -294,6 +294,11 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::post('/cancelaciones/{matricula}/{decision}', [Gestion\CancelacionesController::class, 'resolver'])
         ->name('gestion-resolver-cancelacion');
 
+    // Programas formativos: el arbol academico y las dos actividades, juntos.
+    // Es la casa de los departamentos, los cursos y los grupos de proyeccion;
+    // las pantallas de cada uno por separado siguen vivas debajo.
+    Route::get('/programas', Gestion\ProgramasController::class)->name('gestion-programas');
+
     // Departamentos
     Route::get('/areas', [Gestion\AreaController::class, 'index'])->name('area-lista');
     Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');

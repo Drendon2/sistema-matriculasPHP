@@ -28,7 +28,10 @@ class PeriodoController extends RecursoController
             'titulo' => 'Periodos',
             'titulo_nuevo' => 'Nuevo periodo',
             'titulo_editar' => 'Editar periodo',
-            'ruta_lista' => 'periodo-lista',
+            // Los periodos viven dentro de Matriculas desde el 01/09/2026:
+            // crear uno es parte de abrir un periodo, no de mantener un
+            // catalogo aparte. Ahi vuelve al guardar, cancelar o borrar.
+            'ruta_lista' => 'gestion-matriculas',
             'ruta_nuevo' => 'periodo-nuevo',
             'ruta_editar' => 'periodo-editar',
             'ruta_eliminar' => 'periodo-eliminar',

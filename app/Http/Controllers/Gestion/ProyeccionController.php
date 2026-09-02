@@ -37,7 +37,10 @@ class ProyeccionController extends ActividadController
             'titulo' => 'Grupos de proyección',
             'titulo_nuevo' => 'Nuevo grupo de proyección',
             'titulo_editar' => 'Editar grupo de proyección',
-            'ruta_lista' => 'actividad-proyeccion-lista',
+            // Vuelve a «Programas formativos»: ahi es donde vive esta lista
+            // desde el 01/09/2026, y donde estaba quien abrio el modal. La
+            // pantalla de solo este tipo sigue existiendo en su URL.
+            'ruta_lista' => 'gestion-programas',
             'ruta_nuevo' => 'actividad-proyeccion-nueva',
             'ruta_editar' => 'actividad-proyeccion-editar',
             'ruta_eliminar' => 'actividad-proyeccion-eliminar',

@@ -12,7 +12,7 @@
   no hace falta JavaScript que mantener—. Para agregar un día se llena una
   casilla vacía; para quitarlo, se borra la suya.
 --}}
-<a href="{{ route('actividad-curso-lista') }}" class="volver">&larr; Cursos y talleres</a>
+<a href="{{ route('gestion-programas') }}" class="volver">&larr; Programas formativos</a>
 <h2>Fechas de {{ $actividad->nombre }}</h2>
 
 <p class="campo-info">

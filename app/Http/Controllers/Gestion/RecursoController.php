@@ -156,11 +156,28 @@ abstract class RecursoController extends Controller
 
     public function index(Request $request): View
     {
-        return view('gestion.lista', [
+        return view('gestion.lista', $this->seccion($request));
+    }
+
+    /**
+     * Todo lo que hace falta para pintar este catalogo, sin la pantalla.
+     *
+     * Existe porque desde el 01/09/2026 un catalogo se pinta en DOS sitios: su
+     * propia pantalla y una seccion de «Programas formativos». Es publico —lo
+     * llama otro controlador— y es lo mismo que `index()` le pasaba a la vista,
+     * no una segunda version de la consulta: duplicarla habria sido garantizar
+     * que las dos se separaran, que es justo lo que esta clase existe para
+     * evitar.
+     *
+     * @return array<string, mixed>
+     */
+    public function seccion(Request $request): array
+    {
+        return [
             ...$this->textos(),
             'modal' => $this->cabeEnModal(),
             ...$this->listado($request),
-        ]);
+        ];
     }
 
     public function crear(Request $request): View

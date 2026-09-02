@@ -3,42 +3,103 @@
 @section('title', 'Gestión')
 
 @section('content')
-<h2>Gestión del catálogo académico</h2>
+{{--
+  LA PORTADA DE GESTION.
+
+  Tenía DOCE fichas y cinco de ellas llevaban al mismo sitio por caminos
+  distintos: «Departamentos», «Promotorías» y «Grupos» son tres puertas al mismo
+  árbol —el descenso ya existía, con sus migas— y las fichas planas entraban a
+  media altura saltándoselo; «Cursos y talleres» y «Grupos de proyección» son la
+  otra mitad de lo mismo, que es lo que la institución ofrece. Y «Periodos» era
+  una ficha aparte de «Iniciar / finalizar matrículas», cuando crear un periodo
+  es el primer paso de abrir uno.
+
+  Quedan cuatro destinos y dos de administrador, y cada uno dice qué hay dentro.
+  Eso último no es adorno: al agrupar, el nombre de la ficha deja de nombrar una
+  pantalla y pasa a nombrar un sitio, y sin el renglón de debajo habría que
+  entrar a averiguar qué se guardó dónde. Es el mismo patrón que ya usaban las
+  dos fichas de informes de más abajo.
+--}}
+<h2>Gestión</h2>
+
 <div class="tarjetas">
-  <a class="tarjeta-enlace" href="{{ route('area-lista') }}">Departamentos</a>
-  <a class="tarjeta-enlace" href="{{ route('periodo-lista') }}">Periodos</a>
-  <a class="tarjeta-enlace" href="{{ route('gestion-matriculas') }}">Iniciar / finalizar matrículas</a>
-  <a class="tarjeta-enlace" href="{{ route('gestion-cancelaciones') }}">
-    @if ($cancelacionesPendientes)<span class="num">{{ $cancelacionesPendientes }}</span>@endif
-    Cancelaciones
+  <a class="tarjeta-enlace" href="{{ route('gestion-matriculas') }}">
+    Matrículas
+    <span class="tarjeta-nota">
+      Abrir y cerrar la ventana del periodo en curso, repartir los cupos y crear
+      periodos nuevos.
+    </span>
   </a>
-  <a class="tarjeta-enlace" href="{{ route('promotoria-lista') }}">Promotorías</a>
-  <a class="tarjeta-enlace" href="{{ route('gestion-cupos') }}">Cupos por promotoría</a>
-  <a class="tarjeta-enlace" href="{{ route('grupo-lista') }}">Grupos</a>
+
   {{--
-    Las dos actividades van después del árbol académico y antes de Usuarios, no
-    mezcladas entre las promotorías: no cuelgan de un departamento ni pasan por
-    matrícula, y ponerlas al lado de «Promotorías» invita a buscar ahí lo que
-    aquí se hace por un enlace.
+    La cifra es lo único que avisa de que hay gente esperando respuesta: sin
+    ella habría que entrar a mirar. Por eso esta ficha no se agrupó dentro de
+    Matrículas aunque hable de matrículas — una bandeja con trabajo pendiente
+    tiene que verse desde fuera.
   --}}
-  <a class="tarjeta-enlace" href="{{ route('actividad-curso-lista') }}">Cursos y talleres</a>
-  <a class="tarjeta-enlace" href="{{ route('actividad-proyeccion-lista') }}">Grupos de proyección</a>
-  <a class="tarjeta-enlace" href="{{ route('usuario-lista') }}">Usuarios</a>
+  <a class="tarjeta-enlace" href="{{ route('gestion-cancelaciones') }}">
+    {{--
+      La cifra va DESPUES del nombre y no antes. Suelta encima, la ficha se leia
+      «18 · Cancelaciones»: el numero llegaba antes que la palabra que dice de
+      que es, y con seis fichas que ahora empiezan todas por su nombre, esa era
+      la unica que empezaba por otra cosa. A la derecha se sigue viendo de lejos,
+      que es para lo que esta.
+    --}}
+    <span class="tarjeta-titulo">
+      Cancelaciones
+      @if ($cancelacionesPendientes)<span class="num">{{ $cancelacionesPendientes }}</span>@endif
+    </span>
+    <span class="tarjeta-nota">
+      @if ($cancelacionesPendientes)
+        {{ $cancelacionesPendientes == 1 ? 'Una persona pidió' : 'Personas que pidieron' }}
+        salirse y {{ $cancelacionesPendientes == 1 ? 'espera' : 'esperan' }} respuesta.
+      @else
+        Quien pide salirse de una promotoría espera aquí. Ahora mismo no hay nadie.
+      @endif
+    </span>
+  </a>
+
+  <a class="tarjeta-enlace" href="{{ route('gestion-programas') }}">
+    Programas formativos
+    <span class="tarjeta-nota">
+      Departamentos, promotorías y grupos. Cursos y talleres. Grupos de
+      proyección.
+    </span>
+  </a>
+
+  <a class="tarjeta-enlace" href="{{ route('usuario-lista') }}">
+    Usuarios
+    <span class="tarjeta-nota">
+      Altas, roles, cuentas activas y el enlace para registrar a un profesor.
+    </span>
+  </a>
+
   @if ($yo->rol === 'administrador')
-  <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">Estadísticas</a>
-  <a class="tarjeta-enlace" href="{{ route('gestion-configuracion') }}">Institución</a>
+  <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">
+    Estadísticas
+    <span class="tarjeta-nota">
+      Cómo va el periodo: permanencia, asistencia y las encuestas.
+    </span>
+  </a>
+
+  <a class="tarjeta-enlace" href="{{ route('gestion-configuracion') }}">
+    Institución
+    <span class="tarjeta-nota">
+      Nombre, logo, color y qué documentos se piden al matricularse.
+    </span>
+  </a>
   @endif
 </div>
 
-<h2 style="margin-top:2rem;">Informes descargables</h2>
-<p class="campo-info" style="margin-top:-0.8rem;">
+<h2 style="margin-top:2.4rem;">Informes descargables</h2>
+<p class="campo-info">
   Se abren con Excel o con Hojas de cálculo de Google.
 </p>
 
 <div class="tarjetas">
   <a class="tarjeta-enlace" href="{{ route('informe-estudiantes') }}">
     Estudiantes por grupo
-    <span class="campo-info" style="display:block;margin:0.2rem 0 0;font-weight:400;">
+    <span class="tarjeta-nota">
       Del periodo en curso, con teléfono y acudiente.
     </span>
   </a>
@@ -52,7 +113,7 @@
   --}}
   <a class="tarjeta-enlace" href="{{ route('informe-institucion') }}">
     Informe completo de la institución
-    <span class="campo-info" style="display:block;margin:0.2rem 0 0;font-weight:400;">
+    <span class="tarjeta-nota">
       Incluye la <strong>encuesta demográfica con nombre</strong> y datos de
       menores. Trátalo como confidencial.
     </span>

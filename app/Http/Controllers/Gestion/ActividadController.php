@@ -49,8 +49,20 @@ abstract class ActividadController extends RecursoController
 
     public function index(Request $request): View
     {
-        return view('gestion.actividades', [
+        return view('gestion.actividades', $this->seccion($request));
+    }
+
+    /**
+     * Lo mismo que `index()` le pasa a la vista, para poder pintar esta tabla
+     * dentro de «Programas formativos». Ver `RecursoController::seccion()`.
+     *
+     * @return array<string, mixed>
+     */
+    public function seccion(Request $request): array
+    {
+        return [
             ...$this->textos(),
+            'modal' => $this->cabeEnModal(),
             'actividades' => Actividad::with(['responsable', 'periodo'])
                 // El conteo por `withCount` y no recorriendo la relacion: el
                 // listado pinta una fila por actividad y `sesiones` dentro del
@@ -59,7 +71,7 @@ abstract class ActividadController extends RecursoController
                 ->whereIn('tipo', $this->tipos())
                 ->orderBy('nombre')
                 ->get(),
-        ]);
+        ];
     }
 
     /**
