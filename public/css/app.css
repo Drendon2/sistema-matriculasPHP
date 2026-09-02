@@ -1144,10 +1144,48 @@
      una accion devuelve el menu cerrado — que es lo que uno espera despues de
      usarlo, y evita que quede abierto sobre una fila que acaba de borrarse.
 
-     El panel se posiciona en absoluto para no estirar la fila al abrirse. La
-     tabla no lo recorta: en escritorio no hay overflow, y bajo 640px
-     `.tabla-personas` lleva `overflow-x: visible` a proposito.
+     El panel se posiciona en absoluto para no estirar la fila al abrirse, y por
+     eso la tabla que lo contiene NO puede recortar. Esta linea decia lo
+     contrario —«la tabla no lo recorta»— y era falsa: `table` lleva
+     `overflow: hidden` para redondear sus esquinas, y con el el panel se cortaba
+     en las cinco pantallas. El arreglo esta arriba, en `.tabla-menu-esquina`.
      --------------------------------------------------------------------- */
+  /* LA TABLA QUE LLEVA MENU NO RECORTA.
+
+     `table` lleva `overflow: hidden` y no es decorativo: es lo que redondea sus
+     esquinas, porque el fondo de las celdas las pintaria cuadradas. Pero un
+     `overflow` distinto de `visible` crea un contexto de recorte, y ahi dentro
+     el panel del menu se CORTA — se abria y solo se veia el trozo que cabia
+     dentro de la tabla. Pasaba en las cinco pantallas con menu, y en la ultima
+     fila se comia la opcion entera.
+
+     Asi que estas dos dejan de recortar y las esquinas se redondean a mano,
+     celda por celda. `tbody:first-child` es «esta tabla no tiene thead»: en las
+     que si lo tienen, la primera fila del cuerpo no esta en la esquina y
+     redondearla se veria al pasar el cursor, que es cuando la fila se pinta. */
+  .tabla-menu-esquina,
+  .tabla-menu-fila { overflow: visible; }
+  .tabla-menu-esquina > thead > tr:first-child > th:first-child,
+  .tabla-menu-fila > thead > tr:first-child > th:first-child,
+  .tabla-menu-esquina > tbody:first-child > tr:first-child > td:first-child,
+  .tabla-menu-fila > tbody:first-child > tr:first-child > td:first-child {
+    border-top-left-radius: var(--radius);
+  }
+  .tabla-menu-esquina > thead > tr:first-child > th:last-child,
+  .tabla-menu-fila > thead > tr:first-child > th:last-child,
+  .tabla-menu-esquina > tbody:first-child > tr:first-child > td:last-child,
+  .tabla-menu-fila > tbody:first-child > tr:first-child > td:last-child {
+    border-top-right-radius: var(--radius);
+  }
+  .tabla-menu-esquina > tbody > tr:last-child > td:first-child,
+  .tabla-menu-fila > tbody > tr:last-child > td:first-child {
+    border-bottom-left-radius: var(--radius);
+  }
+  .tabla-menu-esquina > tbody > tr:last-child > td:last-child,
+  .tabla-menu-fila > tbody > tr:last-child > td:last-child {
+    border-bottom-right-radius: var(--radius);
+  }
+
   .menu-fila { position: relative; display: inline-block; }
   .menu-fila-boton {
     display: inline-flex; align-items: center; justify-content: center;
