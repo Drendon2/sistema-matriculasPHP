@@ -295,17 +295,71 @@
 
   .cupos-agotados { color: var(--danger); font-weight: 700; }
 
-  /* Pegajoso, no fijo: ocupa su sitio en el flujo como siempre, pero si la
-     acción se resolvió a mitad de una lista larga el aviso sigue a la vista en
-     lugar de contestar a tres pantallas de distancia. Sin recarga de página,
-     un mensaje que solo vive arriba del todo no lo lee nadie. */
+  /* SUPERPUESTO, fuera del flujo: el aviso no ocupa sitio en la página y por
+     tanto no la mueve — ni al aparecer ni al irse.
+     Fue `sticky` hasta el 03/09, que ocupa su hueco como cualquier elemento. Se
+     veía bien, pero desde que las acciones responden sin recargar el aviso
+     aparece y desaparece con la página delante, y cada vez empujaba el
+     contenido 41px arriba o abajo. Medido en Chrome a 390px: sin salto de
+     scroll, pero con la lista moviéndose bajo el dedo, que es exactamente lo
+     que no debe pasar mientras alguien pasa lista.
+     El ancho se ata al de `main` (960px menos su padding) para que el aviso
+     caiga sobre la columna de contenido y no cruce la pantalla entera.
+     `pointer-events: none` es lo que lo hace inofensivo: flota por encima pero
+     no se come ni un toque, así que nunca tapa un botón de verdad. A cambio, un
+     aviso NO puede llevar un enlace dentro; hoy son todos texto plano. */
   .messages {
-    list-style: none; padding: 0; margin: 0 0 1.3rem;
-    position: sticky; top: 0.6rem; z-index: 5;
+    list-style: none; padding: 0; margin: 0;
+    position: fixed;
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100% - 1.5rem, 57.5rem);
+    z-index: 30;
+    pointer-events: none;
   }
   .messages li { padding: 0.7rem 1rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem; font-size: 0.85rem; border: 1px solid transparent; box-shadow: var(--shadow); }
   .messages .success { background: var(--accent-soft); color: var(--accent-dark); border-color: rgba(10,122,89,0.2); }
   .messages .error { background: var(--danger-bg); color: var(--danger); border-color: rgba(178,46,34,0.2); }
+
+  /* El aviso se va solo, porque al no recargar la pagina ya no se iba nunca.
+     Antes cada accion traia una recarga que se lo llevaba; desde que se
+     responde sin recargar, se quedaba puesto el resto de la sesion.
+     Solo la OPACIDAD, y esto es consecuencia directa de que este superpuesto:
+     al no ocupar sitio, no hay alto que encoger ni hueco que cerrar. Mientras
+     estuvo en el flujo hubo que colapsar tambien el alto para no dejar un vacio
+     empujando la pagina, y esa era justo la parte que la movia.
+     LA EXCEPCION ES EL RECHAZO DE UN FORMULARIO, que no se va nunca. Un aviso
+     de exito que no se lea no cuesta nada: la accion se hizo. Uno que dice que
+     NO se guardo y desaparece deja a alguien mirando una pantalla que no
+     cambio, y eso ya le costo a un profesor en produccion creer que habia un
+     tope de grupos. Superpuesto ademas se ve SIEMPRE, mirara donde mirara, que
+     era el fallo de origen. Lo marca `aviso-fijo` en
+     partials/mensajes.blade.php. */
+  @keyframes aviso-se-va {
+    0%, 82% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+  }
+  .messages .success { animation: aviso-se-va 7s ease-in forwards; }
+  .messages .error { animation: aviso-se-va 10s ease-in forwards; }
+  .messages .aviso-fijo { animation: none; }
+
+  /* Quien pide menos movimiento tiene el aviso el mismo tiempo, pero sin el
+     desvanecido: `step-end` mantiene la opacidad en 1 hasta el final y ahi salta
+     a 0, asi que no hay transicion que mirar y tampoco un letrero que se queda
+     para siempre. Esto ultimo es lo que cambio al pasar a superpuesto: mientras
+     ocupaba sitio en la pagina, dejarlo puesto solo costaba unos pixeles; ahora
+     seria un cartel flotando sobre el contenido el resto de la sesion.
+     No re-enciende el del rechazo: aquel apaga `animation-name`, y sin nombre
+     no hay animacion que temporizar.
+     Los selectores se REPITEN enteros y no vale un `.messages li`: aquel pesa
+     (0,1,1) y estos (0,2,0), y una consulta de medios no anade especificidad
+     ninguna. Escrito con `li` la regla se compila, no falla y no hace nada — se
+     vio midiendo la opacidad en Chrome, que seguia desvaneciendose. */
+  @media (prefers-reduced-motion: reduce) {
+    .messages .success,
+    .messages .error { animation-timing-function: step-end; }
+  }
 
   .vacio { color: var(--ink-faint); font-style: italic; padding: 1rem 0; }
 

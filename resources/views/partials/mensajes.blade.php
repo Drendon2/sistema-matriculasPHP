@@ -11,9 +11,16 @@
   se ve si queda fuera de pantalla, y en un formulario largo eso es lo normal.
   Un profesor leyó un nombre repetido como un tope de grupos justamente así.
 --}}
+{{--
+  `aviso-fijo`: este NO se desvanece solo, a diferencia de los de abajo. Un aviso
+  de éxito que no se lea no cuesta nada, porque la acción ya se hizo; uno que
+  dice que NO se guardó y se va deja a alguien mirando una pantalla que no
+  cambió, que es exactamente lo que le hizo creer a un profesor que había un tope
+  de grupos. La regla está en `.messages .aviso-fijo`, en app.css.
+--}}
 @if ($errors->any())
   <ul class="messages">
-    <li class="error">
+    <li class="error aviso-fijo">
       <strong>No se guardó.</strong>
       @if ($errors->count() === 1)
         Hay un campo por corregir, marcado en rojo más abajo.
