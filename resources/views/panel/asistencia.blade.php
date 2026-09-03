@@ -1,4 +1,9 @@
-@extends('layouts.app')
+{{--
+  El envoltorio es variable porque esta pantalla se responde de dos formas: la
+  pagina entera al abrirla, y solo lo de dentro de <main> al guardarla sin
+  recargar (ver `App\Support\Fragmento`). Por defecto es la de siempre.
+--}}
+@extends($disposicion ?? 'layouts.app')
 
 @section('title', "Asistencia — {$clase->grupo}")
 

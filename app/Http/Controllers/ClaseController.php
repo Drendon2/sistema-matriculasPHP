@@ -7,11 +7,13 @@ use App\Models\Clase;
 use App\Models\Grupo;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\Fragmento;
 use App\Support\PaseDeLista;
 use App\Support\Permisos;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -97,6 +99,28 @@ class ClaseController extends Controller
             return redirect()->route('panel')->with('error', 'No tienes acceso a esta promotoría.');
         }
 
+        return view('panel.asistencia', $this->datosDeLaHoja($clase, $perfil));
+    }
+
+    /**
+     * Todo lo que la hoja de asistencia necesita para pintarse.
+     *
+     * Esta aparte porque lo usan las DOS ramas —abrir la pantalla y guardarla
+     * sin recargar—, y ese es justo el punto: si cada una armara sus datos, la
+     * hoja recien guardada y la hoja recien abierta serian dos renderizados
+     * distintos de lo mismo, libres de separarse sin que nada falle y sin que
+     * ninguna prueba lo note.
+     *
+     * SIEMPRE relee de la base. Llamada despues de guardar, las marcas que salen
+     * son las que quedaron escritas y no las que venian en el formulario: lo que
+     * el profesor ve confirmado es el estado real.
+     *
+     * @return array<string, mixed>
+     */
+    private function datosDeLaHoja(Clase $clase, Perfil $perfil): array
+    {
+        $clase->load(['grupo.promotoria.area', 'grupo.sesiones', 'periodo']);
+
         $puedeMarcar = Permisos::dictaLaPromotoria($perfil, $clase->grupo->promotoria);
         $matriculas = $clase->matriculasAPasar();
 
@@ -126,7 +150,7 @@ class ClaseController extends Controller
         // reclamarle a cada estudiante por su nombre.
         $confirmaciones = $clase->confirmaciones()->count();
 
-        return view('panel.asistencia', [
+        return [
             'clase' => $clase,
             'estudiantes' => $estudiantes,
             'estados' => Asistencia::ESTADOS,
@@ -137,10 +161,18 @@ class ClaseController extends Controller
             'verificada' => $clase->estaConfirmada($confirmaciones),
             'vencida' => $clase->verificacionVencida($confirmaciones),
             'limiteConfirmacion' => $clase->limite_confirmacion,
-        ]);
+        ];
     }
 
-    public function guardarAsistencia(Request $request, Clase $clase): RedirectResponse
+    /**
+     * Guarda la hoja.
+     *
+     * Los dos rechazos de arriba siguen REDIRIGIENDO aunque se pida el
+     * fragmento, y es a proposito: la respuesta que llega entonces no lleva la
+     * cabecera de vuelta, asi que `acciones.js` se encuentra una pagina normal y
+     * hace lo de siempre. Solo el camino bueno se acorta.
+     */
+    public function guardarAsistencia(Request $request, Clase $clase): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -167,14 +199,26 @@ class ClaseController extends Controller
 
         $sinMarcar = $matriculas->count() - $marcados;
 
-        return redirect()->route('clase-asistencia', $clase)->with(
-            'success',
-            $sinMarcar
-                ? "Asistencia guardada. Quedaron {$sinMarcar} "
-                    .($sinMarcar === 1 ? 'estudiante' : 'estudiantes')
-                    .' sin marcar: puedes volver a esta clase y completarlos.'
-                : 'Asistencia guardada.'
-        );
+        $mensaje = $sinMarcar
+            ? "Asistencia guardada. Quedaron {$sinMarcar} "
+                .($sinMarcar === 1 ? 'estudiante' : 'estudiantes')
+                .' sin marcar: puedes volver a esta clase y completarlos.'
+            : 'Asistencia guardada.';
+
+        // Sin JavaScript, la redireccion de siempre. Es la rama por defecto, no
+        // el remiendo: la otra solo existe si alguien pidio el fragmento.
+        if (! Fragmento::loPide($request)) {
+            return redirect()->route('clase-asistencia', $clase)->with('success', $mensaje);
+        }
+
+        // Con JavaScript se contesta YA con la hoja recien guardada y se ahorra
+        // el viaje del GET al que llevaba la redireccion. Es `now()` y no
+        // `with()` porque el mensaje se pinta en ESTA respuesta: encolarlo lo
+        // dejaria esperando una peticion que ya no va a haber, y reapareceria
+        // pegado a la siguiente pantalla que el profesor abriera.
+        session()->now('success', $mensaje);
+
+        return Fragmento::responder('panel.asistencia', $this->datosDeLaHoja($clase, $perfil));
     }
 
     /**

@@ -45,7 +45,12 @@
   if (!main || !window.fetch || !window.DOMParser || !window.history.pushState) { return; }
 
   /*
-   * Las cabeceras de todas las peticiones de este archivo. Las DOS importan.
+   * Las cabeceras de todas las peticiones de este archivo. Las TRES importan.
+   *
+   * `X-Fragmento` es la ultima, del 03/09. Dice que quien pregunta sabe colocar
+   * medio documento, asi que el servidor puede contestar con lo de dentro de
+   * <main> en vez de guardar-y-redirigir. Donde nadie la mire —que es casi
+   * todo— no cambia nada. Su mitad de servidor es `App\Support\Fragmento`.
    *
    * `X-Requested-With` es la de siempre. `Accept` se anadio el 01/09 y arregla
    * algo que llevaba roto sin que se viera:
@@ -73,6 +78,7 @@
   var CABECERAS = {
     "X-Requested-With": "XMLHttpRequest",
     Accept: "text/html",
+    "X-Fragmento": "1",
   };
 
   function abiertos() {
@@ -84,9 +90,20 @@
     return estado;
   }
 
-  function pintar(html, estado, scroll) {
+  /*
+   * `fragmento` dice que la respuesta trae SOLO lo de dentro de <main>, y eso lo
+   * decide la cabecera que devuelve el servidor — nunca el HTML que llego.
+   *
+   * La tentacion es deducirlo: "no trae <main>, luego es un fragmento". Falla en
+   * el caso que mas duele. Si la sesion caduco, lo que contesta el servidor es
+   * la pagina de entrar, y esa deduccion la pegaria dentro de <main>: el panel
+   * se quedaria con dos cabeceras y un formulario de contrasena incrustado en
+   * medio, en vez de llevar a la persona al login. Por eso se pregunta a quien
+   * lo sabe.
+   */
+  function pintar(html, estado, scroll, fragmento) {
     var doc = new DOMParser().parseFromString(html, "text/html");
-    var nuevo = doc.querySelector("main");
+    var nuevo = fragmento ? doc.body : doc.querySelector("main");
     if (!nuevo) { return false; }
 
     main.innerHTML = nuevo.innerHTML;
@@ -118,6 +135,14 @@
     // concluyo que el sistema tenia un tope de grupos.
     var fallo = main.querySelector(".errorlist");
 
+    // Y un ACIERTO no necesita nada de esto, aunque lo parezca. Al guardar la
+    // lista de asistencia desde el final de veinte nombres, el aviso se pinta
+    // arriba del todo y la tentacion es traerlo a la vista igual que el fallo.
+    // No hace falta: `.messages` es `position: sticky`, asi que ya se ve sin
+    // que nadie la mueva. Medido en Chrome a 390px el 03/09 —el aviso quedaba a
+    // 10px del borde con el scroll en 2220—, y traerlo ademas solo conseguia
+    // subir al profesor 390px sin darle nada. Si vuelve a apetecer, mirar
+    // primero si esa regla del CSS sigue puesta.
     if (fallo) {
       fallo.scrollIntoView({ block: "center" });
     } else {
@@ -160,7 +185,13 @@
       headers: CABECERAS,
     }).then(function (respuesta) {
       return respuesta.text().then(function (html) {
-        return { html: html, url: respuesta.url, ok: respuesta.ok };
+        return {
+          html: html,
+          url: respuesta.url,
+          ok: respuesta.ok,
+          // Solo si el servidor lo dice. Ver `pintar()`.
+          fragmento: respuesta.headers.get("X-Fragmento") === "1",
+        };
       });
     }).then(function (r) {
       // La accion pudo llevar a OTRA pagina (crear algo y volver a su lista, o
@@ -168,8 +199,11 @@
       // es la buena: si se navegara de verdad, el mensaje encolado ya se habria
       // consumido en esta peticion y se perderia. Asi que se pinta igual y se
       // corrige la barra de direcciones.
-      var cambioDePagina = r.url && r.url !== window.location.href;
-      if (!pintar(r.html, estado, cambioDePagina ? 0 : scroll)) {
+      //
+      // Un fragmento nunca es un cambio de pagina: se responde en el sitio, y
+      // `respuesta.url` es la misma del formulario.
+      var cambioDePagina = !r.fragmento && r.url && r.url !== window.location.href;
+      if (!pintar(r.html, estado, cambioDePagina ? 0 : scroll, r.fragmento)) {
         window.location.href = r.url || window.location.href;
         return;
       }
