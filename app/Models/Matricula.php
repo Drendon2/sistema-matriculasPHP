@@ -156,16 +156,39 @@ class Matricula extends Model
         return $this->belongsTo(Perfil::class, 'estudiante_id');
     }
 
+    /**
+     * La promotoria a la que pertenece.
+     *
+     * Anotada por lo mismo que `estudiante()`: sin el tipo, el analizador ve un
+     * `Model` generico. Aqui ademas ya no es solo cosa de las pantallas —desde
+     * que una accion del Panel le pasa `$matricula->promotoria` a `volver()`
+     * para responder sin recargar, un `Model` suelto es un error de tipo en el
+     * propio controlador.
+     *
+     * @return BelongsTo<Promotoria, $this>
+     */
     public function promotoria(): BelongsTo
     {
         return $this->belongsTo(Promotoria::class);
     }
 
+    /** @return BelongsTo<Grupo, $this> */
     public function grupo(): BelongsTo
     {
         return $this->belongsTo(Grupo::class);
     }
 
+    /**
+     * El periodo en el que se matriculo.
+     *
+     * Anotado en la misma tanda que `promotoria()`, y no por gusto de simetria:
+     * en cuanto la promotoria dejo de ser un `Model` generico, el analizador
+     * pudo por fin resolver `cupoEn()` y `ocupadosEn()` — y lo primero que dijo
+     * es que el periodo que se les pasa seguia siendo generico. Anotar solo una
+     * de las dos cambia dos avisos por otros dos.
+     *
+     * @return BelongsTo<Periodo, $this>
+     */
     public function periodo(): BelongsTo
     {
         return $this->belongsTo(Periodo::class);

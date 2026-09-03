@@ -31,18 +31,6 @@ parameters:
 			path: app/Console/Commands/Simular.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
-			message: '#^Parameter \#4 \$periodo of method App\\Http\\Controllers\\CertificadoController\:\:generar\(\) expects App\\Models\\Periodo, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/CertificadoController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$promotoria\.$#'
 			identifier: property.notFound
 			count: 4
@@ -457,12 +445,6 @@ parameters:
 			path: app/Http/Controllers/PanelController.php
 
 		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:puedeGestionarPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 3
-			path: app/Http/Controllers/PanelController.php
-
-		-
 			message: '#^Dead catch \- Illuminate\\Database\\QueryException is never thrown in the try block\.$#'
 			identifier: catch.neverThrown
 			count: 1
@@ -479,12 +461,6 @@ parameters:
 			identifier: argument.type
 			count: 3
 			path: app/Http/Controllers/PanelGrupoController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/RenovarController.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estudiante\.$#'
@@ -583,66 +559,6 @@ parameters:
 			path: app/Models/InscritoActividad.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cupo_maximo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$promotoria_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$termino\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:cupoEn\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:matriculas\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:ocupadosEn\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Cannot access property \$id on bool\|Illuminate\\Database\\Eloquent\\Model\|list\<static\(App\\Models\\Matricula\)\>\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Method App\\Models\\Matricula\:\:historialPorPeriodo\(\) should return list\<array\{periodo\: App\\Models\\Periodo, matriculas\: list\<App\\Models\\Matricula\>, en_curso\: bool\}\> but returns array\<int\<0, max\>, non\-empty\-array\<''en_curso''\|''matriculas''\|''periodo'', bool\|Illuminate\\Database\\Eloquent\\Model\|list\<static\(App\\Models\\Matricula\)\>\|null\>\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
-			message: '#^Method App\\Models\\Matricula\:\:renovables\(\) should return array\{App\\Models\\Periodo\|null, list\<App\\Models\\Matricula\>\} but returns array\{Illuminate\\Database\\Eloquent\\Model\|null, array\<int, static\(App\\Models\\Matricula\)\>\}\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Matricula.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$esta_completa\.$#'
 			identifier: property.notFound
 			count: 1
@@ -701,12 +617,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Support/HorarioSemanal.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:dictaLaPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Support/Permisos.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Asistencia\:\:\$clave\.$#'

@@ -12,10 +12,12 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Support\Fragmento;
 use App\Support\Permisos;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -48,6 +50,22 @@ class PanelController extends Controller
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
 
+        return view('panel.index', $this->datosDelIndice($perfil));
+    }
+
+    /**
+     * Los datos de la portada del Panel.
+     *
+     * Esta aparte porque lo usan las DOS ramas: abrir el Panel y responder a una
+     * accion sin recargar. Una accion repinta la portada ENTERA —no solo el
+     * cuerpo de la promotoria— y la razon es la insignia de «N pendientes», que
+     * vive en el <summary>, fuera del cuerpo: confirmar una matricula la cambia,
+     * y un fragmento que solo trajera el cuerpo la dejaria mintiendo.
+     *
+     * @return array<string, mixed>
+     */
+    private function datosDelIndice(Perfil $perfil): array
+    {
         $promotorias = $this->visiblesPara($perfil)
             ->with(['area', 'profesor'])
             ->orderBy('id')
@@ -62,7 +80,7 @@ class PanelController extends Controller
             ->selectRaw('promotoria_id, COUNT(*) as total')
             ->pluck('total', 'promotoria_id');
 
-        return view('panel.index', [
+        return [
             'promotorias' => $promotorias,
             'pendientes' => $pendientes,
             // Cuantos cursos, talleres o grupos de proyeccion tiene a la vista.
@@ -75,7 +93,7 @@ class PanelController extends Controller
                     fn ($q) => $q->where('responsable_id', $perfil->id)
                 )
                 ->count(),
-        ]);
+        ];
     }
 
     /**
@@ -103,6 +121,21 @@ class PanelController extends Controller
             404
         );
 
+        return view('panel.item', $this->datosDelCuerpo($promotoria, $perfil));
+    }
+
+    /**
+     * Lo que necesita `panel.item` para pintarse.
+     *
+     * Aparte por lo mismo que el indice: lo piden las dos ramas. Al desplegar
+     * una promotoria se pide por su URL, y al responder a una accion sin
+     * recargar se pinta ya dentro de la portada, para no obligar al navegador a
+     * volver a pedirlo en un tercer viaje.
+     *
+     * @return array<string, mixed>
+     */
+    private function datosDelCuerpo(Promotoria $promotoria, Perfil $perfil): array
+    {
         $promotoria->load(['area', 'profesor', 'grupos.sesiones', 'cupos']);
 
         // Sin periodo en curso se ensena el mas reciente. Entre dos semestres no
@@ -115,10 +148,10 @@ class PanelController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        return view('panel.item', [
+        return [
             'periodo' => $periodo,
             'item' => $this->itemDe($promotoria, $perfil, $periodo),
-        ]);
+        ];
     }
 
     /**
@@ -230,7 +263,7 @@ class PanelController extends Controller
      * Es el momento en que el estudiante entra de verdad a la promotoria. Hasta
      * aqui solo habia pedido sitio.
      */
-    public function confirmar(Request $request, Matricula $matricula): RedirectResponse
+    public function confirmar(Request $request, Matricula $matricula): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -243,7 +276,7 @@ class PanelController extends Controller
         // persona mientras esta estaba mirando la pantalla, no se dice nada: el
         // resultado que queria ya esta puesto.
         if ($matricula->estado !== Matricula::PENDIENTE) {
-            return $this->volver('');
+            return $this->volver('', promotoria: $matricula->promotoria);
         }
 
         // El limite de promotorias por periodo tambien se aplica AQUI, y no solo
@@ -273,7 +306,8 @@ class PanelController extends Controller
 
         return $this->volver(
             "Matrícula de {$matricula->estudiante->nombre_completo} confirmada.",
-            exito: true
+            exito: true,
+            promotoria: $matricula->promotoria,
         );
     }
 
@@ -285,7 +319,7 @@ class PanelController extends Controller
      * despues —el cupo, la ranura, el historial— las dos cosas significan lo
      * mismo, que esa matricula no siguio adelante.
      */
-    public function rechazar(Request $request, Matricula $matricula): RedirectResponse
+    public function rechazar(Request $request, Matricula $matricula): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -295,7 +329,7 @@ class PanelController extends Controller
         }
 
         if ($matricula->estado !== Matricula::PENDIENTE) {
-            return $this->volver('');
+            return $this->volver('', promotoria: $matricula->promotoria);
         }
 
         $matricula->estado = Matricula::RETIRADA;
@@ -303,7 +337,8 @@ class PanelController extends Controller
 
         return $this->volver(
             "Solicitud de {$matricula->estudiante->nombre_completo} rechazada.",
-            exito: true
+            exito: true,
+            promotoria: $matricula->promotoria,
         );
     }
 
@@ -324,7 +359,7 @@ class PanelController extends Controller
      * peor: se confirman las que pueden y se dice, por su nombre, quien quedo
      * fuera y por que.
      */
-    public function resolverPendientesLote(Request $request, Promotoria $promotoria): RedirectResponse
+    public function resolverPendientesLote(Request $request, Promotoria $promotoria): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -367,7 +402,8 @@ class PanelController extends Controller
                 $cuantas === 1
                     ? '1 solicitud rechazada.'
                     : "{$cuantas} solicitudes rechazadas.",
-                exito: true
+                exito: true,
+                promotoria: $promotoria,
             );
         }
 
@@ -446,7 +482,7 @@ class PanelController extends Controller
      * Dejar el campo vacio quita el tope. El profesor lo hace sobre las que
      * dicta; direccion sobre cualquiera.
      */
-    public function cupo(Request $request, Promotoria $promotoria): RedirectResponse
+    public function cupo(Request $request, Promotoria $promotoria): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -468,7 +504,11 @@ class PanelController extends Controller
                 ->where('periodo_id', $periodo->id)
                 ->delete();
 
-            return $this->volver("{$promotoria} queda sin tope de cupos en {$periodo}.", exito: true);
+            return $this->volver(
+                "{$promotoria} queda sin tope de cupos en {$periodo}.",
+                exito: true,
+                promotoria: $promotoria,
+            );
         }
 
         // Se comprueba a mano en vez de con el validador para que el mensaje sea
@@ -503,7 +543,11 @@ class PanelController extends Controller
             );
         }
 
-        return $this->volver("Cupo de {$promotoria} fijado en {$cupo} para {$periodo}.", exito: true);
+        return $this->volver(
+            "Cupo de {$promotoria} fijado en {$cupo} para {$periodo}.",
+            exito: true,
+            promotoria: $promotoria,
+        );
     }
 
     /**
@@ -513,7 +557,7 @@ class PanelController extends Controller
      * le asigna horario. Un `grupo_id` vacio la saca del grupo sin retirarla de
      * la promotoria — el estudiante sigue inscrito, solo que sin horario.
      */
-    public function asignarGrupo(Request $request, Matricula $matricula): RedirectResponse
+    public function asignarGrupo(Request $request, Matricula $matricula): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -549,7 +593,8 @@ class PanelController extends Controller
             $grupo !== null
                 ? "{$matricula->estudiante->nombre_completo} fue asignado a {$grupo}."
                 : "{$matricula->estudiante->nombre_completo} quedó sin grupo asignado.",
-            exito: true
+            exito: true,
+            promotoria: $matricula->promotoria,
         );
     }
 
@@ -565,7 +610,7 @@ class PanelController extends Controller
      * es justo el trabajo que esto viene a evitar. Se deshace el lote entero y
      * se dice cuantos cupos habia.
      */
-    public function asignarGrupoLote(Request $request, Promotoria $promotoria): RedirectResponse
+    public function asignarGrupoLote(Request $request, Promotoria $promotoria): RedirectResponse|Response
     {
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
@@ -638,7 +683,8 @@ class PanelController extends Controller
             $cuantos === 1
                 ? "1 estudiante quedó en {$grupo}."
                 : "{$cuantos} estudiantes quedaron en {$grupo}.",
-            exito: true
+            exito: true,
+            promotoria: $promotoria,
         );
     }
 
@@ -751,8 +797,50 @@ class PanelController extends Controller
         ];
     }
 
-    private function volver(string $mensaje, bool $exito = false): RedirectResponse
-    {
+    /**
+     * Vuelve al Panel despues de una accion.
+     *
+     * CON `$promotoria` y con JavaScript se responde con la portada YA pintada,
+     * y con el cuerpo de esa promotoria dentro. Sin eso hacen falta TRES viajes
+     * para cambiar una fila: el POST, el GET al que redirige, y el que hace
+     * `panel.js` para recuperar el cuerpo que el repintado dejo sin cargar. En
+     * una tanda de quince confirmaciones seguidas —que es como se usa esto— son
+     * cuarenta y cinco.
+     *
+     * Se repinta la portada entera y no solo el cuerpo porque la insignia de
+     * «N pendientes» esta en el <summary>, fuera del cuerpo: confirmar cambia
+     * esa cifra, y un fragmento mas pequeno la dejaria mintiendo. La portada de
+     * un profesor son 2 KB, asi que no hay nada que ganar afinando mas.
+     *
+     * SIN promotoria —los rechazos, donde puede que ni siquiera sea suya— se
+     * redirige como siempre. Esa sigue siendo la rama por defecto y la unica
+     * que existe sin JavaScript.
+     */
+    private function volver(
+        string $mensaje,
+        bool $exito = false,
+        ?Promotoria $promotoria = null,
+    ): RedirectResponse|Response {
+        $peticion = request();
+
+        if ($promotoria !== null && Fragmento::loPide($peticion)) {
+            /** @var Perfil $perfil */
+            $perfil = $peticion->attributes->get('perfil');
+
+            if ($mensaje !== '') {
+                // `now()` y no `with()`: el aviso se pinta en ESTA respuesta. Ver
+                // `App\Support\Fragmento`.
+                session()->now($exito ? 'success' : 'error', $mensaje);
+            }
+
+            return Fragmento::responder('panel.index', $this->datosDelIndice($perfil) + [
+                // El cuerpo de la promotoria sobre la que se acaba de actuar,
+                // pintado ya dentro de su sitio.
+                'cuerpoDe' => $promotoria->id,
+                'cuerpo' => $this->datosDelCuerpo($promotoria, $perfil),
+            ]);
+        }
+
         $respuesta = redirect()->route('panel');
 
         if ($mensaje !== '') {

@@ -1,4 +1,10 @@
-@extends('layouts.app')
+{{--
+  El envoltorio es variable porque esta portada se responde de dos formas: la
+  página entera al abrir el Panel, y solo lo de dentro de <main> al responder a
+  una acción sin recargar (ver `App\Support\Fragmento`). Por defecto, la de
+  siempre.
+--}}
+@extends($disposicion ?? 'layouts.app')
 
 @section('title', 'Panel')
 
@@ -45,11 +51,25 @@
       @endif
       <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
-    <div data-cuerpo-destino>
-      <p class="vacio" data-cuerpo-cargando>Cargando…</p>
-      <noscript>
-        <p><a class="btn btn-sm" href="{{ route('panel-promotoria-cuerpo', $promotoria) }}">Ver {{ $promotoria->nombre }}</a></p>
-      </noscript>
+    {{--
+      El cuerpo llega YA PUESTO en una sola promotoría: aquella sobre la que se
+      acaba de actuar. Sin esto, repintar `<main>` deja su destino sin marcar,
+      `panel.js` lo vuelve a pedir y cambiar una fila cuesta un tercer viaje.
+
+      `data-cargado` es lo que se lo dice a `panel.js` — la MISMA marca que él
+      pone al traerlo por su cuenta, para que no haya dos maneras de saber que un
+      cuerpo ya está.
+    --}}
+    @php($cuerpoPuesto = ($cuerpoDe ?? null) === $promotoria->id)
+    <div data-cuerpo-destino @if ($cuerpoPuesto) data-cargado="si" @endif>
+      @if ($cuerpoPuesto)
+        @include('panel.item', $cuerpo)
+      @else
+        <p class="vacio" data-cuerpo-cargando>Cargando…</p>
+        <noscript>
+          <p><a class="btn btn-sm" href="{{ route('panel-promotoria-cuerpo', $promotoria) }}">Ver {{ $promotoria->nombre }}</a></p>
+        </noscript>
+      @endif
     </div>
   </details>
   @endforeach

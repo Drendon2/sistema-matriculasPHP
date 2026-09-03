@@ -34,9 +34,18 @@
     // `data-cargado` se marca sobre el DESTINO y no sobre el <details>: tras un
     // repintado sin recarga el <details> es un elemento nuevo con el mismo id,
     // así que una marca en él viajaría con datos viejos. En el destino no: el
-    // destino nuevo llega sin marcar y se vuelve a pedir, que es lo correcto
-    // después de confirmar o rechazar algo.
-    if (destino.dataset.cargado === "si") { return; }
+    // destino llega nuevo en cada repintado y dice la verdad sobre SU contenido.
+    //
+    // Hay dos maneras de que ya esté puesto, y las dos acaban aquí: porque lo
+    // trajo este archivo hace un rato, o porque venía dentro de la respuesta de
+    // una acción, que el servidor pinta y marca (ver `App\Support\Fragmento`).
+    // No hay nada que pedir, pero sí que aplicar lo que depende de tener el
+    // cuerpo delante — sin esto, una promotoría repintada sale con sus grupos
+    // plegados y con la cuenta de marcados en cero.
+    if (destino.dataset.cargado === "si") {
+      colocado(destino);
+      return;
+    }
 
     detalle.dataset.cargando = "si";
 
@@ -48,8 +57,7 @@
       .then(function (html) {
         destino.innerHTML = html;
         destino.dataset.cargado = "si";
-        reabrirGrupos(destino);
-        refrescarLotes(destino);
+        colocado(destino);
       })
       .catch(function () {
         // Un fallo de red no puede dejar la promotoría en "Cargando…" para
@@ -77,6 +85,15 @@
     },
     true
   );
+
+  // Lo que hay que hacer cuando el cuerpo de una promotoria esta delante, venga
+  // de donde venga. En un solo sitio a proposito: son dos caminos —pedirlo al
+  // desplegar y recibirlo dentro de una accion— y separarlos garantizaba que uno
+  // de los dos se quedara sin la mitad de esto la proxima vez que se anada algo.
+  function colocado(destino) {
+    reabrirGrupos(destino);
+    refrescarLotes(destino);
+  }
 
   // Las tablas recien inyectadas traen sus casillas: se avisa a lote.js para que
   // ponga al dia la cuenta y los botones de esa promotoria.
