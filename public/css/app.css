@@ -826,12 +826,36 @@
      siga midiendo lo que su contenido pide, igual que `.filtro select`. */
   .lote-barra select { width: auto; max-width: 100%; margin: 0; }
 
-  /* El desplegable de «asignar a» dentro de una fila: ancho por contenido en
-     pantalla ancha, como cualquier control en linea. Llevaba `width:auto` en el
-     atributo `style` para escaparse de la regla base `select { width: 100% }`;
-     esta ahi para lo mismo, pero sin el atributo, que en movil no habia forma de
-     anular — y en movil la ficha lo quiere a ancho completo. */
-  .tabla-personas td select { width: auto; max-width: 100%; margin: 0; }
+  /* El desplegable de «asignar a» dentro de una fila.
+     ANCHO FIJO, y es lo que impide que la tabla se salga de la pantalla. Un
+     select no encoge por debajo de su opcion mas larga, y aqui cada opcion es
+     el rotulo entero del grupo — «Grupo A · Basico · Miercoles 8:00 a. m. a
+     10:00 a. m. (0/20)», sesenta caracteres. Medido a 1280px con un
+     administrador: el control reclamaba 461px, su columna 567, y la tabla
+     acababa midiendo 1087 dentro de un contenedor de 920. Y esos 167 de mas no
+     se recortan con barra: sobre 640px manda `table { overflow: hidden }`, asi
+     que la ultima columna —«Ver detalle»— no se veia NI se podia alcanzar.
+     Tiene que ser `width` y no `max-width`. Con un tope el control se DIBUJA
+     estrecho y sigue RECLAMANDO el ancho de su opcion mas larga para el reparto
+     de columnas: probado, la tabla se quedaba en los mismos 1087. Tampoco basta
+     `min-width: 0`. Se ve midiendo la CELDA, no el control.
+     Esto ya se sabia en la mitad de abajo de este archivo: la regla de movil
+     descubrio lo mismo y lo dice en su comentario —«el contenido aqui es el
+     rotulo entero de un grupo»—. Alli se resolvio y aqui no, porque en
+     escritorio nadie lo vio: lo tapaba el recorte.
+     El texto completo no se pierde: al desplegar, el menu nativo lo pinta
+     entero porque no lo limita el ancho del control. Lo que se acorta es la
+     linea cerrada, que solo se ve entre elegir grupo y pulsar «Asignar». */
+  .tabla-personas td select { width: 13rem; max-width: 100%; min-width: 0; margin: 0; }
+
+  /* Una accion de fila no se parte en dos renglones. «Ver detalle» cortado
+     despues de «Ver» se lee como un fallo de maquetacion, y ademas engordaba la
+     fila entera: con el enlace en una linea y el desplegable en 13rem, la fila
+     de esta lista pasa de 87px de alto a 69 — de dos renglones a uno.
+     No estira la tabla: el reparto automatico saca los 20px que necesita de las
+     columnas que si pueden ceder. Comprobado en las dieciocho tablas del
+     sistema a 1440, 1280, 1024 y 768. */
+  .tabla-personas td[data-celda="accion"] > a { white-space: nowrap; }
   /* Deshabilitado es el estado de reposo aquí —sin nadie marcado no hay nada
      que hacer—, así que no puede parecer un error: se atenúa, no se tacha. */
   .lote-barra button[disabled] { opacity: 0.45; cursor: default; }
@@ -1088,6 +1112,29 @@
      columna y desbordaria la tarjeta. */
   @media (min-width: 641px) {
     .filtro-buscar { grid-column: span 2; }
+
+    /* RED DE SEGURIDAD DE LA BANDA DE ENMEDIO, entre el telefono y el
+       escritorio. Bajo 640px una tabla de personas deja de ser tabla y sus
+       acciones caen a ancho completo; por encima de 1000 caben las ocho
+       columnas del Panel. En medio no pasa ninguna de las dos cosas: medido a
+       768px, la lista de quienes no tienen grupo pide 882 y solo tiene 728.
+       Sin esto, esos 154px se los come `table { overflow: hidden }` y la
+       columna que queda fuera —«Ver detalle»— no se ve NI se alcanza: no hay
+       barra que arrastrar, simplemente no esta. Con esto al menos se alcanza.
+       ES UN APAÑO Y NO LA RESPUESTA: arrastrar para llegar a una accion es
+       justo lo que la regla de la ficha existe para evitar. La respuesta de
+       verdad es subir el punto de corte de la ficha o quitarle columnas a esa
+       lista, y las dos son decisiones del sistema visual, no de este parche.
+       Va SOLO sobre las tablas del cuerpo del Panel, y el alcance es la mitad
+       del asunto: `overflow` en una tabla recorta lo que este posicionado
+       encima, y los menus de fila de Usuarios, los catalogos y las actividades
+       viven dentro de tablas con esta misma clase. En el Panel no hay ninguno.
+       Sobre 1000px no hace nada: sin desbordamiento no aparece barra. */
+    [data-cuerpo-destino] .tabla-personas {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
   }
   /* Se queda en 1rem y NO en los 0.88rem de los select vecinos: es el unico
      control de la barra en el que se ESCRIBE, y por debajo de 16px Safari de
