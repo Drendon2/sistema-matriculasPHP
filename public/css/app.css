@@ -1110,30 +1110,94 @@
      deja un numero impar de controles. Solo a partir de 641px: por debajo la
      rejilla baja a una columna y un `span 2` ahi se inventaria una segunda
      columna y desbordaria la tarjeta. */
-  @media (min-width: 641px) {
+  /* EL COMPLEMENTO EXACTO de la consulta del telefono, y no `min-width: 641px`.
+     Con dos numeros distintos queda un hueco de 1px en el que no aplica NINGUNA
+     de las dos, y ese hueco es alcanzable: el ancho del viewport es fraccionario
+     en cuanto la pantalla va escalada —Windows al 125% es lo corriente— y a
+     640,5 `max-width: 640px` da false y `min-width: 641px` tambien.
+     Comprobado en Chrome el 04/09/2026 con las dos consultas puestas a mano:
+     las dos false, y el Panel desbordando el documento entero —878px dentro de
+     626— sin barra en la tabla, porque el respaldo de mas abajo vive dentro de
+     esta misma consulta y tampoco aplicaba.
+     `not all and (...)` no admite hueco por construccion; dos numeros, si. */
+  @media not all and (max-width: 640px) {
     .filtro-buscar { grid-column: span 2; }
 
-    /* RED DE SEGURIDAD DE LA BANDA DE ENMEDIO, entre el telefono y el
-       escritorio. Bajo 640px una tabla de personas deja de ser tabla y sus
-       acciones caen a ancho completo; por encima de 1000 caben las ocho
-       columnas del Panel. En medio no pasa ninguna de las dos cosas: medido a
-       768px, la lista de quienes no tienen grupo pide 882 y solo tiene 728.
-       Sin esto, esos 154px se los come `table { overflow: hidden }` y la
-       columna que queda fuera —«Ver detalle»— no se ve NI se alcanza: no hay
-       barra que arrastrar, simplemente no esta. Con esto al menos se alcanza.
-       ES UN APAÑO Y NO LA RESPUESTA: arrastrar para llegar a una accion es
-       justo lo que la regla de la ficha existe para evitar. La respuesta de
-       verdad es subir el punto de corte de la ficha o quitarle columnas a esa
-       lista, y las dos son decisiones del sistema visual, no de este parche.
+    /* LA RED DE LA BANDA DE ENMEDIO, entre el telefono y el escritorio.
+       Bajo 640px una tabla de personas deja de ser tabla y sus acciones caen a
+       ancho completo; arriba caben las columnas del Panel. En medio no pasa
+       ninguna de las dos cosas, y lo que sobra no se recorta con barra sino sin
+       ella: manda `table { overflow: hidden }`, asi que la ultima columna
+       —«Ver detalle»— no se ve NI se alcanza. Esto la hace alcanzable.
+       DEJO DE SER EL UNICO APAÑO el 04/09/2026: la banda se cierra de verdad
+       unas lineas mas abajo, escondiendo Telefono y Acudiente donde no caben.
+       Esta red se queda como RESPALDO, para el caso que aquello no cubre —un
+       nombre largo, un rotulo de grupo que crece— y para las pantallas anchas,
+       donde el contenedor esta topado en 920px y la tabla puede seguir
+       desbordando por contenido.
        Va SOLO sobre las tablas del cuerpo del Panel, y el alcance es la mitad
        del asunto: `overflow` en una tabla recorta lo que este posicionado
        encima, y los menus de fila de Usuarios, los catalogos y las actividades
        viven dentro de tablas con esta misma clase. En el Panel no hay ninguno.
-       Sobre 1000px no hace nada: sin desbordamiento no aparece barra. */
+       Sin desbordamiento no aparece barra, asi que no estorba donde cabe. */
     [data-cuerpo-destino] .tabla-personas {
       display: block;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* LA BANDA DE ENMEDIO DEL PANEL, cerrada el 04/09/2026.
+     Entre el telefono y el escritorio las dos tablas anchas del Panel no caben,
+     y hasta hoy la unica respuesta era el arrastre horizontal de aqui arriba
+     —que es justo lo que la regla de la ficha existe para evitar—. Medido en
+     Chrome con datos reales, el ancho MINIMO que pide cada una y la ventana que
+     necesita para no arrastrar (la caja mide la ventana menos 55):
+
+         Pendientes de confirmacion .....  764 px →  819 px de ventana
+         Sin grupo asignado ............  856 px →  911 px de ventana
+         La lista de un grupo ..........  603 px →  cabe siempre
+
+     Asi que la banda rota iba de 641 a ~911, no a 1000. Dentro de «Sin grupo»
+     el culpable esta localizado: la columna «Asignar a» mide 314 de esos 856
+     —el desplegable de 13rem mas su boton— y no se puede encoger sin volver a
+     la trampa del `max-width` que ya costo una vez (ver mas arriba).
+     Lo que se quita, entonces, son las dos columnas que SI se pueden quitar.
+     Sin Telefono ni Acudiente las dos tablas bajan por debajo de 643 y caben en
+     toda la banda. El dato no se pierde: sigue en «Ver detalle», en el Excel de
+     la lista, y en el telefono la ficha lo enseña con su rotulo, porque la
+     regla se corta en 641.
+     EL TOPE ES 1000 Y NO 911 a proposito. El contenedor del Panel esta topado
+     en 920px —medido: a 1000, 1024 y 1100px de ventana la caja mide siempre
+     920—, asi que entre 911 y 1000 la tabla completa cabe con 64px de holgura
+     como mucho, y a 912 con uno. Esa holgura se la come cualquier nombre algo
+     mas largo, y el precio de equivocarse hacia abajo es un arrastre; hacia
+     arriba, dos columnas menos en una franja que casi nadie usa.
+     La lista de UN GRUPO no lleva marcadores: cabe, y esconder una columna que
+     cabe es perder un dato a cambio de nada.
+     Lo vigila `TablaQueNoSeSaleTest`, que no mide anchos —PHPUnit no tiene
+     navegador— sino que las reglas y sus marcadores sigan escritos. */
+  @media not all and (max-width: 640px) {
+    /* Anidada, y no un `and` en la de fuera: `not` niega la consulta ENTERA, asi
+       que no se le puede pegar otra condicion detras. Anidar @media dentro de
+       @media es la forma de escribir la Y de las dos. */
+    @media (max-width: 1000px) {
+      [data-cuerpo-destino] .tabla-personas [data-col="telefono"],
+      [data-cuerpo-destino] .tabla-personas [data-col="acudiente"] { display: none; }
+
+      /* Y el desplegable de «Asignar a» se estrecha, porque quitar las dos
+         columnas no basta abajo del todo: sin ellas la lista sigue pidiendo 634
+         y a 660px de ventana solo tiene 603. Esos 48px de ventana que faltaban
+         —de 641 a 689— NO son un hueco teorico: un iPhone 8 o un SE en
+         horizontal miden 667.
+         Se estrecha ESTE y no se quita ninguna columna mas porque es lo unico
+         que no cuesta un dato. La siguiente candidata por tamaño era Edad, y la
+         edad es justamente lo que se mira para mandar a alguien al grupo que le
+         toca. Aqui lo que se acorta es la linea CERRADA del control, que solo se
+         ve entre elegir grupo y pulsar «Asignar»: al desplegarlo el menu nativo
+         pinta el rotulo entero, que no lo limita el ancho del control.
+         Sigue siendo `width` y no `max-width`, por lo de siempre. */
+      [data-cuerpo-destino] .tabla-personas td[data-celda="accion"] select { width: 9rem; }
     }
   }
   /* Se queda en 1rem y NO en los 0.88rem de los select vecinos: es el unico

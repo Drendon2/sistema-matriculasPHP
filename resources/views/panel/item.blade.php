@@ -101,6 +101,15 @@
 </form>
 @endif
 
+{{--
+  `data-col` en Telefono y Acudiente NO es decorativo y no cambia nada de lo que
+  se ve en una pantalla ancha: es lo que permite esconder esas dos columnas
+  entre 641 y 1000px, la banda donde esta tabla no cabe y lo que sobra queda al
+  otro lado de un arrastre. La regla y el porque estan en app.css. Quien los
+  quite creyendo que sobran no rompera nada que vaya a mirar.
+  Las lleva esta tabla y la de «Sin grupo asignado», que son las dos que
+  desbordan; la lista de un grupo cabe y las conserva.
+--}}
 <table class="tabla-personas" @if ($item['puede_gestionar'] && count($item['pendientes']) > 1) data-lote-tabla="{{ $lotePendientes }}" @endif>
   <thead>
     <tr>
@@ -109,7 +118,7 @@
         <input type="checkbox" data-lote-todos aria-label="Marcar todas las solicitudes pendientes">
       </th>
       @endif
-      <th></th><th>Nombre</th><th>Trayectoria</th><th>Edad</th><th>Teléfono</th><th>Acudiente</th>
+      <th></th><th>Nombre</th><th>Trayectoria</th><th>Edad</th><th data-col="telefono">Teléfono</th><th data-col="acudiente">Acudiente</th>
       @if ($item['puede_gestionar'])<th></th>@endif
       @if ($esAdministrador)<th></th>@endif
     </tr>
@@ -134,8 +143,8 @@
         @endif
       </td>
       <td data-label="Edad">{{ $e['perfil']->edad }} años</td>
-      <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
-      <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
+      <td data-col="telefono" data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
+      <td data-col="acudiente" data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
       <td data-celda="accion">
         <span class="accion-fila">
@@ -299,7 +308,7 @@
         <input type="checkbox" data-lote-todos aria-label="Marcar a todos los que no tienen grupo">
       </th>
       @endif
-      <th></th><th>Nombre</th><th>Edad</th><th>Teléfono</th><th>Acudiente</th>
+      <th></th><th>Nombre</th><th>Edad</th><th data-col="telefono">Teléfono</th><th data-col="acudiente">Acudiente</th>
       @if ($item['puede_gestionar'])<th>Asignar a</th>@endif
       @if ($esAdministrador)<th></th>@endif
     </tr>
@@ -317,8 +326,8 @@
       <td data-celda="foto">@if ($e['perfil']->foto_perfil)<img class="foto-mini" src="{{ route('ver-foto', $e['perfil']) }}" alt="">@endif</td>
       <td data-celda="nombre">@include('panel.nombre', ['e' => $e])</td>
       <td data-label="Edad">{{ $e['perfil']->edad }} años</td>
-      <td data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
-      <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
+      <td data-col="telefono" data-label="Teléfono">{{ $e['perfil']->telefono }}</td>
+      <td data-col="acudiente" data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
       @if ($item['puede_gestionar'])
       <td data-celda="accion">
         @if ($item['grupos'])
