@@ -67,6 +67,7 @@ class MisMatriculasController extends Controller
         // llenaria la cola de la direccion. Se cancela en el acto.
         if ($matricula->estado === Matricula::PENDIENTE) {
             $matricula->estado = Matricula::RETIRADA;
+            $matricula->motivo_retiro = Matricula::RETIRO_PROPIO;
             $matricula->grupo_id = null;
             $matricula->save();
 

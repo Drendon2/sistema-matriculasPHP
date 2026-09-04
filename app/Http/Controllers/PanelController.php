@@ -333,6 +333,7 @@ class PanelController extends Controller
         }
 
         $matricula->estado = Matricula::RETIRADA;
+        $matricula->motivo_retiro = Matricula::RETIRO_RECHAZO;
         $matricula->save();
 
         return $this->volver(
@@ -387,11 +388,13 @@ class PanelController extends Controller
 
         if ($decision === 'rechazar') {
             // Rechazar no tiene condiciones: una solicitud pendiente siempre se
-            // puede negar. Queda 'retirada', el mismo estado que si el
-            // estudiante se hubiera echado atras.
+            // puede negar. Queda 'retirada' —no hay un estado propio— pero con
+            // el motivo puesto, que es lo que separa «te dijeron que no» de
+            // «te echaste atras» cuando el estudiante lo mira.
             DB::transaction(function () use ($matriculas) {
                 foreach ($matriculas as $matricula) {
                     $matricula->estado = Matricula::RETIRADA;
+                    $matricula->motivo_retiro = Matricula::RETIRO_RECHAZO;
                     $matricula->save();
                 }
             });

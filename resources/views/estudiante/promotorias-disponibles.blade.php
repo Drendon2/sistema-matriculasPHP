@@ -86,6 +86,19 @@
             <span class="estado estado-{{ $item['matricula']->estado }}">
               {{ \App\Models\Matricula::ESTADOS[$item['matricula']->estado] }}
             </span>
+          {{--
+            Se le dijo que no, y aquí NO vuelve a salir «Matricularme». Hasta el
+            04/09/2026 sí volvía: la fila se excluía por estar retirada y esta
+            pantalla —la primera que ve al entrar— le ofrecía pedirlo otra vez
+            como si nunca lo hubiera pedido. Nada más se lo decía: no hay correo
+            ni aviso de ninguna clase, así que reintentar a ciegas era el único
+            camino que le quedaba.
+            No lo deja atrapado: dirección puede readmitirlo moviéndole la
+            matrícula, y entonces vuelve a haber una viva y manda la rama de
+            arriba.
+          --}}
+          @elseif ($item['rechazada'])
+            <span class="estado estado-rechazada">Rechazada</span>
           @elseif (! $matriculasAbiertas)
             <span class="sin-cupo">Matrículas cerradas</span>
           @elseif ($item['llena'])

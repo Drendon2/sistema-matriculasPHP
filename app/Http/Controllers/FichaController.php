@@ -262,6 +262,9 @@ class FichaController extends Controller
         // eso la pantalla lo avisa antes de preguntar.
         $matricula->grupo_id = null;
         $matricula->estado = Matricula::PENDIENTE;
+        // Vuelve a estar en juego, asi que el porque de la salida deja de valer:
+        // una readmitida no puede seguir contando que la rechazaron.
+        $matricula->motivo_retiro = null;
 
         try {
             $matricula->validar();

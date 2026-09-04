@@ -49,11 +49,28 @@ class CatalogoController extends Controller
         $limite = Matricula::limitePromotorias();
 
         if ($periodo !== null) {
-            $misMatriculas = Matricula::query()
+            // Las suyas de este periodo, de una vez, y luego repartidas en dos:
+            // las que siguen en pie y las que le RECHAZARON.
+            //
+            // Una rechazada no cuenta como matricula suya —no ocupa cupo ni
+            // ranura, y no puede gastarle una de las promotorias que le
+            // permiten— pero tampoco puede desaparecer sin dejar rastro, que es
+            // lo que pasaba hasta el 04/09/2026: la fila se excluia por ser
+            // 'retirada', la promotoria le volvia a salir con el boton
+            // «Matricularme» y quien acababa de recibir un no lo pedia otra vez
+            // sin enterarse. Nada se lo decia por ningun otro canal.
+            $delPeriodo = Matricula::query()
                 ->where('estudiante_id', $perfil->id)
                 ->where('periodo_id', $periodo->id)
+                ->get();
+
+            $misMatriculas = $delPeriodo
                 ->where('estado', '!=', Matricula::RETIRADA)
-                ->get()
+                ->keyBy('promotoria_id');
+
+            $rechazadas = $delPeriodo
+                ->where('estado', Matricula::RETIRADA)
+                ->where('motivo_retiro', Matricula::RETIRO_RECHAZO)
                 ->keyBy('promotoria_id');
 
             $cuposUsados = $misMatriculas->count();
@@ -81,6 +98,9 @@ class CatalogoController extends Controller
                 $promotorias[] = [
                     'promotoria' => $promotoria,
                     'matricula' => $matricula,
+                    // Solo se mira si no hay una viva: si volvio a entrar por
+                    // otro camino —direccion la readmitio—, manda esa.
+                    'rechazada' => $matricula === null && $rechazadas->has($promotoria->id),
                     // Sin cupo propio libre, entrar a una promotoria nueva queda
                     // bloqueado — pero las que ya tiene se siguen viendo.
                     'bloqueada' => $matricula === null && $sinCupo,

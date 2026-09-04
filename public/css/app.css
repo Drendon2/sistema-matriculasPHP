@@ -272,6 +272,18 @@
     border: 1.5px solid var(--danger);
     text-decoration: line-through;
   }
+  /* Rechazada: le dijeron que no. Es «retirada» SIN EL TACHADO, y esa es toda
+     la diferencia y toda la idea. Tachar significa en este sistema «estuvo en
+     la lista y salió»; a quien no le aceptan la solicitud nunca llegó a estar,
+     así que no hay nada que tachar. Sólido y en rojo como retirada porque el
+     desenlace también es definitivo y también es un no.
+     El texto del marcador dice «Rechazada» y el de retirada dice «Retirada»,
+     que es lo que de verdad separa las dos; la forma acompaña, no carga sola. */
+  .estado-rechazada {
+    background: var(--danger-bg); color: var(--danger);
+    border: 1.5px solid var(--danger);
+  }
+
   /* Cancelación solicitada: el estudiante pidió salirse y nadie lo ha resuelto.
      Compone las dos formas que ya existen en vez de inventar una tercera —
      punteado como "pendiente", porque está sin decidir, y en rojo como

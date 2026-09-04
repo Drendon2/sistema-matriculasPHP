@@ -65,6 +65,47 @@ class Matricula extends Model
      */
     public const FINALIZADA = 'finalizada';
 
+    /**
+     * 'rechazada' tampoco es un estado guardado, y por la misma razon que
+     * 'finalizada': es lo que se MUESTRA de una retirada que llego ahi porque
+     * alguien dijo que no. Lo guardado son dos cosas —el estado 'retirada' y el
+     * motivo 'rechazo'—, y esto es como se leen juntas.
+     *
+     * Se hace asi y no con un sexto valor en `estado` porque un estado nuevo
+     * obliga a revisar las casi cincuenta consultas que filtran por los que ya
+     * hay; una columna que EXPLICA no cambia ninguna respuesta. Es la misma
+     * leccion que dejo escrita 'finalizada' aqui arriba.
+     */
+    public const RECHAZADA = 'rechazada';
+
+    /**
+     * POR QUE quedo retirada una matricula.
+     *
+     * 'retirada' es el desenlace de cuatro cosas que no se parecen en nada: que
+     * te digan que no, echarte atras tu, que la direccion tramite tu
+     * cancelacion, y que te retiren por no aparecer. Hasta el 04/09/2026 las
+     * cuatro dejaban la misma fila y el estudiante leia «Retirada» sin poder
+     * saber cual de las cuatro le paso.
+     *
+     * NULO es un valor legitimo: significa «no se registro». Lo llevan las filas
+     * anteriores al cambio, de las que no hay forma de deducirlo.
+     */
+    public const RETIRO_RECHAZO = 'rechazo';
+
+    public const RETIRO_PROPIO = 'propio';
+
+    public const RETIRO_CANCELACION = 'cancelacion';
+
+    public const RETIRO_ABANDONO = 'abandono';
+
+    /** @var array<string, string> */
+    public const MOTIVOS_RETIRO = [
+        self::RETIRO_RECHAZO => 'La solicitud no fue aceptada',
+        self::RETIRO_PROPIO => 'La retiró el propio estudiante',
+        self::RETIRO_CANCELACION => 'Cancelación tramitada por la dirección',
+        self::RETIRO_ABANDONO => 'Retirada por inasistencia',
+    ];
+
     protected $table = 'matriculas';
 
     protected $fillable = [
@@ -74,6 +115,7 @@ class Matricula extends Model
         'periodo_id',
         'fecha',
         'estado',
+        'motivo_retiro',
         'ranura',
     ];
 
@@ -639,11 +681,20 @@ class Matricula extends Model
     /**
      * El estado tal como se LEE en pantalla, no como esta guardado.
      *
-     * Solo se transforma la matricula ACTIVA de un periodo que ya termino: pasa
-     * a "finalizada". Una pendiente sigue pendiente —fue una solicitud que nadie
-     * llego a confirmar, y decir que finalizo seria inventarse un desenlace— y
-     * una retirada sigue retirada, porque irse a mitad de camino es justo lo que
-     * ese estado cuenta del historial.
+     * Se transforman DOS:
+     *
+     * - La ACTIVA de un periodo que ya termino pasa a "finalizada". Una
+     *   pendiente sigue pendiente —fue una solicitud que nadie llego a
+     *   confirmar, y decir que finalizo seria inventarse un desenlace—.
+     * - La RETIRADA que llego ahi por un rechazo pasa a "rechazada". Las otras
+     *   tres formas de quedar retirada siguen leyendose "Retirada", porque
+     *   irse a mitad de camino es justo lo que ese estado cuenta del historial;
+     *   la que no cuenta nada de eso es la solicitud que nunca se acepto, y
+     *   confundirlas dejaba al estudiante sin saber si le dijeron que no.
+     *
+     * Una retirada SIN motivo tambien sigue leyendose "Retirada": es lo que les
+     * toca a las filas anteriores al 04/09/2026, de las que no hay forma de
+     * saberlo.
      */
     public function getEstadoVisibleAttribute(): string
     {
@@ -651,12 +702,19 @@ class Matricula extends Model
             return self::FINALIZADA;
         }
 
+        if ($this->estado === self::RETIRADA && $this->motivo_retiro === self::RETIRO_RECHAZO) {
+            return self::RECHAZADA;
+        }
+
         return $this->estado;
     }
 
     public function getEstadoVisibleDisplayAttribute(): string
     {
-        $etiquetas = self::ESTADOS + [self::FINALIZADA => 'Finalizada'];
+        $etiquetas = self::ESTADOS + [
+            self::FINALIZADA => 'Finalizada',
+            self::RECHAZADA => 'Rechazada',
+        ];
 
         return $etiquetas[$this->estado_visible];
     }

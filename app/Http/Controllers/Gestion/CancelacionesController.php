@@ -161,6 +161,7 @@ class CancelacionesController extends Controller
         $promotoria = $matricula->promotoria;
 
         $matricula->estado = Matricula::RETIRADA;
+        $matricula->motivo_retiro = Matricula::RETIRO_ABANDONO;
         $matricula->grupo_id = null;
         $matricula->save();
 
@@ -214,6 +215,7 @@ class CancelacionesController extends Controller
         }
 
         $matricula->estado = Matricula::RETIRADA;
+        $matricula->motivo_retiro = Matricula::RETIRO_CANCELACION;
         $matricula->grupo_id = null;
         $matricula->save();
 
@@ -268,6 +270,7 @@ class CancelacionesController extends Controller
 
                 if ($decision === 'aprobar') {
                     $matricula->estado = Matricula::RETIRADA;
+                    $matricula->motivo_retiro = Matricula::RETIRO_CANCELACION;
                     $matricula->grupo_id = null;
                 } else {
                     $matricula->estado = Matricula::ACTIVA;

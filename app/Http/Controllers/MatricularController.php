@@ -66,10 +66,31 @@ class MatricularController extends Controller
             ->where('estado', Matricula::RETIRADA)
             ->first();
 
+        // Una solicitud RECHAZADA no se vuelve a pedir por aqui. El corte va en
+        // el controlador y no solo en el boton del catalogo, que es la norma de
+        // esta pantalla unas lineas mas arriba: esconder el control no cierra la
+        // URL, y una pagina vieja en el telefono seguiria mandando el POST.
+        //
+        // La salida no es un callejon: direccion readmite moviendo la matricula
+        // (ver `FichaController::corregirPromotoria`), que ademas es el camino
+        // por el que alguien mira el caso antes de que vuelva a entrar. Que es
+        // justo lo que no pasaba cuando el boton reaparecia solo.
+        if ($matricula !== null && $matricula->motivo_retiro === Matricula::RETIRO_RECHAZO) {
+            return $this->volver(
+                "Tu solicitud a {$promotoria} no fue aceptada, así que no puedes volver a "
+                .'pedirla por tu cuenta este periodo. Habla con la institución si crees que '
+                .'fue un error.'
+            );
+        }
+
         $reactivada = $matricula !== null;
 
         if ($reactivada) {
             $matricula->estado = Matricula::PENDIENTE;
+            // La fila se reutiliza, asi que el motivo de la salida anterior
+            // viajaria con ella y la nueva solicitud nacería contando que la
+            // rechazaron. Se borra: vuelve a estar en juego.
+            $matricula->motivo_retiro = null;
             $matricula->grupo_id = null;
         } else {
             $matricula = new Matricula([
