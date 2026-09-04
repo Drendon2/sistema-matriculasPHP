@@ -67,6 +67,33 @@
   @yield('content')
 </main>
 
+{{--
+  LO QUE SE LE DICE A UN LECTOR DE PANTALLA CUANDO ALGO PASA.
+
+  Estas dos cajas van VACIAS y viven FUERA de <main> a proposito, y las dos
+  cosas son el arreglo entero. `acciones.js` responde a una accion cambiando el
+  contenido de <main> sin navegar; un lector de pantalla no anuncia eso, asi que
+  quien no ve la pantalla no se entera ni de que se guardo ni de que NO se
+  guardo. Es el mismo fallo que ya costo un profesor en produccion —creyo que
+  habia un tope de grupos porque no vio el aviso— pero total, no parcial.
+
+  Y tienen que PREEXISTIR: una region viva que se inserta ya con texto dentro no
+  se anuncia de forma fiable en todos los lectores. Por eso estan aqui vacias
+  desde la primera carga y `pintar()` solo les escribe el texto. Fuera de <main>
+  porque dentro las borraria el propio repintado.
+
+  Son DOS y no una porque el tono no es el mismo: lo que salio bien espera turno
+  (`status`, cortes) y un rechazo interrumpe (`alert`), que es lo que se quiere
+  de algo que dice que el trabajo no se guardo. Cambiar `aria-live` sobre la
+  marcha en una sola caja no es fiable; tener dos, si.
+
+  No se ven: `.sr-solo` es la misma clase que ya usan las etiquetas de Cupos y
+  de los enlaces copiables. En pantalla el aviso sigue siendo el de `.messages`,
+  que no cambia.
+--}}
+<div class="sr-solo" role="status" aria-live="polite" data-voz="bien"></div>
+<div class="sr-solo" role="alert" aria-live="assertive" data-voz="mal"></div>
+
 <script src="@recurso('js/acciones.js')" defer></script>
 @stack('scripts')
 </body>

@@ -149,7 +149,55 @@
       window.scrollTo(0, scroll);
     }
 
+    anunciar();
+
     return true;
+  }
+
+  /*
+   * Decir en voz alta lo que la pantalla acaba de decir por escrito.
+   *
+   * Todo lo de arriba —traer el aviso a la vista, dejarlo pegado, no restaurar
+   * el scroll tras un rechazo— resuelve el problema para quien MIRA la pantalla.
+   * Quien no la mira no se entera de nada: cambiar el contenido de <main> no lo
+   * anuncia ningun lector de pantalla, asi que la accion se queda en silencio,
+   * y eso vale igual para «se guardo» que para «no se guardo».
+   *
+   * Se copia el texto a la caja que corresponde en vez de marcar `.messages`
+   * como region viva, y no es lo mismo: `.messages` se destruye y se vuelve a
+   * crear en cada repintado, y una region viva que aparece ya con texto dentro
+   * no se anuncia de forma fiable. Las cajas de `layouts.app` no se destruyen
+   * nunca — viven fuera de <main> — y aqui solo se les cambia el texto.
+   *
+   * SE VACIA ANTES Y SE ESCRIBE DESPUES, en dos vueltas del bucle de eventos.
+   * Un lector anuncia el CAMBIO, no el contenido: escribir dos veces el mismo
+   * texto —dos rechazos seguidos por el mismo motivo, que es justo lo que pasa
+   * cuando alguien no entiende que le piden— no seria ningun cambio y el
+   * segundo no se diria. Vaciar primero garantiza que siempre lo haya.
+   */
+  function anunciar() {
+    var errores = main.querySelectorAll(".messages .error");
+    var exito = main.querySelector(".messages .success");
+    var caja = document.querySelector(errores.length ? "[data-voz='mal']" : "[data-voz='bien']");
+    if (!caja) { return; }
+
+    var texto = "";
+    if (errores.length) {
+      // El aviso de rechazo va primero y resume: «No se guardo. Hay N campos
+      // por corregir». Los de campo no se leen aqui —estan pegados a su campo,
+      // que es donde hay que corregirlos— y recitarlos sueltos, sin decir de
+      // cual es cada uno, seria una lista de quejas sin sitio.
+      texto = errores[0].textContent;
+    } else if (exito) {
+      texto = exito.textContent;
+    }
+
+    texto = texto.replace(/\s+/g, " ").trim();
+
+    document.querySelectorAll("[data-voz]").forEach(function (c) { c.textContent = ""; });
+    if (!texto) { return; }
+
+    window.setTimeout(function () { caja.textContent = texto; }, 0);
   }
 
   document.addEventListener("submit", function (evento) {

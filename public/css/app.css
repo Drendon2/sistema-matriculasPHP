@@ -1364,8 +1364,20 @@
   }
   .menu-fila-boton::-webkit-details-marker { display: none; }
   .menu-fila-boton:hover { background: var(--surface-alt); color: var(--ink); }
+  /* EL FOCO SE VE, y hasta el 04/09/2026 no se veia. Estaba copiado de
+     `input:focus`, que anula el anillo del navegador y pone un halo de
+     `--accent-soft`; pero alli el indicador de verdad no es el halo sino el
+     BORDE, que pasa a `--accent` y da 5.33 contra la tarjeta. Este boton no
+     tiene borde en reposo, asi que se quedaba solo con el halo: **1.18 contra
+     la tarjeta y 1.02 sobre la fila en hover**, o sea invisible, y con el
+     anillo del navegador ya quitado. Quien navega con el tabulador no sabia
+     donde estaba, justo en el control que abre «Editar» y «Eliminar».
+     Se usa el mismo anillo que `.dep-cabecera` y `.corregir-abrir`, que es el
+     vocabulario de foco que este proyecto ya tenia escrito. El halo se queda
+     como acompanamiento, no como indicador. */
   .menu-fila-boton:focus-visible {
-    outline: none; color: var(--ink);
+    outline: 2px solid var(--accent); outline-offset: 2px;
+    color: var(--ink);
     box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .menu-fila[open] > .menu-fila-boton { background: var(--surface-alt); color: var(--ink); }
@@ -1666,7 +1678,14 @@
     transition: background 0.15s ease, border-style 0.15s ease, color 0.15s ease;
   }
   .config-logo-boton:hover { background: var(--accent-soft); border-style: solid; color: var(--accent-dark); }
+  /* Lo mismo, y aqui el anillo del navegador tampoco servia: el que recibe el
+     foco es el `input`, que mide 1px y esta escondido, asi que el navegador
+     dibujaba su anillo donde no se ve nada. Quedaba el borde pasando de
+     punteado a solido —que es exactamente lo que ya hace el hover, o sea que no
+     distingue foco de cursor— y el halo invisible. El anillo va en la baldosa,
+     que es lo que se ve. */
   .config-logo-file:focus-visible + .config-logo-boton {
+    outline: 2px solid var(--accent); outline-offset: 2px;
     border-style: solid; box-shadow: 0 0 0 3px var(--accent-soft);
   }
   /* Con el input oculto, el nombre del archivo es la única señal de que la

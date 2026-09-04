@@ -37,7 +37,7 @@
   <div class="perfil-tel-fila perfil-tel-texto">
     <span class="campo-info" style="margin:0;">Teléfono: {{ $perfil->telefono }}</span>
     <button type="button" class="perfil-editar-btn perfil-tel-toggle" aria-label="Editar teléfono">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </div>
   <form method="post" action="{{ route('mi-perfil.guardar') }}" class="perfil-contacto-form perfil-tel-form">
@@ -45,7 +45,7 @@
     <input type="hidden" name="accion" value="contacto">
     <input type="text" name="telefono" maxlength="15" value="{{ old('telefono', $perfil->telefono) }}">
     <button type="submit" class="perfil-editar-btn" aria-label="Guardar teléfono">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </form>
   @error('telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
@@ -69,7 +69,7 @@
       @endif
     </span>
     <button type="button" class="perfil-editar-btn perfil-tel-toggle" aria-label="Editar correo">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </div>
   <form method="post" action="{{ route('mi-perfil.guardar') }}" class="perfil-contacto-form perfil-tel-form">
@@ -78,7 +78,7 @@
     <input type="email" name="correo" maxlength="255" placeholder="tu@correo.com"
            value="{{ old('correo', $perfil->user->email) }}">
     <button type="submit" class="perfil-editar-btn" aria-label="Guardar correo">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </form>
   @error('correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
@@ -265,7 +265,7 @@
     </span>
     <h3 style="margin:0;">Encuesta demográfica</h3>
     @if ($faltanPreguntas)<span class="estado estado-pendiente">Incompleta</span>@endif
-    <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
   </summary>
   <p class="campo-info" style="margin-top:0.8rem;">Esta información solo la puedes ver tú y el administrador.</p>
   @if ($faltanPreguntas)

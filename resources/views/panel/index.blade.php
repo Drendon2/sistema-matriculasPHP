@@ -49,7 +49,7 @@
           {{ $cuantasPendientes }} {{ $cuantasPendientes == 1 ? 'pendiente' : 'pendientes' }}
         </span>
       @endif
-      <svg class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
     {{--
       El cuerpo llega YA PUESTO en una sola promotoría: aquella sobre la que se
