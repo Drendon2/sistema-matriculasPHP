@@ -34,6 +34,18 @@ class PostLoginController extends Controller
             return redirect()->route('promotorias-disponibles');
         }
 
+        // EL ADMINISTRADOR ATERRIZA EN GESTION desde el 04/09/2026, a peticion
+        // del usuario. Su trabajo no es el Panel —confirmar matriculas y pasar
+        // lista son tareas de quien dicta— sino el catalogo, los periodos, los
+        // usuarios y las alertas, y todo eso vive en Gestion. El Panel sigue en
+        // el menu y a un clic.
+        //
+        // El director NO: el suyo si es el Panel. Ve todas las promotorias y
+        // resuelve solicitudes a diario, que es justo lo que esa pantalla hace.
+        if ($perfil->rol === 'administrador') {
+            return redirect()->route('gestion-inicio');
+        }
+
         return redirect()->route('panel');
     }
 

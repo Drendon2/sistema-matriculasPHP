@@ -15,6 +15,7 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Grafica;
 use App\Support\ResumenAsistencia;
+use App\Support\ResumenInstitucion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -95,6 +96,8 @@ class EstadisticasController extends Controller
 
         $totalEncuestas = $encuestas->count();
 
+        $cifras = ResumenInstitucion::cifras($periodoActual);
+
         return view('gestion.estadisticas', [
             'arbolDepartamentos' => $this->arbol($periodoActual, $baseRenovacion, $noRenovaron),
             'periodoActual' => $periodoActual,
@@ -129,13 +132,13 @@ class EstadisticasController extends Controller
             // Se aparta del Django, que cuenta igual sin filtro
             // (`views_gestion.py:634,769`). Es la etiqueta la que decide: dice
             // «Estudiantes activos», no «han cursado alguna vez».
-            'totalEstudiantesActivos' => $periodoActual === null ? 0 : Matricula::query()
-                ->where('estado', Matricula::ACTIVA)
-                ->where('periodo_id', $periodoActual->id)
-                ->distinct()
-                ->count('estudiante_id'),
-            'totalPromotorias' => Promotoria::count(),
-            'totalGrupos' => Grupo::count(),
+            // Las cinco cifras de cabecera salen de `ResumenInstitucion`, que es
+            // el mismo sitio del que las saca la portada de Gestion. Dos
+            // pantallas que ensenan la misma cifra no pueden calcularla cada una
+            // por su cuenta: acaban diciendo cosas distintas.
+            'totalEstudiantesActivos' => $cifras['estudiantesActivos'],
+            'totalPromotorias' => $cifras['promotorias'],
+            'totalGrupos' => $cifras['grupos'],
             'totalEncuestas' => $totalEncuestas,
             'encuestasIncompletas' => $this->encuestasIncompletas(),
             'totalConRol' => Perfil::where('rol', '!=', '')->count(),

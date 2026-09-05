@@ -639,6 +639,43 @@
      fuera pesa MENOS que el de dentro a proposito — es un rotulo de seccion, no
      una tarjeta mas. Si pesara igual, la portada pareceria una lista de
      veintiuna cosas del mismo rango en vez de un arbol. */
+  /* EL BANNER DE ULTIMAS ALERTAS de la portada de Gestion, del 04/09/2026.
+     Es un AVISO y no una tarjeta de navegacion: no se pulsa entero, no lleva
+     sombra de tarjeta y su borde es el rojo tenue del sistema. Si pesara como
+     las fichas de abajo pareceria un sexto destino en vez de algo que esta
+     pasando. */
+  .alertas-banner {
+    border: 1px solid var(--danger);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 0.8rem 1rem;
+    margin: 0 0 1.4rem;
+  }
+  .alertas-banner-cabecera {
+    display: flex; align-items: baseline; gap: 0.6rem;
+    margin-bottom: 0.6rem;
+  }
+  .alertas-banner-titulo {
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+  /* El enlace al listado completo se va a la derecha y dice CUANTAS hay: el
+     banner ensena tres, y sin la cifra nadie sabe si son tres o cuarenta. */
+  .alertas-banner-cabecera a { margin-left: auto; font-size: 0.85rem; }
+  .alertas-banner-lista { list-style: none; margin: 0; padding: 0; }
+  .alertas-banner-item {
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    padding: 0.45rem 0;
+  }
+  .alertas-banner-item + .alertas-banner-item { border-top: 1px solid var(--border); }
+  /* El marcador no encoge: si lo hiciera, «Sin dictar» se partiria en dos y
+     dejaria de leerse como un marcador. */
+  .alertas-banner-item > .estado { flex-shrink: 0; }
+  .alertas-banner-texto { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .alertas-banner-detalle { font-size: 0.8rem; color: var(--ink-soft); }
+
   .panel-departamento { margin: 0 0 0.5rem; }
   .panel-departamento-resumen {
     display: flex; align-items: center; gap: 0.5rem;
@@ -2294,6 +2331,10 @@
   }
 
   @media (max-width: 640px) {
+    /* El marcador se va a su propio renglon: al lado del texto, en 390px,
+       dejaba al nombre del grupo en una columna de cuatro palabras. */
+    .alertas-banner-item { flex-direction: column; gap: 0.3rem; }
+
     /* Pegado ARRIBA y no centrado. Centrado se ve mejor en una captura y peor
        en la mano: al tocar el campo de la contrasena sube el teclado, el area
        visible se parte por la mitad y un dialogo centrado en la pantalla ENTERA

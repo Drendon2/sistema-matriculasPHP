@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\Matricula;
 use App\Models\Periodo;
+use App\Models\Promotoria;
 use App\Support\Alertas;
+use App\Support\ResumenInstitucion;
 use Illuminate\View\View;
 
 /** La portada de Gestion: las fichas que llevan a cada pantalla. */
@@ -24,20 +26,59 @@ class InicioController extends Controller
         $cancelaciones = Matricula::where('estado', Matricula::CANCELACION_SOLICITADA)->count();
 
         $alertas = 0;
+        $ultimas = [];
 
         if ($periodo !== null) {
             if ($config->alerta_clase_no_dictada) {
-                $alertas += Alertas::clasesNoDictadas($periodo)->count();
+                $sinDictar = Alertas::clasesNoDictadas($periodo);
+                $alertas += $sinDictar->count();
+
+                foreach ($sinDictar as $falta) {
+                    // Anotada porque la relacion no lleva tipo y la promotoria
+                    // llega como un `Model` sin nombre para el analizador.
+                    /** @var Promotoria $promotoria */
+                    $promotoria = $falta['grupo']->promotoria;
+
+                    $ultimas[] = [
+                        'tipo' => 'clase',
+                        'fecha' => $falta['fecha'],
+                        'texto' => "{$promotoria->nombre} · {$falta['grupo']->nombre}",
+                        'detalle' => 'Clase del '.$falta['fecha']->format('d/m').' sin registrar',
+                    ];
+                }
             }
 
             if ($config->alerta_abandono) {
-                $alertas += Alertas::posiblesAbandonos($periodo)->count();
+                $abandonos = Alertas::posiblesAbandonos($periodo);
+                $alertas += $abandonos->count();
+
+                foreach ($abandonos as $caso) {
+                    $ultimas[] = [
+                        'tipo' => 'abandono',
+                        'fecha' => $caso['desde'],
+                        'texto' => $caso['matricula']->estudiante->nombre_completo
+                            .' · '.$caso['matricula']->promotoria->nombre,
+                        'detalle' => $caso['faltas'].' faltas seguidas sin excusa',
+                    ];
+                }
             }
         }
+
+        // LAS TRES MAS RECIENTES de las dos bandejas juntas, ordenadas por fecha.
+        // Se mezclan a proposito: quien mira la portada quiere «que ha pasado
+        // ultimamente», no «que ha pasado de este tipo». Y no se guarda ninguna
+        // lista: las alertas se calculan al abrir, asi que en cuanto una se
+        // resuelve deja de salir y suben las que venian detras, sin que nadie
+        // tenga que refrescar nada ni mantener una cola.
+        usort($ultimas, fn (array $a, array $b) => $b['fecha']->timestamp <=> $a['fecha']->timestamp);
 
         return view('gestion.inicio', [
             'cancelacionesPendientes' => $cancelaciones,
             'alertasPendientes' => $alertas,
+            'ultimasAlertas' => array_slice($ultimas, 0, 3),
+            'alertasApagadas' => ! $config->alerta_clase_no_dictada && ! $config->alerta_abandono,
+            'cifras' => ResumenInstitucion::cifras($periodo),
+            'periodo' => $periodo,
         ]);
     }
 }

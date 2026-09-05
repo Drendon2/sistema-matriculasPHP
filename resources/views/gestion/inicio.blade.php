@@ -22,6 +22,86 @@
 --}}
 <h2>Gestión</h2>
 
+{{--
+  CÓMO VA LA ESCUELA, arriba del todo desde el 04/09/2026, porque esta pasó a
+  ser la pantalla donde aterriza el administrador al entrar.
+
+  Las cifras salen de `Support\ResumenInstitucion`, que es de donde las saca
+  también Estadísticas. No se calculan aquí a propósito: la misma cifra en dos
+  pantallas calculada en dos sitios acaba diciendo dos cosas distintas.
+
+  «Estudiantes activos» se acota al periodo en curso y las otras cuatro no,
+  porque no dependen de él. Si no hay periodo en curso la cifra es 0 y se dice,
+  en vez de enseñar un cero que se lee como «no hay nadie».
+--}}
+<div class="dash-resumen">
+  <div>
+    <span class="dash-stat-num">{{ $cifras['estudiantesActivos'] }}</span>
+    <span class="dash-stat-label">
+      {{ $periodo ? 'Estudiantes activos' : 'Sin periodo en curso' }}
+    </span>
+  </div>
+  <div>
+    <span class="dash-stat-num">{{ $cifras['profesores'] }}</span>
+    <span class="dash-stat-label">{{ $cifras['profesores'] == 1 ? 'Profesor' : 'Profesores' }}</span>
+  </div>
+  <div>
+    <span class="dash-stat-num">{{ $cifras['promotorias'] }}</span>
+    <span class="dash-stat-label">{{ $cifras['promotorias'] == 1 ? 'Promotoría' : 'Promotorías' }}</span>
+  </div>
+  <div>
+    <span class="dash-stat-num">{{ $cifras['grupos'] }}</span>
+    <span class="dash-stat-label">{{ $cifras['grupos'] == 1 ? 'Grupo' : 'Grupos' }}</span>
+  </div>
+  <div>
+    <span class="dash-stat-num">{{ $cifras['actividades'] }}</span>
+    <span class="dash-stat-label">Cursos y talleres</span>
+  </div>
+</div>
+
+{{--
+  LAS TRES ÚLTIMAS ALERTAS, y no una lista completa: para eso está su pantalla,
+  y el enlace lleva a ella. Aquí lo que hace falta es saber si hay algo ardiendo
+  sin tener que ir a mirar.
+
+  No se guarda ninguna cola. Las alertas se calculan al abrir la pantalla —cuatro
+  consultas fijas, ver `Support\Alertas`— así que en cuanto una se resuelve deja
+  de aparecer y suben las que venían detrás, sin que nadie refresque nada.
+
+  Con las dos alertas APAGADAS no se pinta un banner vacío, que se leería como
+  «no hay nada»: se dice que están apagadas y dónde se encienden. La diferencia
+  entre «no hay avisos» y «no estás mirando» es justo la que importa aquí.
+--}}
+@if ($alertasApagadas)
+  <p class="campo-ayuda">
+    Las alertas están apagadas. Se encienden en
+    <a href="{{ route('gestion-configuracion') }}">Institución</a>, y conviene poner antes
+    su fecha de inicio.
+  </p>
+@elseif ($ultimasAlertas)
+  <div class="alertas-banner">
+    <div class="alertas-banner-cabecera">
+      <span class="alertas-banner-titulo">Últimas alertas</span>
+      <a href="{{ route('gestion-cancelaciones') }}">
+        Ver las {{ $alertasPendientes }}
+      </a>
+    </div>
+    <ul class="alertas-banner-lista">
+      @foreach ($ultimasAlertas as $alerta)
+      <li class="alertas-banner-item">
+        <span class="estado {{ $alerta['tipo'] === 'abandono' ? 'estado-retirada' : 'estado-pendiente' }}">
+          {{ $alerta['tipo'] === 'abandono' ? 'Abandono' : 'Sin dictar' }}
+        </span>
+        <span class="alertas-banner-texto">
+          <strong>{{ $alerta['texto'] }}</strong>
+          <span class="alertas-banner-detalle">{{ $alerta['detalle'] }}</span>
+        </span>
+      </li>
+      @endforeach
+    </ul>
+  </div>
+@endif
+
 <div class="tarjetas">
   <a class="tarjeta-enlace" href="{{ route('gestion-matriculas') }}">
     Matrículas

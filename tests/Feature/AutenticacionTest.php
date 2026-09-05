@@ -151,15 +151,40 @@ class AutenticacionTest extends TestCase
             ->assertRedirect(route('promotorias-disponibles'));
     }
 
-    public function test_el_personal_aterriza_en_el_panel(): void
+    /**
+     * Quien DICTA o dirige aterriza en el Panel: es su pantalla de diario.
+     *
+     * El administrador ya no, desde el 04/09/2026 — ver la prueba de abajo.
+     */
+    public function test_quien_dicta_y_quien_dirige_aterrizan_en_el_panel(): void
     {
-        foreach (['administrador', 'director', 'profesor'] as $indice => $rol) {
+        foreach (['director', 'profesor'] as $indice => $rol) {
             $user = $this->crearCuenta($rol, "usuario{$indice}");
 
             $this->actingAs($user)
                 ->get(route('post-login'))
                 ->assertRedirect(route('panel'));
         }
+    }
+
+    /**
+     * EL ADMINISTRADOR ATERRIZA EN GESTION, pedido por el usuario el
+     * 04/09/2026.
+     *
+     * Su trabajo no es el Panel: confirmar matriculas y pasar lista son tareas
+     * de quien dicta. Lo suyo es el catalogo, los periodos, los usuarios y las
+     * alertas, y eso vive en Gestion — que ademas ensena desde arriba como va la
+     * escuela.
+     *
+     * El director se queda en el Panel a proposito, y por eso las dos pruebas
+     * van separadas: si un dia alguien unifica el aterrizaje del «personal»,
+     * una de las dos enrojece.
+     */
+    public function test_el_administrador_aterriza_en_gestion(): void
+    {
+        $this->actingAs($this->crearCuenta('administrador', 'jefa'))
+            ->get(route('post-login'))
+            ->assertRedirect(route('gestion-inicio'));
     }
 
     /**
