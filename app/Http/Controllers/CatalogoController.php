@@ -104,8 +104,22 @@ class CatalogoController extends Controller
                     // Sin cupo propio libre, entrar a una promotoria nueva queda
                     // bloqueado — pero las que ya tiene se siguen viendo.
                     'bloqueada' => $matricula === null && $sinCupo,
-                    'cupo' => $maximo,
-                    'ocupados' => $ocupados,
+                    // NI EL CUPO NI LOS OCUPADOS VIAJAN A LA VISTA, decision del
+                    // usuario del 05/09/2026: cuanta gente hay en cada
+                    // promotoria es informacion interna de la institucion y el
+                    // estudiante no tiene por que verla. Hasta ese dia la
+                    // pantalla pintaba una columna «Cupo» con «4 / 12».
+                    //
+                    // Se cortan AQUI y no solo en la plantilla, aunque los dos
+                    // se sigan calculando dos lineas mas abajo: lo que no sale
+                    // del controlador no se puede pintar por descuido, y quien
+                    // vuelva a anadir una columna tendra que decidirlo a
+                    // proposito en vez de encontrarselos ya servidos.
+                    //
+                    // Lo que el estudiante SI necesita saber se conserva entero:
+                    // `llena` le dice que no puede entrar, que es la unica
+                    // consecuencia que esa cifra tenia para el.
+                    //
                     // Llena solo aplica si la promotoria tiene tope definido.
                     'llena' => $matricula === null && $maximo !== null && $ocupados >= $maximo,
                 ];

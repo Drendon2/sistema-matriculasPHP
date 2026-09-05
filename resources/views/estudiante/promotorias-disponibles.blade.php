@@ -60,7 +60,17 @@
         <th>Promotoría</th>
         <th>Área</th>
         <th>Profesor</th>
-        <th class="num">Cupo</th>
+        {{--
+          NO HAY COLUMNA «CUPO», y esta ausencia es una decision, no un olvido.
+          Hasta el 05/09/2026 salia «4 / 12» en cada fila: cuanta gente hay en
+          cada promotoría es información interna de la institución y el
+          estudiante no tiene por qué verla. La cifra tampoco llega ya desde el
+          controlador, que es donde está escrito el porqué.
+
+          Lo único que esa columna le decía —«aquí no cabes»— no se ha perdido:
+          lo dice «Promotoría llena» en la columna de al lado, que es donde
+          además está el botón, o sea donde se mira para decidir.
+        --}}
         <th></th>
       </tr>
     </thead>
@@ -72,15 +82,6 @@
           <span class="tag-dot {{ $item['promotoria']->area->tag_color }}"></span>{{ $item['promotoria']->area->nombre }}
         </td>
         <td>{{ $item['promotoria']->profesor?->nombre_completo ?: 'Sin asignar' }}</td>
-        <td class="num">
-          @if ($item['cupo'] === null)
-            <span class="cupo-cifra cupo-cifra-libre">{{ $item['ocupados'] }} / ∞</span>
-          @elseif ($item['ocupados'] >= $item['cupo'])
-            <span class="cupo-cifra cupo-cifra-lleno">{{ $item['ocupados'] }} / {{ $item['cupo'] }}</span>
-          @else
-            <span class="cupo-cifra">{{ $item['ocupados'] }} / {{ $item['cupo'] }}</span>
-          @endif
-        </td>
         <td>
           @if ($item['matricula'])
             <span class="estado estado-{{ $item['matricula']->estado }}">

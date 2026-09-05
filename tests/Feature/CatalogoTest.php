@@ -188,6 +188,73 @@ class CatalogoTest extends TestCase
             ->assertSee('Promotoría llena', false);
     }
 
+    /**
+     * EL ESTUDIANTE NO VE CUANTA GENTE HAY EN CADA PROMOTORIA.
+     *
+     * Decision del usuario del 05/09/2026: es informacion interna de la
+     * institucion. Hasta ese dia el catalogo pintaba una columna «Cupo» con
+     * «4 / 12» en cada fila, o sea la matricula de toda la casa a la vista de
+     * cualquiera que iniciara sesion.
+     *
+     * Se comprueba con TRES promotorias de ocupacion distinta y con una sonda
+     * delante: sin la sonda, una pantalla que se quedara vacia por cualquier
+     * otro motivo pasaria esta prueba sin probar nada.
+     */
+    public function test_el_catalogo_no_revela_cuantos_hay_matriculados(): void
+    {
+        CupoPromotoria::create([
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'cupo_maximo' => 12,
+        ]);
+
+        // Cuatro en Violin: la cifra que NO puede salir.
+        foreach (['beto', 'caro', 'dani', 'eva'] as $i => $nombre) {
+            [$u] = $this->crearEstudiante($nombre, (string) (2000 + $i));
+            $this->actingAs($u)->post(route('matricular', $this->violin));
+        }
+
+        $html = $this->actingAs($this->user)
+            ->get(route('promotorias-disponibles'))
+            ->assertOk()
+            ->getContent();
+
+        // SONDA: la pantalla se pinto de verdad y trae las promotorias.
+        $this->assertStringContainsString('Violin', $html, 'la sonda no vale: el catalogo ni se pinto.');
+
+        $this->assertStringNotContainsString('cupo-cifra', $html, 'sigue pintandose la cifra de ocupacion.');
+        $this->assertStringNotContainsString('4 / 12', $html, 'se ve cuanta gente hay matriculada.');
+        $this->assertStringNotContainsString('>Cupo<', $html, 'sigue estando la columna «Cupo».');
+    }
+
+    /**
+     * Pero SI sigue sabiendo lo unico que esa cifra le decia.
+     *
+     * Quitar la columna no puede llevarse por delante la senal de que ahi no
+     * cabe: sin ella pulsaria «Matricularme» para que se lo negaran, que es
+     * peor que antes. Su pareja es
+     * `test_una_promotoria_llena_se_marca_como_llena`.
+     */
+    public function test_sin_la_columna_el_estudiante_sigue_sabiendo_que_esta_llena(): void
+    {
+        CupoPromotoria::create([
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'cupo_maximo' => 1,
+        ]);
+
+        [$otroUser] = $this->crearEstudiante('beto', '2222');
+        $this->actingAs($otroUser)->post(route('matricular', $this->violin));
+
+        $html = $this->actingAs($this->user)
+            ->get(route('promotorias-disponibles'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Promotoría llena', $html, 'ya no se sabe que no cabe.');
+        $this->assertStringNotContainsString('cupo-cifra', $html, 'lo dice enseñando la cifra.');
+    }
+
     public function test_no_se_puede_forzar_la_matricula_en_una_promotoria_llena(): void
     {
         CupoPromotoria::create([
