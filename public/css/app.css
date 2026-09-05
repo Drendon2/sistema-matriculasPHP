@@ -639,6 +639,58 @@
      fuera pesa MENOS que el de dentro a proposito — es un rotulo de seccion, no
      una tarjeta mas. Si pesara igual, la portada pareceria una lista de
      veintiuna cosas del mismo rango en vez de un arbol. */
+  /* LA BANDA DE CIFRAS de la portada de Gestion, del 04/09/2026.
+
+     Es una CINTA y no cinco bloques sueltos: un solo objeto con filetes entre
+     celdas, como el encabezado de una tabla bien compuesta. Llama la atencion
+     por precision y no por tamano, que es lo que le toca a una pantalla de
+     trabajo — esto es lo primero que ve el administrador al entrar, no un
+     cartel.
+
+     NO reusa `.dash-resumen`. Esa clase la comparten Estadisticas, la encuesta
+     de satisfaccion, los dos historiales y la trayectoria; restilarla para que
+     esta pantalla se vea distinta se las lleva a las cinco por delante.
+
+     `tabular-nums` no es un detalle: son cifras que se comparan de un vistazo
+     en una rejilla, y con las cifras proporcionales de la fuente del sistema el
+     «1» es mas estrecho que el «2» y las columnas dejan de alinearse. Es de las
+     cosas que llegan con el navegador y no pertenecen a ningun sistema de
+     diseno hasta que alguien las decide. */
+  .cifras-banda {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin: 0 0 1.4rem;
+    /* Recorta los filetes contra el radio: sin esto la primera y la ultima
+       celda asoman por la esquina redondeada. */
+    overflow: hidden;
+  }
+  .cifras-celda {
+    /* Reparte a partes iguales y deja que la fila se parta sola donde no
+       quepan las seis. La base es el ancho MINIMO comodo de una celda, no el
+       final: con `flex-grow` acaban repartiendose el ancho de la banda. */
+    flex: 1 1 7.25rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    padding: 0.95rem 0.75rem;
+    text-align: center;
+  }
+  .cifras-celda + .cifras-celda { border-left: 1px solid var(--border); }
+  .cifras-num {
+    font-size: 1.75rem; font-weight: 800; line-height: 1;
+    letter-spacing: -0.02em; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  /* En la monoespaciada del sistema, que es la que este proyecto ya usa para
+     marcar DATO —los `.estado`, las horas del horario—. No es disfraz de
+     «tecnico»: es la misma voz con la que la aplicacion rotula una medida. */
+  .cifras-label {
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+
   /* «Sin alertas desde …», que ocupa el sitio del banner cuando no hay ninguna.
      Lleva el mismo hueco POR DEBAJO que el banner al que sustituye: con solo el
      margen de `.campo-ayuda` —que es 0 abajo, porque esa clase esta pensada para
@@ -2357,6 +2409,14 @@
   }
 
   @media (max-width: 640px) {
+    /* Dos columnas en el telefono: seis celdas en fila serian de 60px. Y el
+       filete cambia de eje — con `border-left` en todas, la primera de cada
+       renglon se quedaba con una raya suelta a la izquierda. */
+    .cifras-celda { flex: 1 1 44%; padding: 0.8rem 0.5rem; }
+    .cifras-celda + .cifras-celda { border-left: 0; }
+    .cifras-celda:nth-child(odd) { border-right: 1px solid var(--border); }
+    .cifras-celda:nth-child(n+3) { border-top: 1px solid var(--border); }
+
     /* En el telefono la barra reduce el margen lateral como el resto, y el
        boton baja a su propio renglon a ancho completo: al lado del texto se
        quedaba en cuatro caracteres. */

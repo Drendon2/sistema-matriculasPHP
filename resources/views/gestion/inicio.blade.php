@@ -30,32 +30,46 @@
   también Estadísticas. No se calculan aquí a propósito: la misma cifra en dos
   pantallas calculada en dos sitios acaba diciendo dos cosas distintas.
 
-  «Estudiantes activos» se acota al periodo en curso y las otras cuatro no,
-  porque no dependen de él. Si no hay periodo en curso la cifra es 0 y se dice,
-  en vez de enseñar un cero que se lee como «no hay nadie».
+  «Estudiantes activos» se acota al periodo en curso y las demás no, porque no
+  dependen de él. Si no hay periodo en curso la cifra es 0 y se dice, en vez de
+  enseñar un cero que se lee como «no hay nadie».
+
+  CURSOS Y TALLERES VA SEPARADO DE GRUPOS DE PROYECCIÓN, y no es un capricho de
+  maquetación: una actividad puede ser curso, taller o grupo de proyección, y
+  hasta el 04/09/2026 esta fila enseñaba el total de las TRES bajo el rótulo
+  «Cursos y talleres». En esta misma base había una actividad, era una
+  proyección, y la pantalla decía «1 · Cursos y talleres». Contaba bien y
+  etiquetaba mal, que es la peor combinación: nadie va a comprobar una cifra que
+  parece correcta.
+
+  La banda es `.cifras-banda` y NO `.dash-resumen`: esa clase la comparten otras
+  cinco pantallas —Estadísticas, satisfacción, dos historiales y la trayectoria—
+  y restilarla aquí se las lleva a todas por delante.
 --}}
-<div class="dash-resumen">
-  <div>
-    <span class="dash-stat-num">{{ $cifras['estudiantesActivos'] }}</span>
-    <span class="dash-stat-label">
-      {{ $periodo ? 'Estudiantes activos' : 'Sin periodo en curso' }}
-    </span>
+<div class="cifras-banda">
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['estudiantesActivos'] }}</span>
+    <span class="cifras-label">{{ $periodo ? 'Estudiantes activos' : 'Sin periodo en curso' }}</span>
   </div>
-  <div>
-    <span class="dash-stat-num">{{ $cifras['profesores'] }}</span>
-    <span class="dash-stat-label">{{ $cifras['profesores'] == 1 ? 'Profesor' : 'Profesores' }}</span>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['profesores'] }}</span>
+    <span class="cifras-label">{{ $cifras['profesores'] == 1 ? 'Profesor' : 'Profesores' }}</span>
   </div>
-  <div>
-    <span class="dash-stat-num">{{ $cifras['promotorias'] }}</span>
-    <span class="dash-stat-label">{{ $cifras['promotorias'] == 1 ? 'Promotoría' : 'Promotorías' }}</span>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['promotorias'] }}</span>
+    <span class="cifras-label">{{ $cifras['promotorias'] == 1 ? 'Promotoría' : 'Promotorías' }}</span>
   </div>
-  <div>
-    <span class="dash-stat-num">{{ $cifras['grupos'] }}</span>
-    <span class="dash-stat-label">{{ $cifras['grupos'] == 1 ? 'Grupo' : 'Grupos' }}</span>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['grupos'] }}</span>
+    <span class="cifras-label">{{ $cifras['grupos'] == 1 ? 'Grupo' : 'Grupos' }}</span>
   </div>
-  <div>
-    <span class="dash-stat-num">{{ $cifras['actividades'] }}</span>
-    <span class="dash-stat-label">Cursos y talleres</span>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['cursosYTalleres'] }}</span>
+    <span class="cifras-label">Cursos y talleres</span>
+  </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['proyeccion'] }}</span>
+    <span class="cifras-label">Grupos de proyección</span>
   </div>
 </div>
 

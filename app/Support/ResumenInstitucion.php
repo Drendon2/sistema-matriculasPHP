@@ -39,7 +39,8 @@ class ResumenInstitucion
      *     profesores: int,
      *     promotorias: int,
      *     grupos: int,
-     *     actividades: int,
+     *     cursosYTalleres: int,
+     *     proyeccion: int,
      * }
      */
     public static function cifras(?Periodo $periodo): array
@@ -55,7 +56,8 @@ class ResumenInstitucion
             'profesores' => Perfil::where('rol', 'profesor')->count(),
             'promotorias' => Promotoria::count(),
             'grupos' => Grupo::count(),
-            'actividades' => Actividad::count(),
+            'cursosYTalleres' => Actividad::whereIn('tipo', Actividad::TIPOS_CON_FECHAS)->count(),
+            'proyeccion' => Actividad::where('tipo', Actividad::PROYECCION)->count(),
         ];
     }
 }
