@@ -133,7 +133,6 @@ class MiPerfilController extends Controller
             'foto' => $this->guardarFoto($request, $perfil),
             'contacto' => $this->guardarContacto($request, $perfil),
             'correo' => $this->guardarCorreo($request, $perfil),
-            'documento' => $this->guardarDocumento($request, $perfil),
             'papel' => $this->guardarPapel($request, $perfil),
             'encuesta' => $this->guardarEncuesta($request, $perfil),
             'clave' => $this->guardarClave($request, $perfil),
@@ -330,28 +329,17 @@ class MiPerfilController extends Controller
         );
     }
 
-    private function guardarDocumento(Request $request, Perfil $perfil): RedirectResponse
-    {
-        $datos = $perfil->datosEstudiante;
-
-        abort_if($datos === null, 404);
-
-        $request->validate([
-            'copia_documento' => ['required', 'file', 'mimes:'.implode(',', self::ARCHIVOS), 'max:8192'],
-        ], [], ['copia_documento' => 'copia del documento']);
-
-        // La copia del documento se guarda TAL CUAL llega, sin pasar por
-        // `Imagen`: puede ser un PDF, y aunque sea una foto es evidencia de un
-        // tramite. Reescribirla la convierte en otra cosa.
-        $ruta = $request->file('copia_documento')->store('documentos', 'local');
-        $this->borrarAnterior($datos->copia_documento);
-
-        $datos->copia_documento = $ruta;
-        $datos->save();
-
-        return redirect()->route('mi-perfil')->with('success', 'Tu documento quedó guardado.');
-    }
-
+    /**
+     * Guarda uno de los papeles que pide la institucion.
+     *
+     * DESDE EL 05/09/2026 ESTO INCLUYE EL DOCUMENTO DE IDENTIDAD, que hasta ese
+     * dia tenia su propio metodo y su propia columna. Ya no: es un requerido
+     * mas, y por eso aqui no hay ningun caso especial que mirar.
+     *
+     * Se guarda TAL CUAL llega, sin pasar por `Imagen`: puede ser un PDF, y
+     * aunque sea una foto es evidencia de un tramite. Reescribirla la convierte
+     * en otra cosa.
+     */
     private function guardarPapel(Request $request, Perfil $perfil): RedirectResponse
     {
         $datos = $perfil->datosEstudiante;

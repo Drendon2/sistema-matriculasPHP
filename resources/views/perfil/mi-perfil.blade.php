@@ -172,53 +172,36 @@
 </div>
 @endif
 
-@if ($datos)
-<div class="perfil-seccion">
-  <div class="perfil-seccion-cabecera">
-    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="5" width="18" height="14" rx="2"/>
-        <circle cx="8.5" cy="10.5" r="1.8"/>
-        <path d="M5.5 16.5 9 13l2 2 3-3 4.5 4.5"/>
-      </svg>
-    </span>
-    <h3>Documento de identidad</h3>
-  </div>
-  @if ($datos->copia_documento)
-    <p class="campo-info archivo-guardado" style="margin-top:-0.6rem;">Ya subiste una copia de tu documento.</p>
-  @else
-    <p class="aviso">Todavía no has subido la copia de tu documento de identidad. Es reservada: solo el administrador puede verla. No es necesaria para que el profesor confirme tu matrícula.</p>
-  @endif
-  <form method="post" action="{{ route('mi-perfil.guardar') }}" enctype="multipart/form-data" class="form-card">
-    @csrf
-    <input type="hidden" name="accion" value="documento">
-    <div class="field">
-      <label for="copia_documento">Copia del documento</label>
-      <input type="file" name="copia_documento" id="copia_documento">
-      @error('copia_documento')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
-    </div>
-    <button type="submit" class="btn">Guardar documento</button>
-  </form>
-</div>
-@endif
-
 @if ($papeles)
 {{--
   Los papeles que pide ESTA institución. Cada ranura es su propio envío: se suben
   a medida que se consiguen, que es como se hace en la vida real. Un solo botón
   de "guardar todo" obligaría a tenerlos todos a la mano el mismo día.
+
+  DESDE EL 05/09/2026 EL DOCUMENTO DE IDENTIDAD ES UNO MÁS de esta lista. Tenía
+  su propia sección encima, con su propia columna en la base y sin que la entidad
+  pudiera decidir nada sobre él — ni si se pide, ni cómo se llama, ni si es
+  obligatorio. Ahora se configura en Institución como los demás.
+
+  Y VA PLEGADA, a petición del usuario: son papeles que se suben una vez y luego
+  no se vuelven a mirar, así que desplegados empujaban hacia abajo todo lo que sí
+  se viene a ver. Arranca ABIERTA si falta alguno obligatorio, por lo mismo que
+  la encuesta: plegada, una entrega a medias no se distingue de una completa.
 --}}
-<div class="perfil-seccion">
-  <div class="perfil-seccion-cabecera">
+@php($faltaAlgunPapel = collect($papeles)->contains(fn ($p) => $p['requerido']->obligatorio && ! $p['entrega']))
+<details class="perfil-seccion" id="bloque-papeles" @if ($faltaAlgunPapel) open @endif>
+  <summary class="perfil-seccion-cabecera">
     <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
         <path d="M14 3v5h5"/>
       </svg>
     </span>
-    <h3>Documentos para la matrícula</h3>
-  </div>
-  <p class="campo-info" style="margin-top:-0.6rem;">
+    <h3 style="margin:0;">Documentos para la matrícula</h3>
+    @if ($faltaAlgunPapel)<span class="estado estado-pendiente">Falta alguno</span>@endif
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+  <p class="campo-ayuda">
     Lo que pide {{ $configuracion->nombre_institucion }} para dar la matrícula por completa.
     Puedes subirlos de a uno, según los vayas consiguiendo.
   </p>
@@ -246,7 +229,7 @@
     <button type="submit" class="btn btn-sm">{{ $p['entrega'] ? 'Reemplazar' : 'Subir' }}</button>
   </form>
   @endforeach
-</div>
+</details>
 @endif
 
 {{--

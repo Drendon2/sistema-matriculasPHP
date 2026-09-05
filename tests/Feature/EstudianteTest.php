@@ -8,6 +8,7 @@ use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DatosEstudiante;
+use App\Models\DocumentoEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
 use App\Models\EncuestaSatisfaccion;
@@ -1316,14 +1317,18 @@ class EstudianteTest extends TestCase
             ->assertNotFound();
     }
 
+    /**
+     * Desde el 05/09/2026 la ruta sirve CUALQUIER papel entregado y no solo la
+     * copia del documento de identidad, que dejo de ser un caso especial del
+     * esquema. La barrera no se movio: sigue siendo del administrador, y eso es
+     * lo que estas dos pruebas vigilan.
+     */
     public function test_el_documento_es_solo_del_administrador(): void
     {
-        $datos = $this->ana->datosEstudiante;
-        $datos->copia_documento = 'documentos/x.pdf';
-        $datos->save();
+        $entrega = $this->entregarPapel();
 
         $this->actingAs($this->ana->user)
-            ->get(route('descargar-documento', $datos))
+            ->get(route('descargar-documento', $entrega))
             ->assertRedirect(route('post-login'));
     }
 
@@ -1337,15 +1342,28 @@ class EstudianteTest extends TestCase
         // Es la convencion que el proyecto declara en media docena de sitios
         // —no fiarse de que el enlace no se pintara—, y este es el dato mas
         // protegido que guarda el sistema.
-        $datos = $this->ana->datosEstudiante;
-        $datos->copia_documento = 'documentos/x.pdf';
-        $datos->save();
+        $entrega = $this->entregarPapel();
 
         $director = $this->crearPerfil('dire2', 'director');
 
         $this->actingAs($director->user)
             ->withoutMiddleware(RequiereRol::class)
-            ->get(route('descargar-documento', $datos))
+            ->get(route('descargar-documento', $entrega))
             ->assertNotFound();
+    }
+
+    /** Un papel cualquiera ya entregado por Ana, para las dos de arriba. */
+    private function entregarPapel(): DocumentoEstudiante
+    {
+        $requerido = DocumentoRequerido::create([
+            'nombre' => 'Documento de identidad',
+            'obligatorio' => true,
+        ]);
+
+        return DocumentoEstudiante::create([
+            'datos_estudiante_id' => $this->ana->datosEstudiante->id,
+            'requerido_id' => $requerido->id,
+            'archivo' => 'documentos/x.pdf',
+        ]);
     }
 }

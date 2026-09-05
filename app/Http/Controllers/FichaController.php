@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentoEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\Matricula;
 use App\Models\Perfil;
@@ -351,10 +352,28 @@ class FichaController extends Controller
     {
         abort_unless($usuario->rol === 'estudiante', 404);
 
+        $datos = $usuario->datosEstudiante;
+
         return view('panel.detalle-estudiante', [
             'estudiante' => $usuario,
-            'datos' => $usuario->datosEstudiante,
+            'datos' => $datos,
             'encuesta' => $usuario->encuesta,
+            // UNA RANURA POR PAPEL PEDIDO, con lo que haya entregado. Es la
+            // misma forma que arma «Mi perfil» y a proposito: son la misma
+            // lista mirada desde los dos lados.
+            //
+            // Antes aqui solo salia la copia del documento de identidad —lo
+            // unico que tenia enlace— y los demas papeles no se veian por
+            // ningun sitio: se subian y ahi se quedaban. Al dejar de ser aquel
+            // un caso especial (05/09/2026) el agujero se cerro solo.
+            'papeles' => $datos === null ? [] : DocumentoRequerido::activos()->ordenados()->get()
+                ->map(fn (DocumentoRequerido $requerido) => [
+                    'requerido' => $requerido,
+                    'entrega' => $datos->documentos
+                        ->first(fn (DocumentoEstudiante $d) => $d->requerido_id === $requerido->id
+                            && $d->archivo !== ''),
+                ])
+                ->all(),
         ]);
     }
 

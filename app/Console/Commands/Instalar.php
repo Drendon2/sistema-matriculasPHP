@@ -457,12 +457,23 @@ class Instalar extends Command
         $configuracion->save();
 
         foreach ($plan['documentos'] as $posicion => $nombre) {
-            DocumentoRequerido::create([
-                'nombre' => $nombre,
+            // `firstOrCreate` y no `create`, desde el 05/09/2026: la migracion
+            // que convirtio el documento de identidad en un requerido mas lo
+            // deja YA CREADO en cualquier base recien migrada, y como
+            // `documentos_requeridos.nombre` es unico, un `create` reventaba la
+            // transaccion entera del instalador. Le paso a `--ejemplo`, que
+            // trae «Documento de identidad» en su lista, y le pasaria igual a
+            // quien lo teclee al instalar.
+            //
+            // El que ya existe conserva SU orden en vez de recibir este: viene
+            // de la migracion con orden 0 y ahi es donde tiene que estar, que es
+            // el papel que la entidad ya venia pidiendo.
+            DocumentoRequerido::firstOrCreate(
+                ['nombre' => $nombre],
                 // De diez en diez para poder colar uno en medio desde Gestion
                 // sin renumerar los demas.
-                'orden' => ($posicion + 1) * 10,
-            ]);
+                ['orden' => ($posicion + 1) * 10]
+            );
         }
 
         foreach ($plan['departamentos'] as $nombre) {

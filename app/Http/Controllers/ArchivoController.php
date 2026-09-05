@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConfiguracionInstitucion;
-use App\Models\DatosEstudiante;
+use App\Models\DocumentoEstudiante;
 use App\Models\Perfil;
 use App\Support\Companeros;
 use Illuminate\Http\Request;
@@ -106,18 +106,31 @@ class ArchivoController extends Controller
      * dato mas protegido que guarda el sistema, la cedula o el registro civil
      * de un menor. Una ruta se edita en un renglon y el descuido no se ve;
      * aqui, al lado de lo que entrega, si.
+     *
+     * DESDE EL 05/09/2026 SIRVE CUALQUIER PAPEL, no solo el de identidad, que
+     * dejo de ser un caso especial del esquema. Y eso ARREGLA UN AGUJERO que
+     * habia al lado: los papeles variables se subian y NO habia forma de verlos
+     * — ni ruta, ni enlace, ni pantalla—. La gente los entregaba y se quedaban
+     * en el disco sin que nadie pudiera abrirlos.
+     *
+     * TODOS pasan por la puerta del administrador, tambien los variables. Es la
+     * barrera que ya protegia al de identidad y no se baja al generalizar: un
+     * papel que pide una institucion puede ser una historia clinica o un
+     * certificado de discapacidad, y esos no son menos delicados que una cedula.
+     * Si algun dia hace falta que un profesor vea alguno, sera una columna
+     * `reservado` en `documentos_requeridos` y una decision tomada a proposito.
      */
-    public function documento(Request $request, DatosEstudiante $datos): StreamedResponse
+    public function documento(Request $request, DocumentoEstudiante $entrega): StreamedResponse
     {
         // Un 404 y no un 403, igual que en `foto()`: que exista o no el
         // documento de otra persona no es asunto de quien pregunta.
         abort_unless($request->user()?->perfil?->rol === 'administrador', 404);
 
-        abort_if($datos->copia_documento === '', 404);
+        abort_if($entrega->archivo === '', 404);
 
         return Storage::disk('local')->download(
-            $datos->copia_documento,
-            basename($datos->copia_documento)
+            $entrega->archivo,
+            basename($entrega->archivo)
         );
     }
 

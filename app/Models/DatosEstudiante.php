@@ -23,7 +23,6 @@ class DatosEstudiante extends Model
     protected $fillable = [
         'perfil_id',
         'documento_identidad',
-        'copia_documento',
         'acudiente_id',
     ];
 

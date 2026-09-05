@@ -20,10 +20,32 @@
   @if ($datos->acudiente)
     <p>Acudiente: {{ $datos->acudiente->nombre }} ({{ $datos->acudiente->telefono }})</p>
   @endif
-  @if ($datos->copia_documento)
-    <p><a class="btn" href="{{ route('descargar-documento', $datos) }}">Descargar copia del documento</a></p>
+  {{--
+    LOS PAPELES ENTREGADOS. Hasta el 05/09/2026 aquí solo salía la copia del
+    documento de identidad, que era lo único con enlace; los demás papeles que
+    pide la institución se subían y no se veían por ningún sitio. Al dejar aquel
+    de ser un caso especial, el agujero se cerró solo.
+
+    Solo el administrador llega a esta pantalla, y la descarga vuelve a pedir el
+    rol por su cuenta.
+  --}}
+  @if ($papeles)
+    <ul class="lista-papeles">
+      @foreach ($papeles as $p)
+        <li>
+          <span class="papel-nombre">{{ $p['requerido']->nombre }}</span>
+          @if ($p['entrega'])
+            <a class="btn btn-sm" href="{{ route('descargar-documento', $p['entrega']) }}">Descargar</a>
+          @elseif ($p['requerido']->obligatorio)
+            <span class="estado estado-pendiente">Falta</span>
+          @else
+            <span class="campo-info" style="margin:0;">Sin entregar (opcional)</span>
+          @endif
+        </li>
+      @endforeach
+    </ul>
   @else
-    <p class="vacio">No hay copia de documento cargada.</p>
+    <p class="vacio">{{ $configuracion->nombre_institucion }} no pide ningún documento.</p>
   @endif
 @else
   <p class="vacio">Este estudiante no tiene datos de estudiante registrados.</p>

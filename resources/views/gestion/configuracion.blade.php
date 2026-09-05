@@ -275,7 +275,7 @@
   <p class="config-ayuda" style="margin-top:-0.4rem;">
     Los papeles que esta institución exige. El estudiante los sube desde <strong>Mi perfil</strong>,
     y a quien le falte alguno obligatorio le sale una etiqueta en el panel del profesor y en su
-    ficha. La copia del documento de identidad se pide siempre y no se configura aquí.
+    ficha. Todos se configuran aquí, incluida la copia del documento de identidad.
   </p>
 
   @if (count($documentos))
@@ -311,7 +311,7 @@
     </tbody>
   </table>
   @else
-    <p class="vacio">No se pide ningún documento además de la copia del documento de identidad.</p>
+    <p class="vacio">No se pide ningún documento.</p>
   @endif
 
   <form action="{{ route('documento-requerido-nuevo') }}" method="post" class="doc-alta">

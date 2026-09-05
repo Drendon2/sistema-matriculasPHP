@@ -271,7 +271,11 @@ Route::get('/foto/{perfil}', [ArchivoController::class, 'foto'])
     ->middleware('auth')
     ->name('ver-foto');
 
-Route::get('/documento/{datos}', [ArchivoController::class, 'documento'])
+// Cualquier papel entregado, no solo el de identidad: desde el 05/09/2026 ese
+// dejo de ser un caso especial del esquema. Sigue pidiendo rol de administrador,
+// que es la barrera que ya tenia — un papel que pide una institucion puede ser
+// una historia clinica, y no es menos delicado que una cedula.
+Route::get('/documento/{entrega}', [ArchivoController::class, 'documento'])
     ->middleware(['auth', 'rol:administrador'])
     ->name('descargar-documento');
 
