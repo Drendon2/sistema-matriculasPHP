@@ -281,4 +281,49 @@ class PortadaDeGestionTest extends TestCase
             'telefono' => '3000000000',
         ]);
     }
+
+    /**
+     * ENCENDIDAS Y SIN NINGUNA: se dice, no se calla.
+     *
+     * ESTE CASO SE ME PASO y lo notó el usuario el mismo día: con los dos
+     * interruptores puestos y cero avisos, la portada no pintaba nada. Ni el
+     * banner ni el aviso de «apagadas», porque no están apagadas. O sea que
+     * quien entraba no podía distinguir «no ha pasado nada» de «esto no
+     * funciona» — que es exactamente el problema que yo mismo había razonado
+     * para el caso de los interruptores apagados, sin ver que había un tercero.
+     *
+     * Y se dice la FECHA, que es lo único que explica el cero. En la base de
+     * desarrollo hay 596 avisos contando desde el inicio del periodo y CERO
+     * contando desde el 24/08, que es lo que estaba configurado. Sin la fecha,
+     * los dos ceros se leen igual.
+     */
+    public function test_con_las_alertas_encendidas_y_ninguna_pendiente_se_dice(): void
+    {
+        $config = ConfiguracionInstitucion::actual();
+        $config->alerta_clase_no_dictada = true;
+        $config->alerta_abandono = true;
+        // Desde hoy: no hay ningún día pasado que mirar, así que cero avisos.
+        $config->alertas_desde = Carbon::today()->toDateString();
+        $config->save();
+
+        $html = $this->portada();
+
+        $this->assertStringNotContainsString('alertas-banner', $html, 'la sonda no vale: sí había alertas.');
+        $this->assertStringNotContainsString(
+            'Las alertas están apagadas',
+            $html,
+            'dice que están apagadas y están encendidas.'
+        );
+        $this->assertStringContainsString(
+            'Sin alertas',
+            $html,
+            'con las alertas encendidas y ninguna pendiente, la portada se queda muda: '
+            .'no se distingue «no ha pasado nada» de «esto no funciona».'
+        );
+        $this->assertStringContainsString(
+            Carbon::today()->format('d/m/Y'),
+            $html,
+            'no dice desde cuándo cuentan, que es lo único que explica el cero.'
+        );
+    }
 }

@@ -77,6 +77,10 @@ class InicioController extends Controller
             'alertasPendientes' => $alertas,
             'ultimasAlertas' => array_slice($ultimas, 0, 3),
             'alertasApagadas' => ! $config->alerta_clase_no_dictada && ! $config->alerta_abandono,
+            // Desde cuando cuentan. Es lo unico que explica un cero: sin esta
+            // fecha, «no ha pasado nada» y «se acaba de configurar y todavia no
+            // mira casi nada» se leen igual.
+            'alertasDesde' => $periodo === null ? null : Alertas::desde($periodo),
             'cifras' => ResumenInstitucion::cifras($periodo),
             'periodo' => $periodo,
         ]);

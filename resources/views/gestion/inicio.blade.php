@@ -73,7 +73,7 @@
   entre «no hay avisos» y «no estás mirando» es justo la que importa aquí.
 --}}
 @if ($alertasApagadas)
-  <p class="campo-ayuda">
+  <p class="campo-ayuda sin-alertas">
     Las alertas están apagadas. Se encienden en
     <a href="{{ route('gestion-configuracion') }}">Institución</a>, y conviene poner antes
     su fecha de inicio.
@@ -100,6 +100,29 @@
       @endforeach
     </ul>
   </div>
+@else
+  {{--
+    ENCENDIDAS Y SIN NINGUNA. Este caso faltaba y el usuario lo notó el mismo
+    día: con los dos interruptores puestos y cero avisos, la pantalla no pintaba
+    NADA y no había forma de distinguir «no ha pasado nada» de «esto no
+    funciona». Es el mismo razonamiento que ya justificaba avisar cuando están
+    apagadas, aplicado al caso que se me pasó.
+
+    La FECHA es lo único que explica el cero, y por eso se dice: en la base de
+    desarrollo había 596 avisos contando desde el inicio del periodo y cero
+    contando desde el 24/08. Un cero recién configurado y un cero porque no ha
+    pasado nada se leen igual sin ella — y el primero es una pantalla que no
+    está mirando casi nada.
+  --}}
+  <p class="campo-ayuda sin-alertas">
+    Sin alertas
+    @if ($alertasDesde)
+      desde el {{ $alertasDesde->format('d/m/Y') }}, que es la fecha desde la que cuentan
+      (se cambia en <a href="{{ route('gestion-configuracion') }}">Institución</a>).
+    @else
+      : no hay ningún periodo en curso.
+    @endif
+  </p>
 @endif
 
 <div class="tarjetas">

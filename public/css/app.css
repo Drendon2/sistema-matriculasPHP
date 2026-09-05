@@ -639,6 +639,13 @@
      fuera pesa MENOS que el de dentro a proposito — es un rotulo de seccion, no
      una tarjeta mas. Si pesara igual, la portada pareceria una lista de
      veintiuna cosas del mismo rango en vez de un arbol. */
+  /* «Sin alertas desde …», que ocupa el sitio del banner cuando no hay ninguna.
+     Lleva el mismo hueco POR DEBAJO que el banner al que sustituye: con solo el
+     margen de `.campo-ayuda` —que es 0 abajo, porque esa clase esta pensada para
+     ir pegada a su campo— la frase quedaba tocando las fichas y se leia como el
+     pie de la primera, no como el estado de las alertas. */
+  .sin-alertas { margin-bottom: 1.4rem; }
+
   /* EL BANNER DE ULTIMAS ALERTAS de la portada de Gestion, del 04/09/2026.
      Es un AVISO y no una tarjeta de navegacion: no se pulsa entero, no lleva
      sombra de tarjeta y su borde es el rojo tenue del sistema. Si pesara como

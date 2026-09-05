@@ -53,8 +53,13 @@ class Alertas
      * Nula significa el inicio del periodo, que es como se comportaba antes. Y
      * se toma siempre la MAS TARDIA de las dos: una fecha anterior al periodo no
      * puede hacer que se miren dias que ese periodo no tiene.
+     *
+     * PUBLICA desde el 04/09/2026 porque la portada de Gestion la ENSENA: cuando
+     * no hay ninguna alerta, esta fecha es lo unico que explica el cero. Sin
+     * ella, un cero recien configurado y un cero porque no ha pasado nada se
+     * leen igual, y el primero es una pantalla que no esta mirando.
      */
-    private static function desde(Periodo $periodo): Carbon
+    public static function desde(Periodo $periodo): Carbon
     {
         $inicio = Carbon::parse($periodo->fecha_inicio)->startOfDay();
         $configurada = ConfiguracionInstitucion::actual()->alertas_desde;
