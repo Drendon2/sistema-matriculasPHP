@@ -56,6 +56,7 @@ class ConfiguracionInstitucion extends Model
         'alerta_abandono',
         'faltas_para_abandono',
         'alertas_desde',
+        'recordar_encuesta',
     ];
 
     /**
@@ -90,6 +91,10 @@ class ConfiguracionInstitucion extends Model
         'alerta_clase_no_dictada' => true,
         'alerta_abandono' => true,
         'faltas_para_abandono' => 5,
+        // Y esta por lo mismo. Sin ella, una instalacion recien migrada
+        // devolvia null y el recordatorio nacia apagado sin que nadie lo
+        // hubiera apagado.
+        'recordar_encuesta' => true,
         // `alertas_desde` NO va aqui, y es deliberado: sus vecinas estan porque
         // tienen un valor que la instancia no leeria de la base, y esa es nula.
         // Declararla no cambiaria nada — se comprobo quitandola y la prueba
@@ -106,6 +111,7 @@ class ConfiguracionInstitucion extends Model
             'alerta_abandono' => 'boolean',
             'faltas_para_abandono' => 'integer',
             'alertas_desde' => 'date',
+            'recordar_encuesta' => 'boolean',
         ];
     }
 

@@ -69,6 +69,7 @@ class ConfiguracionController extends Controller
             'promotorias_visibles_para_estudiantes' => ['nullable', 'boolean'],
             'alerta_clase_no_dictada' => ['nullable', 'boolean'],
             'alerta_abandono' => ['nullable', 'boolean'],
+            'recordar_encuesta' => ['nullable', 'boolean'],
             // El maximo no es capricho: una racha mas larga que el periodo no
             // se alcanza nunca y la alerta quedaria apagada sin decirlo.
             'faltas_para_abandono' => ['required', 'integer', 'min:2', 'max:20'],
@@ -133,6 +134,7 @@ class ConfiguracionController extends Controller
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');
         $configuracion->alerta_clase_no_dictada = $request->boolean('alerta_clase_no_dictada');
         $configuracion->alerta_abandono = $request->boolean('alerta_abandono');
+        $configuracion->recordar_encuesta = $request->boolean('recordar_encuesta');
         $configuracion->faltas_para_abandono = (int) $request->input('faltas_para_abandono');
         // Vacia se guarda como NULL: es lo que significa «desde el inicio del
         // periodo». Quien lo consigue de verdad es el middleware

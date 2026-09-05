@@ -11,6 +11,8 @@
 @section('content')
 <h2>Panel de promotorías</h2>
 
+@include('partials.recordar-encuesta')
+
 {{--
   El enlace a las actividades se pinta solo si hay alguna a la vista. Mientras
   la institución no use cursos ni grupos de proyección, lleva a una pantalla

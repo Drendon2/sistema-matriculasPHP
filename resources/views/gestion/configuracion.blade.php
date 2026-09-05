@@ -205,6 +205,27 @@
       </div>
 
       {{--
+        EL RECORDATORIO DE LA ENCUESTA. Va aquí y no con las alertas de arriba
+        aunque comparta la forma: aquellas avisan al PERSONAL de algo que pasó,
+        y este le pide algo a la persona misma. Comparten pantalla porque los dos
+        son «qué le enseña el sistema a quién», que es lo que se viene a decidir
+        a Institución.
+      --}}
+      <div class="config-campo">
+        <label class="config-interruptor">
+          <input type="checkbox" name="recordar_encuesta" value="1"
+                 @checked(old('recordar_encuesta', $institucion->recordar_encuesta))>
+          <span class="config-etiqueta">Recordar la encuesta a quien no la ha contestado</span>
+        </label>
+        <p class="config-ayuda">
+          A quien le falte alguna pregunta le sale un aviso al entrar, con el
+          número de preguntas que le quedan y un botón para terminarla.
+          <strong>No obliga ni bloquea nada</strong>, y quien ya la contestó no
+          ve nada. Apágalo si prefieres no pedirlo.
+        </p>
+      </div>
+
+      {{--
         DESDE CUÁNDO cuentan las dos.
 
         Un periodo académico incluye su periodo de matrículas: semanas de

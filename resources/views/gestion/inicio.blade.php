@@ -22,6 +22,8 @@
 --}}
 <h2>Gestión</h2>
 
+@include('partials.recordar-encuesta')
+
 {{--
   CÓMO VA LA ESCUELA, arriba del todo desde el 04/09/2026, porque esta pasó a
   ser la pantalla donde aterriza el administrador al entrar.

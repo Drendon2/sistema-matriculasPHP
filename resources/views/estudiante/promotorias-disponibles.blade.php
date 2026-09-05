@@ -11,6 +11,8 @@
 @php($sufijoPeriodo = $periodo ? " — {$periodo->nombre}" : '')
 <h2>Promotorías disponibles{{ $sufijoPeriodo }}</h2>
 
+@include('partials.recordar-encuesta')
+
 @if ($clasesPorConfirmar)
 <div class="renovar-llamada">
   <p>

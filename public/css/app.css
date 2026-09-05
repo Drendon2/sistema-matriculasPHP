@@ -1255,6 +1255,32 @@
   .renovar-llamada p { margin: 0; color: var(--accent-dark); font-size: 0.95rem; line-height: 1.5; }
   .renovar-llamada .btn { flex: 0 0 auto; }
 
+  /* EL RECORDATORIO DE LA ENCUESTA. Misma forma que `.renovar-llamada` —es la
+     misma clase de cosa: una invitacion con su boton— pero en NEUTRO y no en
+     acento. La diferencia es deliberada: renovar es una accion con fecha
+     limite, y esto es un favor que se pide. Con el mismo verde competiria por
+     la mirada con lo que la persona vino a hacer, y sale en TODAS las entradas
+     hasta que la conteste.
+
+     Sin `--danger` ni forma de alerta por lo mismo: no ha pasado nada malo. */
+  .recordar-encuesta {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    background: var(--surface-alt); border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0.9rem 1.1rem; margin-bottom: 1.2rem;
+  }
+  .recordar-encuesta-texto { margin: 0; color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; }
+  .recordar-encuesta-texto strong { color: var(--ink); }
+  .recordar-encuesta .btn { flex: 0 0 auto; }
+
+  /* En el telefono el boton baja y se estira: a ancho completo se toca con el
+     pulgar sin apuntar, y aqui no compite con nada porque ya esta debajo. */
+  @media (max-width: 640px) {
+    .recordar-encuesta { flex-direction: column; align-items: stretch; }
+    .recordar-encuesta .btn { width: 100%; }
+  }
+
   /* Trayectoria en la promotoría: no es el estado de la matrícula (eso es
      .estado), es de dónde viene el estudiante. Se lee por forma igual que los
      estados: renovación va sólida, nuevo va con contorno punteado. */
