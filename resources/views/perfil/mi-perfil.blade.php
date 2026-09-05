@@ -333,7 +333,19 @@
   El ojo de los tres campos lo pone `ver-clave.js` solo; aquí no hay que hacer
   nada.
 --}}
-<details class="perfil-seccion" id="bloque-clave">
+{{--
+  SE ABRE SOLA SI SU FORMULARIO FUE RECHAZADO. Sin esto, el aviso de arriba dice
+  «hay un campo por corregir, marcado en rojo más abajo» y al bajar no hay nada
+  rojo: el error está dentro de un `<details>` plegado. Es el mismo fallo que ya
+  costó un profesor en producción, y aquí solo asoma SIN JavaScript — con él,
+  `acciones.js` conserva abiertos los `<details>` que tienen `id`, y este lo
+  tiene. Se vio pulsando el botón con la clave actual mal escrita.
+
+  Acotado a SUS dos campos: `$errors` es de toda la página, y con `$errors->any()`
+  esta sección se abriría porque falló la encuesta, que no tiene nada que ver.
+--}}
+<details class="perfil-seccion" id="bloque-clave"
+         @if ($errors->has('clave_actual') || $errors->has('password')) open @endif>
   <summary class="perfil-seccion-cabecera">
     <span class="perfil-seccion-icono icono-clave" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
