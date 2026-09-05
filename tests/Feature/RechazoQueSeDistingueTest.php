@@ -287,4 +287,125 @@ class RechazoQueSeDistingueTest extends TestCase
             'telefono' => '3000000000',
         ]);
     }
+
+    /**
+     * DESHACER UN RECHAZO devuelve la solicitud a la cola de quien dicta.
+     *
+     * Sin esto la pantalla era un callejon: al rechazado no se le vuelve a
+     * ofrecer «Matricularme» —ni el boton ni la URL— y «Corregir promotoria» se
+     * niega a mover una matricula a donde ya esta, asi que una rechazada en
+     * Piano no podia volver a Piano ese periodo por ningun camino.
+     *
+     * Vuelve a PENDIENTE y no a activa: se deshace la decision, no se toma la
+     * contraria.
+     */
+    public function test_deshacer_el_rechazo_devuelve_la_solicitud_a_pendiente(): void
+    {
+        $matricula = $this->solicitud();
+        $this->rechazar($matricula);
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('deshacer-rechazo', $matricula))
+            ->assertRedirect();
+
+        $matricula->refresh();
+
+        $this->assertSame(Matricula::PENDIENTE, $matricula->estado);
+        $this->assertNull($matricula->motivo_retiro, 'se deshizo pero quedo marcada como rechazo.');
+        $this->assertSame('Pendiente de confirmación', $matricula->estado_visible_display);
+    }
+
+    /**
+     * Lo hace el PROFESOR de esa promotoria, no solo direccion.
+     *
+     * Es la puerta de `puedeGestionarPromotoria` —la misma que rechaza en el
+     * Panel— y no la de «Corregir promotoria» que tiene al lado en la pantalla.
+     * Quien pudo rechazar puede deshacerlo: es quien se equivoca al pulsar y
+     * quien lo nota primero.
+     */
+    public function test_el_boton_de_deshacer_lo_ve_el_profesor_de_la_promotoria(): void
+    {
+        $matricula = $this->solicitud();
+        $this->rechazar($matricula);
+
+        $html = $this->actingAs($this->profesor->user)
+            ->get(route('historial-estudiante', $this->estudiante))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            route('deshacer-rechazo', $matricula),
+            $html,
+            'el profesor que rechazo no encuentra como deshacerlo.'
+        );
+    }
+
+    /** Y NO lo puede hacer un profesor de otra promotoria. */
+    public function test_un_profesor_ajeno_no_puede_deshacer_el_rechazo(): void
+    {
+        $matricula = $this->solicitud();
+        $this->rechazar($matricula);
+
+        $ajeno = $this->perfil('otro', 'profesor');
+
+        $this->actingAs($ajeno->user)
+            ->post(route('deshacer-rechazo', $matricula))
+            ->assertRedirect();
+
+        $this->assertSame(
+            Matricula::RETIRO_RECHAZO,
+            $matricula->fresh()->motivo_retiro,
+            'un profesor ajeno deshizo un rechazo que no era suyo.'
+        );
+
+        $html = $this->actingAs($ajeno->user)
+            ->get(route('historial-estudiante', $this->estudiante))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString(route('deshacer-rechazo', $matricula), $html);
+    }
+
+    /**
+     * No se deshace lo que no es un rechazo.
+     *
+     * Una retirada por voluntad propia no es una decision de nadie que haya que
+     * poder revertir por aqui; el estudiante vuelve a entrar solo, con el boton
+     * de siempre.
+     */
+    public function test_no_se_puede_deshacer_una_retirada_que_no_fue_un_rechazo(): void
+    {
+        $matricula = $this->solicitud();
+
+        $this->actingAs($this->estudiante->user)->post(route('mis-matriculas.retirar', $matricula));
+        $this->assertSame(Matricula::RETIRO_PROPIO, $matricula->fresh()->motivo_retiro, 'la sonda no vale.');
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('deshacer-rechazo', $matricula))
+            ->assertRedirect();
+
+        $this->assertSame(Matricula::RETIRADA, $matricula->fresh()->estado, 'revivio una retirada propia.');
+    }
+
+    /**
+     * El viaje entero: rechazo, arrepentimiento, y todo vuelve a su sitio.
+     *
+     * Lo que se mira es la pantalla del ESTUDIANTE, que es donde el callejon se
+     * notaba: la promotoria deja de estar bloqueada y vuelve a leerse pendiente.
+     */
+    public function test_tras_deshacerlo_el_estudiante_vuelve_a_verla_pendiente(): void
+    {
+        $matricula = $this->solicitud();
+        $this->rechazar($matricula);
+
+        $this->actingAs($this->profesor->user)->post(route('deshacer-rechazo', $matricula));
+
+        $html = $this->actingAs($this->estudiante->user)
+            ->get(route('promotorias-disponibles'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('estado-rechazada', $html, 'sigue marcada como rechazada.');
+        $this->assertStringContainsString('estado-pendiente', $html, 'no volvio a leerse pendiente.');
+    }
 }

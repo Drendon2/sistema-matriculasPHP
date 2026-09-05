@@ -202,6 +202,13 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
     Route::post('/panel/matriculas/{matricula}/corregir-promotoria',
         [FichaController::class, 'corregirPromotoria'])
         ->name('corregir-promotoria');
+
+    // Deshacer un rechazo. Vive al lado de la correccion porque se hace desde la
+    // misma pantalla, pero NO comparte su puerta: aqui puede tambien el profesor
+    // de la promotoria, porque es quien rechaza y quien se equivoca al pulsar.
+    Route::post('/panel/matriculas/{matricula}/deshacer-rechazo',
+        [FichaController::class, 'deshacerRechazo'])
+        ->name('deshacer-rechazo');
 });
 
 // La ficha con encuesta y documento es solo del administrador: va en su propio

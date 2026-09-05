@@ -367,4 +367,77 @@ class FichaController extends Controller
             ->whereHas('promotoria', fn ($q) => $q->where('profesor_id', $profesor->id))
             ->exists();
     }
+
+    /**
+     * Deshacer un rechazo: la solicitud vuelve a estar sobre la mesa.
+     *
+     * POR QUE EXISTE. Al empezar a distinguir el rechazo (04/09/2026) se cerro
+     * la unica salida que habia: el catalogo dejo de ofrecerle «Matricularme» a
+     * quien habian rechazado, y el POST tambien. Hasta entonces la salida era
+     * mala pero existia — volver a pedirlo a ciegas —, y cerrarla dejo un
+     * callejon completo, porque «Corregir promotoria» se niega a mover una
+     * matricula a la promotoria en la que ya esta. Una solicitud rechazada en
+     * Piano no podia volver a Piano ese periodo NI por el estudiante ni por
+     * direccion.
+     *
+     * QUIEN PUEDE es `puedeGestionarPromotoria`, o sea la MISMA puerta que
+     * rechaza en el Panel, y no la de «Corregir promotoria» que tiene al lado.
+     * Es a proposito: quien pudo rechazar puede deshacerlo, y es quien se
+     * equivoca al pulsar y quien lo nota primero. Obligarle a pedirselo a
+     * direccion es un viaje de ida y vuelta por un clic mal dado, en un producto
+     * que se usa desde el telefono.
+     *
+     * VUELVE A PENDIENTE, no a activa. Se deshace la decision, no se toma la
+     * contraria: la solicitud regresa a la cola de quien dicta, que es donde
+     * estaba antes del clic. Es ademas lo mismo que hace la readmision de
+     * `corregirPromotoria`.
+     *
+     * Se valida como cualquier alta porque la ocupacion AUMENTA: entre el
+     * rechazo y el arrepentimiento el estudiante pudo llenar su limite de
+     * promotorias por otro lado, y el cupo de esta pudo agotarse.
+     */
+    public function deshacerRechazo(Request $request, Matricula $matricula): RedirectResponse
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        $volver = redirect()->route('historial-estudiante', $matricula->estudiante_id);
+        $enCurso = Periodo::enCurso();
+
+        if ($matricula->periodo_id !== $enCurso?->id) {
+            // Igual que la correccion: un periodo cerrado es historial, y
+            // reabrir una solicitud de entonces cambiaria lo que ya se conto.
+            return $volver->with('error', 'Solo se deshace un rechazo del periodo en curso.');
+        }
+
+        if (! Permisos::puedeGestionarPromotoria($perfil, $matricula->promotoria)) {
+            return $volver->with('error', 'No tienes acceso a esta promotoría.');
+        }
+
+        // Que siga siendo un rechazo se comprueba aqui y no se da por hecho
+        // porque se haya pintado el boton: entre que se pinto y se pulso, otro
+        // pudo deshacerlo, o el estudiante pudo volver a entrar por otro camino.
+        if ($matricula->estado !== Matricula::RETIRADA
+            || $matricula->motivo_retiro !== Matricula::RETIRO_RECHAZO) {
+            return $volver->with('error', 'Esa matrícula ya no está rechazada.');
+        }
+
+        $matricula->estado = Matricula::PENDIENTE;
+        $matricula->motivo_retiro = null;
+
+        try {
+            $matricula->validar();
+            $matricula->save();
+        } catch (ValidationException $e) {
+            return $volver->with('error', implode(' ', Arr::flatten($e->errors())));
+        } catch (QueryException $e) {
+            return $volver->with('error', $this->porQueNoSePudoCorregir($e, $matricula->promotoria));
+        }
+
+        return $volver->with(
+            'success',
+            "La solicitud de {$matricula->estudiante->nombre_completo} a {$matricula->promotoria} "
+            .'vuelve a estar pendiente, y quien la dicta la verá otra vez en su Panel.'
+        );
+    }
 }

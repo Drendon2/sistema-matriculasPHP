@@ -123,6 +123,29 @@
         --}}
         @if ($modo === 'personal')
         <td class="historial-corregir" data-celda="accion">
+          {{--
+            DESHACER UN RECHAZO, y va antes que «Corregir» porque cuando existe
+            es lo que se viene a hacer.
+
+            Tiene su propia puerta y no la de la corrección de al lado: aquí
+            puede también el profesor de la promotoría, que es quien rechaza y
+            quien se equivoca al pulsar. Se comprueba por fila porque depende de
+            QUÉ promotoría es; `promotoria` viene precargada, así que no cuesta
+            una consulta por matrícula.
+
+            Sin esto la pantalla es un callejón. Desde el 04/09/2026 al
+            rechazado no se le vuelve a ofrecer «Matricularme» —ni el botón ni la
+            URL—, y «Corregir promotoría» se niega a mover una matrícula a donde
+            ya está: una solicitud rechazada en Piano no podría volver a Piano
+            ese periodo por ningún camino.
+          --}}
+          @php($esRechazo = $m->estado === \App\Models\Matricula::RETIRADA && $m->motivo_retiro === \App\Models\Matricula::RETIRO_RECHAZO)
+          @if ($esRechazo && $m->periodo_id === $periodoEnCursoId && \App\Support\Permisos::puedeGestionarPromotoria($yo, $m->promotoria))
+          <form action="{{ route('deshacer-rechazo', $m) }}" method="post" class="deshacer-rechazo">
+            @csrf
+            <button type="submit" class="btn btn-secundario btn-sm">Deshacer el rechazo</button>
+          </form>
+          @endif
           @if ($puedeCorregir && $m->periodo_id === $periodoEnCursoId)
           {{--
             Una retirada TAMBIÉN se mueve: quien se salió y quiere entrar a otra
