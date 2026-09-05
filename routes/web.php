@@ -405,6 +405,24 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
         ->name('usuario-alternar-activo');
 });
 
+// GESTION ASISTIDA: el administrador trabaja desde la cuenta de un profesor o un
+// director. Ver `Support\GestionAsistida`.
+//
+// SALIR va en OTRO grupo y con otra puerta, y no es descuido: en cuanto la
+// asistencia empieza, para el middleware quien navega ya no es administrador
+// sino la persona a la que se asiste. Con `rol:administrador` en el boton de
+// salir, quien entra se queda dentro y solo sale cerrando sesion.
+// SALIR va PRIMERO, y el orden importa: Laravel casa por orden de registro, asi
+// que con `{usuario}` delante la palabra «salir» entraria como si fuera el
+// nombre de alguien y la ruta de salida no existiria.
+Route::post('/gestion/asistida/salir', [Gestion\AsistidaController::class, 'terminar'])
+    ->middleware('auth')
+    ->name('gestion-asistida-salir');
+
+Route::post('/gestion/asistida/{usuario}', [Gestion\AsistidaController::class, 'iniciar'])
+    ->middleware(['auth', 'rol:administrador'])
+    ->name('gestion-asistida-iniciar');
+
 // La institucion y las estadisticas son SOLO del administrador: la primera es la
 // identidad de la entidad y una regla que gobierna las matriculas de todo el
 // mundo; las segundas agregan la encuesta demografica.

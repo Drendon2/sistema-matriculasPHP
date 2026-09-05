@@ -62,6 +62,33 @@
     @endauth
   </nav>
 </header>
+{{--
+  LA BARRA DE GESTIÓN ASISTIDA. Va FUERA de <main> y encima de todo, porque
+  mientras dure hay que verla en todas las pantallas: quien la olvida está
+  actuando desde la cuenta de otra persona sin saberlo, y eso es exactamente lo
+  que no puede pasar.
+
+  Dice a nombre de quién se está trabajando, y su botón de salir manda a una
+  ruta que NO pide rol de administrador — ver `routes/web.php`. En cuanto la
+  asistencia empieza, para el middleware quien navega es el profesor, así que
+  una puerta de administrador en el botón de salir dejaría a quien entra
+  encerrado hasta cerrar sesión.
+--}}
+@php($asistiendo = \App\Support\GestionAsistida::administrador())
+@if ($asistiendo)
+<div class="barra-asistida">
+  <span class="barra-asistida-texto">
+    <strong>Gestión asistida</strong>
+    Estás trabajando como <strong>{{ $yo?->nombre_completo }}</strong>.
+    Todo queda registrado a nombre de {{ $asistiendo->nombre_completo }}.
+  </span>
+  <form action="{{ route('gestion-asistida-salir') }}" method="post">
+    @csrf
+    <button type="submit" class="btn btn-blanco btn-sm">Volver a mi cuenta</button>
+  </form>
+</div>
+@endif
+
 <main>
   @include('partials.mensajes')
   @yield('content')

@@ -1,0 +1,240 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Area;
+use App\Models\Grupo;
+use App\Models\Perfil;
+use App\Models\Periodo;
+use App\Models\Promotoria;
+use App\Models\User;
+use App\Support\GestionAsistida;
+use App\Support\Permisos;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Tests\TestCase;
+
+/**
+ * Gestion asistida: el administrador trabaja desde la cuenta de otra persona.
+ *
+ * Pedido por el usuario el 04/09/2026, con el nombre elegido a proposito — no
+ * «suplantacion», porque lo que se hace es ayudar con el trabajo de alguien y
+ * no hacerse pasar por el. La auditoria guarda siempre quien fue de verdad.
+ *
+ * LOS TRES LIMITES, que son lo unico que hay que no romper nunca:
+ *
+ * 1. NO SE ESCRIBE ASISTENCIA. Es la decision del usuario y va contra la
+ *    comodidad a proposito: un registro que puede escribir alguien que no dio
+ *    la clase deja de ser evidencia de lo que paso, y la evidencia es lo que la
+ *    confirmacion de los estudiantes sostiene. VER y CORREGIR lo que ya hay
+ *    sigue disponible; lo que se cierra es escribir.
+ * 2. NO SE ASISTE A UN ADMINISTRADOR. No aporta nada y seria una via para que
+ *    un administrador actuara como otro dejando el rastro en su nombre.
+ * 3. SE PUEDE SALIR SIEMPRE. En cuanto la asistencia empieza, para el
+ *    middleware quien navega es el profesor: si la ruta de salida pidiera rol
+ *    de administrador, quien entra se quedaria encerrado hasta cerrar sesion.
+ *    Esa es la prueba que parece tonta y es la que evita el desastre.
+ */
+class GestionAsistidaTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Perfil $admin;
+
+    private Perfil $profesor;
+
+    private Promotoria $promotoria;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Periodo::create([
+            'nombre' => '2026-1',
+            'fecha_inicio' => Carbon::today()->subMonth()->toDateString(),
+            'fecha_fin' => Carbon::today()->addMonths(3)->toDateString(),
+            'activo' => true,
+            'matriculas_abiertas' => true,
+        ]);
+
+        $this->admin = $this->perfil('jefa', 'administrador');
+        $this->profesor = $this->perfil('profe', 'profesor');
+
+        $this->promotoria = Promotoria::create([
+            'nombre' => 'Violin',
+            'area_id' => Area::create(['nombre' => 'Musica'])->id,
+            'profesor_id' => $this->profesor->id,
+        ]);
+    }
+
+    /** El administrador entra y pasa a navegar como el profesor. */
+    public function test_el_administrador_entra_en_la_cuenta_del_profesor(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-asistida-iniciar', $this->profesor))
+            ->assertRedirect(route('panel'));
+
+        $this->assertSame($this->profesor->user_id, auth()->id(), 'no se cambió de cuenta.');
+        $this->assertTrue(GestionAsistida::activa());
+        $this->assertSame($this->admin->id, GestionAsistida::administrador()?->id);
+    }
+
+    /** Y la barra lo dice en todas las pantallas. */
+    public function test_la_barra_avisa_de_que_se_esta_asistiendo(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+
+        $html = $this->get(route('panel'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('barra-asistida', $html, 'no se avisa de que se está asistiendo.');
+        $this->assertStringContainsString('Gestión asistida', $html);
+        $this->assertStringContainsString($this->admin->nombre_completo, $html, 'no dice a nombre de quién queda.');
+    }
+
+    /**
+     * SE PUEDE SALIR, y esta es la prueba que evita el encierro.
+     *
+     * Estando asistido el middleware ya no ve a un administrador: ve al
+     * profesor. Si la ruta de salida estuviera en el grupo de administrador,
+     * quien entra no podría volver salvo cerrando sesión.
+     */
+    public function test_se_puede_volver_a_la_propia_cuenta(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+        $this->assertSame($this->profesor->user_id, auth()->id(), 'la sonda no vale: no entró.');
+
+        $this->post(route('gestion-asistida-salir'))->assertRedirect();
+
+        $this->assertSame($this->admin->user_id, auth()->id(), 'no pudo volver a su cuenta.');
+        $this->assertFalse(GestionAsistida::activa());
+    }
+
+    /**
+     * NO SE ESCRIBE ASISTENCIA mientras se asiste.
+     *
+     * Se comprueba por la puerta que de verdad lo decide y no por una pantalla:
+     * `dictaLaPromotoria` es la única que gobierna la escritura de la lista, así
+     * que si cede aquí ceden las cuatro pantallas a la vez.
+     */
+    public function test_asistiendo_no_se_puede_escribir_la_lista(): void
+    {
+        // Sin asistencia, el profesor sí puede: es la sonda.
+        $this->assertTrue(
+            Permisos::dictaLaPromotoria($this->profesor, $this->promotoria),
+            'la sonda no vale: este profesor no dicta esta promotoría.'
+        );
+
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+
+        $this->assertFalse(
+            Permisos::dictaLaPromotoria($this->profesor, $this->promotoria),
+            'en gestión asistida se puede escribir la lista: el registro deja de ser evidencia.'
+        );
+    }
+
+    /** Y la pantalla de pasar lista lo respeta, que es lo que se ve. */
+    public function test_asistiendo_la_pantalla_no_deja_iniciar_una_clase(): void
+    {
+        $grupo = Grupo::create([
+            'promotoria_id' => $this->promotoria->id,
+            'nombre' => 'Grupo 1',
+            'nivel' => 'basico',
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+
+        $this->post(route('panel-clase-nueva', $grupo));
+
+        $this->assertSame(
+            0,
+            $grupo->clases()->count(),
+            'se registró una clase desde una gestión asistida.'
+        );
+    }
+
+    /** NO se asiste a otro administrador. */
+    public function test_no_se_asiste_a_otro_administrador(): void
+    {
+        $otro = $this->perfil('jefe2', 'administrador');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-asistida-iniciar', $otro))
+            ->assertRedirect(route('usuario-lista'));
+
+        $this->assertSame($this->admin->user_id, auth()->id(), 'un administrador entró en otro administrador.');
+        $this->assertFalse(GestionAsistida::activa());
+    }
+
+    /** Ni a un estudiante: esto es para el personal. */
+    public function test_no_se_asiste_a_un_estudiante(): void
+    {
+        $estudiante = $this->perfil('ana', 'estudiante');
+
+        $this->actingAs($this->admin->user)
+            ->post(route('gestion-asistida-iniciar', $estudiante));
+
+        $this->assertFalse(GestionAsistida::activa());
+    }
+
+    /**
+     * NO SE ANIDA.
+     *
+     * Con asistencias encadenadas la sesión tendría que recordar una pila y
+     * «volver a mi cuenta» dejaría de tener una respuesta clara.
+     */
+    public function test_no_se_puede_asistir_estando_ya_asistiendo(): void
+    {
+        $otroProfe = $this->perfil('profe2', 'profesor');
+
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+        $this->post(route('gestion-asistida-iniciar', $otroProfe));
+
+        // Sigue siendo el primero, y el administrador de vuelta sigue siendo el
+        // mismo: no se apiló nada.
+        $this->assertSame($this->profesor->user_id, auth()->id());
+        $this->assertSame($this->admin->id, GestionAsistida::administrador()?->id);
+    }
+
+    /** Un profesor NO puede iniciar una gestión asistida. */
+    public function test_un_profesor_no_puede_asistir_a_nadie(): void
+    {
+        $otroProfe = $this->perfil('profe2', 'profesor');
+
+        $this->actingAs($this->profesor->user)
+            ->post(route('gestion-asistida-iniciar', $otroProfe))
+            ->assertRedirect();
+
+        $this->assertSame($this->profesor->user_id, auth()->id());
+        $this->assertFalse(GestionAsistida::activa());
+    }
+
+    /**
+     * Salir sin haber entrado no echa a nadie de su cuenta.
+     *
+     * No es un caso raro: el botón vive en una barra que se pinta en todas las
+     * pantallas, y un doble toque o un reenvío mandan la petición dos veces.
+     */
+    public function test_salir_sin_estar_asistiendo_no_hace_nada(): void
+    {
+        $this->actingAs($this->profesor->user)
+            ->post(route('gestion-asistida-salir'))
+            ->assertRedirect();
+
+        $this->assertSame($this->profesor->user_id, auth()->id(), 'echó de su cuenta a quien no estaba asistiendo.');
+    }
+
+    private function perfil(string $username, string $rol): Perfil
+    {
+        $user = User::create(['username' => $username, 'password' => 'x', 'activo' => true]);
+
+        return Perfil::create([
+            'user_id' => $user->id,
+            'rol' => $rol,
+            'nombre_completo' => ucfirst($username),
+            'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
+            'telefono' => '3000000000',
+        ]);
+    }
+}

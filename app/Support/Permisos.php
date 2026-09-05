@@ -73,6 +73,26 @@ class Permisos
      */
     public static function dictaLaPromotoria(Perfil $perfil, Promotoria $promotoria): bool
     {
+        // EN GESTION ASISTIDA NO, y va aqui a proposito: esta es la UNICA
+        // puerta por la que se escribe una lista de asistencia, asi que un
+        // solo corte alcanza a las cuatro pantallas —iniciar clase, pasar
+        // lista, corregirla y el boton del Panel— sin que haya que acordarse de
+        // ninguna. Puesto en cada controlador, la que se olvide no falla: deja
+        // pasar.
+        //
+        // El porque es lo de arriba, leido al reves: si un administrador puede
+        // escribir la lista desde la cuenta del profesor, el registro deja de
+        // significar «esto lo escribio quien dio la clase» y con eso deja de
+        // ser la evidencia que la confirmacion de los estudiantes sostiene.
+        // Decidido por el usuario el 04/09/2026 sabiendo el coste: si el
+        // profesor no puede entrar el dia de su clase, nadie la registra por el.
+        //
+        // VER y CORREGIR lo que ya hay no pasa por aqui, asi que sigue
+        // disponible: lo que se cierra es escribir.
+        if (GestionAsistida::activa()) {
+            return false;
+        }
+
         return $promotoria->profesor_id !== null && $promotoria->profesor_id === $perfil->id;
     }
 

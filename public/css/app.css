@@ -644,6 +644,25 @@
      sombra de tarjeta y su borde es el rojo tenue del sistema. Si pesara como
      las fichas de abajo pareceria un sexto destino en vez de algo que esta
      pasando. */
+  /* LA BARRA DE GESTION ASISTIDA. Ocupa su sitio arriba del todo y NO es
+     `sticky`: se pinta una vez, empuja la pagina hacia abajo y se queda ahi.
+     Pegajosa robaria alto en el telefono a todas las pantallas mientras dure la
+     asistencia, y lo que hace falta es que se vea, no que persiga.
+     Va en el azul de «activa» y no en rojo: esto no es un error ni un peligro,
+     es un estado en curso. El rojo del sistema significa salida o rechazo. */
+  .barra-asistida {
+    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+    padding: 0.6rem 1.75rem;
+    background: var(--activa-bg);
+    color: var(--activa);
+    border-bottom: 2px solid var(--activa);
+    font-size: 0.85rem;
+  }
+  .barra-asistida-texto { min-width: 0; }
+  /* El boton de salir se va a la derecha: es lo unico pulsable de la barra y
+     tiene que estar siempre en el mismo sitio. */
+  .barra-asistida form { margin-left: auto; }
+
   .alertas-banner {
     border: 1px solid var(--danger);
     border-left-width: 4px;
@@ -2331,6 +2350,13 @@
   }
 
   @media (max-width: 640px) {
+    /* En el telefono la barra reduce el margen lateral como el resto, y el
+       boton baja a su propio renglon a ancho completo: al lado del texto se
+       quedaba en cuatro caracteres. */
+    .barra-asistida { padding: 0.6rem 1rem; }
+    .barra-asistida form { margin-left: 0; width: 100%; }
+    .barra-asistida form .btn { width: 100%; }
+
     /* El marcador se va a su propio renglon: al lado del texto, en 390px,
        dejaba al nombre del grupo en una columna de cuatro palabras. */
     .alertas-banner-item { flex-direction: column; gap: 0.3rem; }

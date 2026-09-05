@@ -302,6 +302,23 @@
                 $puedeTocarla
                     ? ['texto' => 'Editar', 'url' => route('usuario-editar', $perfil), 'modal' => true]
                     : null,
+                {{--
+                  GESTIÓN ASISTIDA: entrar a trabajar desde la cuenta de esta
+                  persona. Solo el administrador, solo sobre profesores y
+                  directores, y no estando ya dentro de una — lo decide
+                  `GestionAsistida::puedeAsistirA()`, que es la misma
+                  comprobación que vuelve a hacer el controlador. Aquí decide si
+                  se PINTA; allí decide si se PUEDE, que no es lo mismo.
+
+                  Va con `post` porque cambia de sesión, no porque navegue.
+                --}}
+                \App\Support\GestionAsistida::puedeAsistirA($yo, $perfil)
+                    ? [
+                        'texto' => 'Gestionar como '.$perfil->nombre_completo,
+                        'url' => route('gestion-asistida-iniciar', $perfil),
+                        'post' => true,
+                    ]
+                    : null,
                 {{-- Cambia datos: formulario y no enlace. Ver el parcial. --}}
                 ($puedeTocarla && $perfil->user_id !== auth()->id())
                     ? [
