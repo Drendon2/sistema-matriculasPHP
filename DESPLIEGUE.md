@@ -821,6 +821,56 @@ el commit anterior.
 En aquel caso el sitio siguió **abierto y sirviendo** el commit previo. No hubo
 caída: lo único que pasó es que los commits nuevos no llegaron al aire.
 
+### El otro fallo: cuando SÍ conecta (05/09/2026)
+
+No todo lo que aparece en rojo en «Desplegar por SSH» es lo de arriba, y dar por
+hecho que sí es el error que hay que evitar. El 05/09 el paso conectó, **hizo el
+respaldo**, cerró el sitio al público, y murió al traer el código:
+
+```
+== Trayendo el código
+fatal: could not read Username for 'https://github.com': No such device or address
+```
+
+**La causa:** el repositorio había pasado a **privado**, y el servidor tira de
+`https://github.com/...` sin credenciales — `git config --get credential.helper`
+devuelve vacío. Mientras el repositorio fue público, `git pull` funcionaba
+anónimamente; en cuanto dejó de serlo, GitHub pide usuario y el guion se queda
+sin nadie a quien preguntárselo.
+
+**Producción NO se cayó, y eso no fue suerte.** `desplegar.sh` tiene:
+
+```bash
+trap levantar EXIT      # levantar() { php artisan up || true; }
+```
+
+Ese trap corre en CUALQUIER salida, también en una que aborta por `set -e`. Sin
+él, el sitio se habría quedado en modo mantenimiento desde el momento en que
+falló el `git pull` hasta que alguien lo mirara. **No lo quites**, y si algún día
+reescribes el guion, escribe el trap ANTES de la primera acción que cierre el
+sitio.
+
+**Cómo se arregla**, por orden de limpieza:
+
+1. **Clave de despliegue por SSH**: generar el par en el servidor, registrar la
+   pública como *deploy key* de solo lectura en GitHub y cambiar el remoto a
+   `git@github.com:...`. No caduca, no deja ningún token en disco y no puede
+   escribir en el repositorio. Es lo que hay que hacer si el repositorio vuelve
+   a cerrarse.
+2. **Volver el repositorio a público**, que es lo que se hizo ese día. Arregla el
+   despliegue sin tocar el servidor, pero **publica la historia entera**: antes
+   de hacerlo hay que comprobar que ningún commit subió nunca el `.env`, la
+   auditoría, `MIGRACION.md`, `SIGUIENTE-SESION.md` ni el `DemoSeeder`.
+3. **Un token en el servidor.** Funciona, caduca, y queda escrito en disco. Es
+   lo que la clave de despliegue evita.
+
+**Y una consecuencia de haberlo abierto:** este mismo archivo lleva escritos la
+IP, el puerto y el usuario SSH de producción, así que ahora son públicos. No
+abren nada por sí solos, pero son la mitad del trabajo para quien pruebe fuerza
+bruta contra ese puerto. Si algún día se quiere cerrar eso, hay que sacarlos a un
+archivo fuera del repositorio — y para que desaparezcan de los commits
+anteriores, reescribir la historia.
+
 Antes de culpar a la red, descarta lo de siempre desde el propio servidor:
 
 ```bash
