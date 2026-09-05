@@ -57,6 +57,18 @@
           <span class="clase-mia">
             @if ($f['confirmada_por_mi'])La confirmaste · @endif Plazo cerrado
           </span>
+        @elseif ($enAsistida)
+          {{--
+            En gestión asistida NO se da fe de una clase: es lo que hace que la
+            confirmación valga como prueba, y quien la daría aquí no estuvo en el
+            salón. La acción se queda A LA VISTA y apagada, con el motivo en su
+            `title`, que es la regla de este proyecto — si desapareciera, quien
+            está asistiendo creería que esta pantalla no tiene nada que hacer.
+          --}}
+          @if ($f['confirmada_por_mi'])<span class="clase-mia">La confirmaste</span>@endif
+          <span class="accion-inerte" title="Solo el propio estudiante puede confirmar una clase desde su sesión.">
+            {{ $f['confirmada_por_mi'] ? 'Quitar mi confirmación' : 'Sí, esta clase se dio' }}
+          </span>
         @elseif ($f['confirmada_por_mi'])
           <span class="clase-mia">La confirmaste</span>
           <form action="{{ route('retirar-confirmacion-clase', $f['clase']) }}" method="post">

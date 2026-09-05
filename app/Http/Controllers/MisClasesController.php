@@ -6,6 +6,7 @@ use App\Models\Clase;
 use App\Models\ConfirmacionClase;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\GestionAsistida;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,6 +29,8 @@ class MisClasesController extends Controller
         $filas = Clase::porConfirmar($perfil, $periodo);
 
         return view('estudiante.mis-clases', [
+            // La accion no se esconde: se queda apagada y diciendo por que.
+            'enAsistida' => GestionAsistida::activa(),
             'periodo' => $periodo,
             'filas' => $filas,
             'porConfirmar' => count(array_filter(
@@ -38,8 +41,38 @@ class MisClasesController extends Controller
         ]);
     }
 
+    /**
+     * Dar fe de una clase NO se hace desde una gestion asistida.
+     *
+     * Es la otra cara de la garantia que ya protege la asistencia. Quien
+     * registra la clase es parte interesada; por eso la verifican los
+     * estudiantes, desde su propia sesion y con plazo. Si el administrador puede
+     * confirmar desde la cuenta del estudiante, la clase acaba avalada por la
+     * misma casa que la registro y la confirmacion deja de probar nada.
+     *
+     * Una sola funcion para las dos acciones —confirmar y quitar la
+     * confirmacion— a proposito: repartida en dos, la que se olvide no falla,
+     * deja pasar. Y el mensaje dice el motivo de VERDAD; reusar el del plazo
+     * vencido habria sido mas corto y habria mentido.
+     */
+    private function vetadoPorAsistida(): ?RedirectResponse
+    {
+        if (! GestionAsistida::activa()) {
+            return null;
+        }
+
+        return $this->volver(
+            'Confirmar una clase solo lo puede hacer el propio estudiante desde su sesión: '
+            .'es lo que hace que la confirmación valga como prueba de que la clase se dio.'
+        );
+    }
+
     public function confirmar(Request $request, Clase $clase): RedirectResponse
     {
+        if ($veto = $this->vetadoPorAsistida()) {
+            return $veto;
+        }
+
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
         $fila = $this->filaDeClase($perfil, $clase->id);
@@ -89,6 +122,10 @@ class MisClasesController extends Controller
      */
     public function retirar(Request $request, Clase $clase): RedirectResponse
     {
+        if ($veto = $this->vetadoPorAsistida()) {
+            return $veto;
+        }
+
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
         $fila = $this->filaDeClase($perfil, $clase->id);

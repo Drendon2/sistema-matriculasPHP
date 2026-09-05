@@ -31,13 +31,27 @@ use Illuminate\Support\Facades\Session;
  *
  * 1. NO SE ASISTE A UN ADMINISTRADOR. No aporta nada —ya tiene los mismos
  *    permisos— y seria una via para que un administrador actuara como otro y
- *    dejara el rastro en su nombre.
+ *    dejara el rastro en su nombre. A los ESTUDIANTES si, desde el 04/09/2026 y
+ *    a peticion del usuario: la mitad de las llamadas de soporte son de alguien
+ *    que no logra matricularse.
  * 2. NO SE ANIDA. Estando asistido no se puede empezar otra asistencia; si se
  *    pudiera, la sesion tendria que recordar una pila y «salir» dejaria de ser
  *    una respuesta clara.
- * 3. NO SE ESCRIBE ASISTENCIA. Va en `Permisos::dictaLaPromotoria()`, que es la
+ * 3. NO SE ESCRIBE ASISTENCIA ni se CONFIRMA una clase, que son las dos caras
+ *    de la misma garantia. La primera va en `Permisos::dictaLaPromotoria()`, la
  *    UNICA puerta de escritura de la lista, asi que alcanza a las cuatro
- *    pantallas de una vez. La razon esta escrita en ese mismo archivo desde
+ *    pantallas de una vez.
+ *
+ *    La segunda va en `MisClasesController`: quien registra la clase es parte
+ *    interesada, y por eso la verifican los estudiantes. Si el administrador
+ *    puede dar fe desde la cuenta del estudiante, la verificacion deja de ser
+ *    independiente y la clase queda avalada por la misma casa que la registro.
+ *
+ *    RENOVAR SI SE PUEDE, decidido por el usuario el 04/09/2026 sabiendo lo que
+ *    arrastra: la renovacion exige la encuesta de satisfaccion, asi que quien
+ *    renueva por alguien esta calificando a un profesor en su nombre y esa nota
+ *    entra en las medias de Estadisticas sin distinguirse de las demas. Se
+ *    acepta porque no lograr renovar es de lo que mas soporte genera. La razon esta escrita en ese mismo archivo desde
  *    antes de que esto existiera: un registro que puede reescribir alguien que
  *    no dio la clase deja de ser evidencia de lo que paso, y la evidencia es lo
  *    que la confirmacion de los estudiantes esta sosteniendo. Decision del
@@ -53,7 +67,7 @@ class GestionAsistida
     public static function puedeAsistirA(Perfil $quien, Perfil $destino): bool
     {
         return $quien->rol === 'administrador'
-            && in_array($destino->rol, ['profesor', 'director'], true)
+            && in_array($destino->rol, ['profesor', 'director', 'estudiante'], true)
             && $destino->id !== $quien->id
             && ! self::activa();
     }

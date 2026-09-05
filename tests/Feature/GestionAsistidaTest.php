@@ -3,7 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Clase;
+use App\Models\ConfirmacionClase;
+use App\Models\DatosEstudiante;
 use App\Models\Grupo;
+use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
@@ -167,15 +171,135 @@ class GestionAsistidaTest extends TestCase
         $this->assertFalse(GestionAsistida::activa());
     }
 
-    /** Ni a un estudiante: esto es para el personal. */
-    public function test_no_se_asiste_a_un_estudiante(): void
+    /**
+     * A un ESTUDIANTE si se le asiste, desde el 04/09/2026.
+     *
+     * Pedido por el usuario: la mitad de las llamadas de soporte son de alguien
+     * que no logra matricularse, y el camino corto es hacerlo por el.
+     */
+    public function test_tambien_se_asiste_a_un_estudiante(): void
     {
-        $estudiante = $this->perfil('ana', 'estudiante');
+        $estudiante = $this->estudiante('ana');
 
         $this->actingAs($this->admin->user)
-            ->post(route('gestion-asistida-iniciar', $estudiante));
+            ->post(route('gestion-asistida-iniciar', $estudiante))
+            ->assertRedirect();
 
-        $this->assertFalse(GestionAsistida::activa());
+        $this->assertTrue(GestionAsistida::activa());
+        $this->assertSame($estudiante->user_id, auth()->id());
+    }
+
+    /**
+     * PERO NO CONFIRMA UNA CLASE POR EL.
+     *
+     * Es la otra cara de la garantía de la asistencia: quien registra la clase
+     * es parte interesada, y por eso la verifican los estudiantes desde su
+     * propia sesión. Confirmando desde una asistida, la clase queda avalada por
+     * la misma casa que la registró y la confirmación deja de probar nada.
+     */
+    public function test_asistiendo_a_un_estudiante_no_se_confirma_su_clase(): void
+    {
+        $estudiante = $this->estudiante('ana');
+        $clase = $this->claseConfirmable($estudiante);
+
+        // SONDA: sin asistencia, el propio estudiante SI la confirma. Sin esto
+        // la prueba pasaba por la barrera equivocada —la clase era anterior a
+        // su matricula y el controlador la rechazaba por otro motivo—, asi que
+        // seguia verde con la guarda quitada. Comprobado.
+        $this->actingAs($estudiante->user)->post(route('confirmar-clase', $clase));
+        $this->assertSame(
+            1,
+            ConfirmacionClase::where('clase_id', $clase->id)->count(),
+            'la sonda no vale: ni el propio estudiante podia confirmar esta clase.'
+        );
+
+        ConfirmacionClase::where('clase_id', $clase->id)->delete();
+
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $estudiante));
+        $this->post(route('confirmar-clase', $clase))->assertRedirect();
+
+        $this->assertSame(
+            0,
+            ConfirmacionClase::where('clase_id', $clase->id)->count(),
+            'se dio fe de una clase desde una gestión asistida: la confirmación deja de probar nada.'
+        );
+    }
+
+    /**
+     * Y la pantalla lo DICE en vez de esconder el botón.
+     *
+     * Es la regla de este proyecto: una acción que ahora no se puede hacer se
+     * queda a la vista y apagada, con su `title` diciendo por qué. Si
+     * desapareciera, quien está asistiendo creería que esa pantalla no tiene
+     * nada pendiente.
+     */
+    public function test_la_pantalla_de_clases_deja_la_accion_a_la_vista_y_apagada(): void
+    {
+        $estudiante = $this->estudiante('ana');
+        $this->claseConfirmable($estudiante);
+
+        // Sin asistencia el botón está vivo: es la sonda.
+        $suyo = $this->actingAs($estudiante->user)->get(route('mis-clases'))->assertOk()->getContent();
+        $this->assertStringContainsString(
+            'Sí, esta clase se dio',
+            $suyo,
+            'la sonda no vale: el estudiante no tenía ninguna clase por confirmar.'
+        );
+        $this->assertStringNotContainsString('accion-inerte', $suyo);
+
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $estudiante));
+
+        $asistido = $this->get(route('mis-clases'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            'accion-inerte',
+            $asistido,
+            'la acción no quedó apagada: o se puede pulsar, o desapareció sin decir por qué.'
+        );
+        $this->assertStringContainsString('Solo el propio estudiante puede confirmar', $asistido);
+    }
+
+    /** Un grupo, una matrícula y una clase de hace una hora: confirmable. */
+    private function claseConfirmable(Perfil $estudiante): Clase
+    {
+        $grupo = Grupo::create([
+            'promotoria_id' => $this->promotoria->id,
+            'nombre' => 'Grupo 1',
+            'nivel' => 'basico',
+            'salon' => 'A1',
+            'cupo_maximo' => 10,
+        ]);
+
+        $matricula = new Matricula([
+            'estudiante_id' => $estudiante->id,
+            'promotoria_id' => $this->promotoria->id,
+            'periodo_id' => Periodo::enCurso()->id,
+            'grupo_id' => $grupo->id,
+            'estado' => Matricula::ACTIVA,
+        ]);
+        // La matricula tiene que ser ANTERIOR a la clase: `Clase::porConfirmar`
+        // excluye las clases previas a la matricula, y sin retrasarla la sonda
+        // no encontraba ninguna que confirmar.
+        $matricula->fecha = Carbon::now()->subWeek();
+        $matricula->save();
+
+        return Clase::create([
+            'grupo_id' => $grupo->id,
+            'periodo_id' => Periodo::enCurso()->id,
+            'fecha_hora' => Carbon::now()->subHour(),
+        ]);
+    }
+
+    private function estudiante(string $username): Perfil
+    {
+        $perfil = $this->perfil($username, 'estudiante');
+
+        DatosEstudiante::create([
+            'perfil_id' => $perfil->id,
+            'documento_identidad' => '1'.$perfil->id,
+        ]);
+
+        return $perfil;
     }
 
     /**

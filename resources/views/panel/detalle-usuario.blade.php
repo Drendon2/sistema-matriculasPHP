@@ -190,6 +190,28 @@
   <a class="btn btn-sm" href="{{ route('usuario-editar', $objetivo) }}">Editar usuario</a>
 </p>
 @endif
+
+{{--
+  GESTIÓN ASISTIDA desde la ficha, añadido el 04/09/2026 a petición del usuario.
+
+  Es el camino natural: cuando alguien escribe por WhatsApp diciendo que no
+  encuentra un botón, se llega a su ficha por su nombre desde cualquier listado.
+  La otra puerta —Gestión → Usuarios— obliga a filtrar por rol primero, porque
+  ese listado ordena por rol y pagina de 50: los profesores caen en la página
+  cinco y parecía que la opción solo existía para directores.
+
+  Va con `post` porque cambia de sesión, no porque navegue. Y la comprobación es
+  la misma función que vuelve a mirar el controlador: aquí decide si se PINTA,
+  allí si se PUEDE.
+--}}
+@if (\App\Support\GestionAsistida::puedeAsistirA($yo, $objetivo))
+<form action="{{ route('gestion-asistida-iniciar', $objetivo) }}" method="post" style="margin-top:1.5rem;">
+  @csrf
+  <button type="submit" class="btn btn-secundario btn-sm">
+    Gestionar como {{ $objetivo->nombre_completo }}
+  </button>
+</form>
+@endif
 @endsection
 
 @push('scripts')
