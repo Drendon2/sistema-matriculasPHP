@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\EncuestaDemografica;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -316,7 +317,7 @@ class InformeController extends Controller
             if ($perfil->matriculas->isEmpty()) {
                 yield array_map(Csv::celda(...), [
                     ...$comunes,
-                    '', '', '', '', '', '',
+                    ...$this->columnasDeMatricula(null, $trayectorias),
                     ...$encuesta,
                 ]);
 
@@ -324,18 +325,15 @@ class InformeController extends Controller
             }
 
             foreach ($perfil->matriculas as $matricula) {
-                $clave = "{$perfil->id}:{$matricula->promotoria_id}";
-                $trayectoria = $trayectorias[$clave] ?? ['periodos' => 0, 'desde' => ''];
-
+                // Anotada porque la relacion no lleva tipo y PHPStan la ve como
+                // un `Model` cualquiera. Antes esto se tapaba con cuatro
+                // patrones en la linea base —uno por propiedad tocada—; al
+                // pasar las columnas a su propio metodo hace falta el tipo de
+                // verdad, y los cuatro patrones se van.
+                /** @var Matricula $matricula */
                 yield array_map(Csv::celda(...), [
                     ...$comunes,
-                    $matricula->promotoria->area->nombre,
-                    $matricula->promotoria->nombre,
-                    $matricula->grupo?->nombre ?? 'Sin grupo',
-                    $matricula->grupo?->nivel_display,
-                    Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
-                    $trayectoria['periodos'],
-                    $trayectoria['desde'],
+                    ...$this->columnasDeMatricula($matricula, $trayectorias),
                     ...$encuesta,
                 ]);
             }
@@ -357,6 +355,55 @@ class InformeController extends Controller
      *
      * @return list<string|int|null>
      */
+    /**
+     * Las siete columnas que describen UNA matricula, o siete vacias si no hay.
+     *
+     * EL FALLO QUE ESTO CIERRA, del 04/09/2026: las dos ramas escribian su
+     * propia lista, y la de «sin matricula» tenia SEIS huecos donde la otra
+     * ponia siete columnas. Con eso, todo lo que va de «Departamento» en
+     * adelante se corria una posicion a la izquierda y la encuesta caia bajo
+     * cabeceras que no eran las suyas.
+     *
+     * No era un caso raro: le pasaba a TODO EL PERSONAL —un profesor no tiene
+     * matriculas nunca— y a cualquier estudiante sin matricula activa en el
+     * periodo en curso. O sea que el informe salia torcido siempre, y la parte
+     * torcida era justo la que se reporta a quien financia.
+     *
+     * Se arregla con una sola lista y no contando huecos a mano: mientras las
+     * dos ramas pasen por aqui no pueden descuadrarse entre si. Que ademas
+     * cuadre con la CABECERA lo vigila `InformeCuadradoTest`, que compara los
+     * anchos fila a fila.
+     *
+     * @param  array<string, array{periodos: int, desde: string}>  $trayectorias
+     * @return list<string|int|null>
+     */
+    private function columnasDeMatricula(?Matricula $matricula, array $trayectorias): array
+    {
+        if ($matricula === null) {
+            return array_fill(0, 7, '');
+        }
+
+        $clave = "{$matricula->estudiante_id}:{$matricula->promotoria_id}";
+        $trayectoria = $trayectorias[$clave] ?? ['periodos' => 0, 'desde' => ''];
+
+        // Por lo mismo que arriba: la relacion no lleva tipo, asi que el area
+        // llega como un `Model` y su nombre no existe para el analizador.
+        /** @var Promotoria $promotoria */
+        $promotoria = $matricula->promotoria;
+        /** @var Area $area */
+        $area = $promotoria->area;
+
+        return [
+            $area->nombre,
+            $promotoria->nombre,
+            $matricula->grupo?->nombre ?? 'Sin grupo',
+            $matricula->grupo?->nivel_display,
+            Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
+            $trayectoria['periodos'],
+            $trayectoria['desde'],
+        ];
+    }
+
     private function columnasDePersona(Perfil $perfil): array
     {
         return [
