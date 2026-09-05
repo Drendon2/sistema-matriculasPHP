@@ -192,6 +192,22 @@ class MiPerfilController extends Controller
      *    Ojo: la puerta va aqui y no solo en la plantilla. Esconder la seccion
      *    no cierra la peticion.
      *
+     *    SE PLANTEO QUITARLA el 05/09/2026 y se decidio DEJARLA. El usuario
+     *    pregunto por un caso real y bueno: esto son procesos formativos con
+     *    poblaciones distintas, y una persona mayor que olvida su clave o un
+     *    nino que la creo sin sus papas no pueden quedarse sin cuenta. No se
+     *    quedan: **el administrador ya cambia la clave de cualquiera** desde
+     *    Gestion → Usuarios → Editar, en el campo «Contrasena temporal», y
+     *    `Permisos::puedeEditarUsuario()` le deja sobre todo el mundo. Este
+     *    corte no cierra ese camino; cierra solo el de hacerlo DESDE DENTRO de
+     *    la cuenta ajena, que ademas pedirla «contrasena actual» que el
+     *    administrador no sabe.
+     *
+     *    Si alguien vuelve a proponerlo, lo que hay que mirar antes es que
+     *    quitar el requisito de la clave actual —necesario para que funcione
+     *    asistiendo— deja un formulario que cambia una contrasena sin pedir
+     *    nada, alcanzable con una sesion abierta en un telefono sin bloquear.
+     *
      * 3. SE GUARDA EN LA INSTANCIA DE `Auth` Y NO EN `$perfil->user`. Es lo
      *    unico de aqui que no se deduce leyendo, y costo una hora: son dos
      *    objetos distintos de la misma fila.
