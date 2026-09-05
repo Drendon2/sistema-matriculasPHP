@@ -311,12 +311,19 @@
                   se PINTA; allí decide si se PUEDE, que no es lo mismo.
 
                   Va con `post` porque cambia de sesión, no porque navegue.
+
+                  Y con `recarga` porque cambia de IDENTIDAD: `acciones.js`
+                  repinta solo `<main>`, y la barra de gestión asistida y el
+                  menú viven fuera. Sin esto la sesión cambia de verdad pero la
+                  pantalla sigue enseñando al administrador hasta la siguiente
+                  navegación de verdad.
                 --}}
                 \App\Support\GestionAsistida::puedeAsistirA($yo, $perfil)
                     ? [
                         'texto' => 'Gestionar como '.$perfil->nombre_completo,
                         'url' => route('gestion-asistida-iniciar', $perfil),
                         'post' => true,
+                        'recarga' => true,
                     ]
                     : null,
                 {{-- Cambia datos: formulario y no enlace. Ver el parcial. --}}

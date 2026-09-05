@@ -82,7 +82,14 @@
     Estás trabajando como <strong>{{ $yo?->nombre_completo }}</strong>.
     Todo queda registrado a nombre de {{ $asistiendo->nombre_completo }}.
   </span>
-  <form action="{{ route('gestion-asistida-salir') }}" method="post">
+  {{--
+    `data-recarga-completa` aunque hoy no haga falta: esta barra vive FUERA de
+    `<main>`, así que `acciones.js` ni lo mira. Eso es una casualidad de
+    colocación y no una decisión escrita — mover la barra dentro por cualquier
+    razón de diseño rompería el botón sin que nada fallara, y este es el caso
+    peligroso: creer que saliste sin haber salido.
+  --}}
+  <form action="{{ route('gestion-asistida-salir') }}" method="post" data-recarga-completa>
     @csrf
     <button type="submit" class="btn btn-blanco btn-sm">Volver a mi cuenta</button>
   </form>

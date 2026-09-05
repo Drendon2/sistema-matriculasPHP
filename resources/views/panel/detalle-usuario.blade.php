@@ -205,7 +205,16 @@
   allí si se PUEDE.
 --}}
 @if (\App\Support\GestionAsistida::puedeAsistirA($yo, $objetivo))
-<form action="{{ route('gestion-asistida-iniciar', $objetivo) }}" method="post" style="margin-top:1.5rem;">
+{{--
+  `data-recarga-completa` porque esto cambia la IDENTIDAD de la sesión.
+  `acciones.js` intercepta los formularios de dentro de `<main>` y repinta solo
+  `<main>`; la barra de gestión asistida y el menú viven FUERA, así que sin este
+  atributo la sesión cambia y la pantalla no se entera hasta que el navegador
+  navegue de verdad. Se notó pulsando «Mi perfil», que era lo primero que lo
+  provocaba.
+--}}
+<form action="{{ route('gestion-asistida-iniciar', $objetivo) }}" method="post" style="margin-top:1.5rem;"
+      data-recarga-completa>
   @csrf
   <button type="submit" class="btn btn-secundario btn-sm">
     Gestionar como {{ $objetivo->nombre_completo }}

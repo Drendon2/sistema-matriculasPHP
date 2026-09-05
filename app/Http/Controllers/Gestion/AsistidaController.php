@@ -31,14 +31,28 @@ class AsistidaController extends Controller
         if (! GestionAsistida::iniciar($perfil, $usuario)) {
             return redirect()->route('usuario-lista')->with(
                 'error',
-                'No se puede asistir a esa cuenta. Solo se asiste a profesores y directores, '
-                .'y no estando ya en una gestión asistida.'
+                'No se puede asistir a esa cuenta. No se asiste a un administrador, '
+                .'ni estando ya en una gestión asistida.'
             );
         }
 
-        // Al Panel y no a Gestion: es la pantalla de quien se esta asistiendo, y
-        // lo que se viene a hacer es ver lo que esa persona ve.
-        return redirect()->route('panel')->with(
+        // EL DESTINO ES EL DE QUIEN SE ASISTE, y va resuelto aqui aunque
+        // `post-login` ya sepa hacerlo. Mandar a todo el mundo al Panel era lo
+        // que habia y fallaba con los estudiantes, que ahi no entran: rebotaban
+        // en `RequiereRol` hacia `post-login` y de ahi al catalogo. Se aterrizaba
+        // en el sitio bueno por accidente y SIN NINGUN AVISO, porque un `with()`
+        // dura UNA peticion y el rebote se gasta dos antes de pintar nada.
+        //
+        // Por eso no vale con redirigir a `post-login`: es una peticion mas, y
+        // se come el mensaje igual. Hay que apuntar al destino final.
+        //
+        // Un administrador no aparece aqui: `puedeAsistirA()` no deja asistir a
+        // uno, asi que solo llegan estudiante, profesor y director.
+        $destino = $usuario->rol === 'estudiante' ? 'promotorias-disponibles' : 'panel';
+
+        // Es la pantalla de quien se esta asistiendo, y lo que se viene a hacer
+        // es ver lo que esa persona ve.
+        return redirect()->route($destino)->with(
             'success',
             "Estás gestionando como {$usuario->nombre_completo}. Todo lo que hagas queda "
             .'registrado a tu nombre.'

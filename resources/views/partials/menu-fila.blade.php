@@ -12,6 +12,7 @@
     url ....... a dónde lleva; si falta, la opción sale APAGADA
     modal ..... si se abre en el modal de `acciones.js`
     post ...... si CAMBIA datos: entonces es un formulario y no un enlace
+    recarga ... si tiene que RECARGAR la página entera en vez de repintar <main>
     borrar .... si es la acción destructiva (se pinta en rojo)
     porque .... el `title` de una opción apagada, que dice por qué no se puede
 
@@ -54,7 +55,15 @@
              que algo está protegido exigiría pulsarla y que te lo nieguen. --}}
         <span class="menu-fila-inerte" title="{{ $opcion['porque'] ?? '' }}">{{ $opcion['texto'] }}</span>
       @elseif (! empty($opcion['post']))
-        <form method="post" action="{{ $opcion['url'] }}">
+        {{--
+          `recarga` deja la acción FUERA de `acciones.js`, que repinta solo
+          <main>. Lo necesita cualquier cosa que cambie la IDENTIDAD de la
+          sesión: la barra de gestión asistida y el menú de navegación viven
+          fuera de <main> a propósito, así que un repintado los deja mostrando a
+          quien ya no eres. No falla nada — simplemente la pantalla no se entera.
+        --}}
+        <form method="post" action="{{ $opcion['url'] }}"
+              @if (! empty($opcion['recarga'])) data-recarga-completa @endif>
           @csrf
           <button type="submit" @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])>{{ $opcion['texto'] }}</button>
         </form>

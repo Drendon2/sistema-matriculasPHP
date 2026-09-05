@@ -349,6 +349,101 @@ class GestionAsistidaTest extends TestCase
         $this->assertSame($this->profesor->user_id, auth()->id(), 'echó de su cuenta a quien no estaba asistiendo.');
     }
 
+    /**
+     * ASISTIR A UN ESTUDIANTE ATERRIZA EN SU CATALOGO, Y CON EL AVISO PUESTO.
+     *
+     * Reportado por el usuario el 05/09/2026. `iniciar()` mandaba a todo el
+     * mundo al Panel, donde un estudiante no entra: rebotaba en `RequiereRol`,
+     * de ahi a `post-login` y de ahi al catalogo. El destino final era el bueno
+     * por accidente, y el aviso se perdia por el camino — un `with()` dura UNA
+     * peticion, y el rebote se gasta dos antes de pintar nada.
+     *
+     * Se sigue la redireccion a proposito: sin seguirla el mensaje todavia esta
+     * en la sesion y la prueba pasa con el fallo puesto, que es como paso las
+     * doce que ya habia.
+     */
+    public function test_asistir_a_un_estudiante_aterriza_en_el_catalogo_con_el_aviso(): void
+    {
+        $estudiante = $this->estudiante('ana');
+
+        $html = $this->actingAs($this->admin->user)
+            ->followingRedirects()
+            ->post(route('gestion-asistida-iniciar', $estudiante))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Estás gestionando como', $html, 'se aterriza sin que nada lo diga.');
+        $this->assertStringNotContainsString('No tienes acceso', $html, 'se llega rebotando en un error de permisos.');
+    }
+
+    /** Y a un profesor se le sigue asistiendo desde su Panel. */
+    public function test_asistir_a_un_profesor_aterriza_en_el_panel_con_el_aviso(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->followingRedirects()
+            ->post(route('gestion-asistida-iniciar', $this->profesor))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Estás gestionando como', $html, 'se aterriza sin que nada lo diga.');
+    }
+
+    /**
+     * LOS FORMULARIOS QUE CAMBIAN DE IDENTIDAD RECARGAN LA PAGINA ENTERA.
+     *
+     * La otra mitad de lo reportado el 05/09/2026: la sesion cambiaba de verdad
+     * pero la pantalla no se enteraba. `acciones.js` intercepta todo formulario
+     * que viva dentro de <main> y repinta SOLO <main>; la barra de gestion
+     * asistida y el menu viven FUERA a proposito, asi que seguian mostrando al
+     * administrador hasta que el navegador navegara de verdad. Pulsar «Mi
+     * perfil» era lo primero que lo provocaba, y por eso «se activaba» ahi.
+     *
+     * Esto no lo puede ver una prueba de PHP mirando la pantalla —no hay
+     * navegador que ejecute `acciones.js`— asi que se vigila el MARCADOR del
+     * que depende, igual que `ToqueEnElTelefonoTest`. Quien lo quite creyendo
+     * que sobra no rompera nada que una prueba mire.
+     */
+    public function test_entrar_en_una_asistida_recarga_la_pagina_entera(): void
+    {
+        $estudiante = $this->estudiante('ana');
+
+        foreach ([
+            route('detalle-usuario', $this->profesor),
+            route('detalle-estudiante', $estudiante),
+            route('usuario-lista'),
+        ] as $url) {
+            $html = $this->actingAs($this->admin->user)->get($url)->assertOk()->getContent();
+
+            $this->assertMatchesRegularExpression(
+                '/<form[^>]*gestion\/asistida[^>]*data-recarga-completa/',
+                $html,
+                "el formulario de entrar de {$url} se lo queda `acciones.js` y la barra no aparece."
+            );
+        }
+    }
+
+    /**
+     * Y SALIR TAMBIEN, que es el caso peligroso: creer que saliste sin salir.
+     *
+     * Hoy se salva por donde esta puesto —la barra vive fuera de <main>, asi
+     * que `acciones.js` ni lo mira— y eso es una casualidad de colocacion, no
+     * una decision escrita. Mover la barra dentro de <main> por cualquier razon
+     * de diseno lo romperia sin que nada fallara. El marcador lo dice en voz
+     * alta y no cuesta nada.
+     */
+    public function test_salir_de_una_asistida_recarga_la_pagina_entera(): void
+    {
+        $this->actingAs($this->admin->user)->post(route('gestion-asistida-iniciar', $this->profesor));
+
+        $html = $this->get(route('panel'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<form[^>]*gestion\/asistida\/salir[^>]*data-recarga-completa/',
+            $html,
+            'el formulario de salir no pide recarga completa.'
+        );
+    }
+
     private function perfil(string $username, string $rol): Perfil
     {
         $user = User::create(['username' => $username, 'password' => 'x', 'activo' => true]);
