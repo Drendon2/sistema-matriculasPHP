@@ -660,6 +660,11 @@
   }
   .perfil-seccion-icono.icono-documento { background: var(--tag-3-bg); color: var(--tag-3); }
   .perfil-seccion-icono.icono-encuesta { background: var(--tag-1-bg); color: var(--tag-1); }
+  /* El candado de «Contrasena». Un tercer color de la misma familia: estas
+     baldosas distinguen secciones de un vistazo y no codifican nada, asi que
+     el color no lleva significado y no hace falta que nadie lo lea. El icono
+     va con `aria-hidden` y el titulo escrito al lado, como sus dos vecinas. */
+  .perfil-seccion-icono.icono-clave { background: var(--tag-5-bg); color: var(--tag-5); }
 
   /* Encuesta desplegable: <details> nativo, sin JS. */
   summary.perfil-seccion-cabecera { cursor: pointer; list-style: none; }

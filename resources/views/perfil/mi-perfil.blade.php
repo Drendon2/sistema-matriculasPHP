@@ -320,6 +320,65 @@
   </form>
 </details>
 
+{{--
+  CAMBIAR LA CONTRASEÑA. Va en un `<details>` cerrado y al final a propósito: es
+  lo que menos se hace de esta pantalla, y abierto empujaría hacia abajo todo lo
+  que sí se viene a mirar.
+
+  La sección se PINTA siempre, incluso durante una gestión asistida, y entonces
+  dice por qué no se puede en vez de desaparecer. Es el criterio del menú de
+  fila: si desapareciera, enterarse de que algo está protegido exigiría
+  intentarlo y que te lo nieguen.
+
+  El ojo de los tres campos lo pone `ver-clave.js` solo; aquí no hay que hacer
+  nada.
+--}}
+<details class="perfil-seccion" id="bloque-clave">
+  <summary class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-clave" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">Contraseña</h3>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  @if (\App\Support\GestionAsistida::activa())
+    <p class="campo-ayuda">
+      No se puede cambiar la contraseña de alguien desde una gestión asistida.
+      Vuelve a tu cuenta para cambiar la tuya.
+    </p>
+  @else
+    <form method="post" action="{{ route('mi-perfil.guardar') }}" class="form-card">
+      @csrf
+      <input type="hidden" name="accion" value="clave">
+
+      <label for="clave_actual">Contraseña actual</label>
+      <input type="password" name="clave_actual" id="clave_actual"
+             autocomplete="current-password" required>
+      @error('clave_actual')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
+
+      <label for="password">Contraseña nueva</label>
+      <input type="password" name="password" id="password"
+             autocomplete="new-password" required>
+      @error('password')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
+
+      <label for="password_confirmation">Repite la contraseña nueva</label>
+      <input type="password" name="password_confirmation" id="password_confirmation"
+             autocomplete="new-password" required>
+
+      <p class="campo-ayuda">
+        Si habías entrado en otro celular o computador, ahí tendrás que volver a
+        iniciar sesión.
+      </p>
+
+      <button type="submit" class="btn">Cambiar la contraseña</button>
+    </form>
+  @endif
+</details>
+
 <script>
   (function () {
     var input = document.getElementById("foto_perfil");

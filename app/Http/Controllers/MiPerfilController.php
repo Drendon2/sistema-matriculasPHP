@@ -11,14 +11,19 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Rules\ImagenProcesable;
+use App\Support\Auditoria;
 use App\Support\Companeros;
+use App\Support\GestionAsistida;
 use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 /**
@@ -131,6 +136,7 @@ class MiPerfilController extends Controller
             'documento' => $this->guardarDocumento($request, $perfil),
             'papel' => $this->guardarPapel($request, $perfil),
             'encuesta' => $this->guardarEncuesta($request, $perfil),
+            'clave' => $this->guardarClave($request, $perfil),
             default => redirect()->route('mi-perfil'),
         };
     }
@@ -154,6 +160,107 @@ class MiPerfilController extends Controller
         $perfil->save();
 
         return redirect()->route('mi-perfil')->with('success', 'Tu foto de perfil quedó guardada.');
+    }
+
+    /**
+     * CAMBIARSE LA PROPIA CONTRASENA.
+     *
+     * Pedido por el usuario el 05/09/2026, y hasta ese dia NO EXISTIA por
+     * ningun camino: la unica forma de cambiar una clave era que un
+     * administrador la escribiera desde el formulario de usuario, donde el campo
+     * se llama «Contrasena temporal» — un nombre que ya daba por hecho este otro
+     * lado y llevaba meses sin el. Eso choca ademas con una decision que el
+     * proyecto ya tenia tomada: el enlace de registro de profesor sigue abierto
+     * justamente «para que el profesor elija su propia contrasena en vez de que
+     * se la teclee un administrador y la sepa».
+     *
+     * TRES COSAS QUE NO SE TOCAN SIN VOLVER A PENSARLAS:
+     *
+     * 1. SE PIDE LA CONTRASENA ACTUAL. No es tramite: una sesion abierta en un
+     *    celular prestado o sin bloquear basta para llegar hasta aqui, y sin
+     *    este campo cualquiera que pase por delante del telefono de otro le
+     *    quita la cuenta para siempre. Es el mismo razonamiento que ya sostiene
+     *    la confirmacion de borrado, escrito en `UsuarioController`.
+     *
+     * 2. NO SE PUEDE DESDE UNA GESTION ASISTIDA. El administrador trabaja desde
+     *    la cuenta de otra persona para ayudarla, no para quedarse con ella:
+     *    cambiarle la clave desde dentro la deja fuera de su propia cuenta y sin
+     *    forma de volver, porque en este sistema nada avisa a nadie de nada. Se
+     *    suma a los otros dos cortes de `GestionAsistida` —escribir asistencia y
+     *    confirmar una clase— y por la misma razon de fondo.
+     *
+     *    Ojo: la puerta va aqui y no solo en la plantilla. Esconder la seccion
+     *    no cierra la peticion.
+     *
+     * 3. SE GUARDA EN LA INSTANCIA DE `Auth` Y NO EN `$perfil->user`. Es lo
+     *    unico de aqui que no se deduce leyendo, y costo una hora: son dos
+     *    objetos distintos de la misma fila.
+     *
+     *    Este proyecto tiene `AuthenticateSession` en `bootstrap/app.php`, y ese
+     *    middleware compara en cada peticion el hash que lleva la sesion con el
+     *    de `$request->user()`. Es lo que hace que cambiar la clave EXPULSE a
+     *    quien te la hubiera robado, que es justo lo que uno quiere. Pero
+     *    guardando en `$perfil->user` se cambia la FILA y no la instancia que el
+     *    middleware mira: la sesion se queda apuntando a un hash que ya no es de
+     *    nadie y la peticion SIGUIENTE te manda al login. Sin fallar y sin
+     *    aviso — se guarda bien, y lo que ves es la pantalla de entrar, o sea
+     *    que parece que el sistema se rompio.
+     *
+     *    Con `$request->user()` no hay que tocar la sesion a mano. Se intento
+     *    —un `session()->put('password_hash_web', ...)`— y se QUITO al medir que
+     *    no cambiaba nada: con la instancia mala no bastaba, y con la buena
+     *    sobra. Una linea que no hace nada acaba leyendose como si hiciera algo.
+     *
+     *    NINGUNA PRUEBA DE PHP VE ESTO, comprobado: `actingAs()` deja el usuario
+     *    fijado en el guard durante todo el test, asi que la comparacion del
+     *    middleware no llega a fallar y la prueba pasa en verde con el fallo
+     *    puesto. Se vio con `curl`, en cuatro peticiones seguidas.
+     */
+    private function guardarClave(Request $request, Perfil $perfil): RedirectResponse
+    {
+        if (GestionAsistida::activa()) {
+            return redirect()->route('mi-perfil')->with(
+                'error',
+                'No se puede cambiar la contraseña de alguien desde una gestión asistida. '
+                .'Vuelve a tu cuenta para cambiar la tuya.'
+            );
+        }
+
+        // LA INSTANCIA DE `Auth`, no `$perfil->user`. Son dos objetos distintos
+        // de la misma fila, y `AuthenticateSession` compara contra la de Auth:
+        // guardando en la otra, la sesion se queda mirando un hash que ya no es
+        // el de nadie y la peticion SIGUIENTE te manda a la pantalla de entrar.
+        $usuario = $request->user();
+
+        $request->validate([
+            'clave_actual' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', 'different:clave_actual', Password::defaults()],
+        ], [
+            'password.different' => 'La contraseña nueva tiene que ser distinta de la actual.',
+        ], [
+            'clave_actual' => 'contraseña actual',
+            'password' => 'contraseña nueva',
+        ]);
+
+        // Se comprueba DESPUES de validar el formato para no decirle a quien
+        // teclea mal que la actual estaba bien: los dos mensajes salen juntos.
+        if (! Hash::check($request->input('clave_actual'), $usuario->password)) {
+            return back()->withErrors([
+                'clave_actual' => 'Esa no es tu contraseña actual.',
+            ]);
+        }
+
+        // El modelo la castea a `hashed`, asi que se asigna en claro.
+        $usuario->password = $request->input('password');
+        $usuario->save();
+
+        Auditoria::registrar('clave.cambiada', [], $perfil);
+
+        return redirect()->route('mi-perfil')->with(
+            'success',
+            'Tu contraseña quedó cambiada. Si habías entrado en otro dispositivo, '
+            .'ahí tendrás que volver a iniciar sesión.'
+        );
     }
 
     private function guardarContacto(Request $request, Perfil $perfil): RedirectResponse
