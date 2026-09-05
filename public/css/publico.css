@@ -59,6 +59,44 @@
   }
   .caja input:focus, .caja select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .caja input[type="file"] { padding: 0.5rem; background: var(--surface-alt); }
+
+  /* EL OJO DE LA CONTRASENA. Lo monta `public/js/ver-clave.js`, que envuelve el
+     input y mete el boton dentro; sin JavaScript nada de esto existe y el campo
+     se queda como estaba.
+
+     El boton va ABSOLUTO y no en una fila flex a proposito: `.caja` apila en
+     COLUMNA, y ahi las medidas de flex miden alto en vez de ancho — la trampa
+     que ya costo una vez con el buscador de usuarios. Absoluto no toca el
+     flujo, asi que el input conserva su `width: 100%`.
+
+     Ojo con el orden: esto tiene que ir DESPUES de `.caja button`, que es el
+     boton verde a ancho completo. Con la misma especificidad manda el ultimo, y
+     hay que anularle ancho, alto, fondo, borde y margen o el ojo sale como un
+     boton de enviar. */
+  .caja .campo-clave { position: relative; }
+
+  /* El hueco donde cae el boton, para que el texto largo no pase por debajo. */
+  .caja .campo-clave input { padding-right: 3rem; }
+
+  .caja button.ojo-clave {
+    position: absolute; right: 1px; bottom: 1px;
+    width: 2.9rem; min-height: 0; height: calc(100% - 0.25rem - 2px);
+    margin: 0; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .caja button.ojo-clave:hover { background: none; color: var(--accent); }
+  .caja button.ojo-clave:active { transform: none; }
+
+  /* El anillo del sistema, y NO el halo de `input:focus` que tiene al lado.
+     Ese halo funciona en un input porque el indicador de verdad es su BORDE
+     pasando a `--accent`; copiado a un control sin borde da 1,18 de contraste y
+     el foco se vuelve invisible. Ya paso dos veces (el menu de fila y la
+     baldosa del logo). */
+  .caja button.ojo-clave:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
   .caja button {
     margin-top: 1.4rem; width: 100%; min-height: 48px; background: var(--accent); color: #fff; border: 1px solid var(--accent);
     padding: 0.85rem; border-radius: var(--radius-sm); cursor: pointer; font-size: 0.9rem; font-weight: 700;

@@ -36,6 +36,12 @@
       @yield('caja')
     </div>
   </div>
+  {{--
+    El ojo para ver la contraseña. Va aquí y no en cada formulario porque las
+    tres pantallas con campo de clave —entrar, inscripción y registro— cuelgan
+    de este envoltorio, y el guion no hace nada donde no hay ninguno.
+  --}}
+  <script src="@recurso('js/ver-clave.js')" defer></script>
   @stack('scripts')
 </body>
 </html>
