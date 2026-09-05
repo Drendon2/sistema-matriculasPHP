@@ -129,6 +129,13 @@
 <div class="sr-solo" role="alert" aria-live="assertive" data-voz="mal"></div>
 
 <script src="@recurso('js/acciones.js')" defer></script>
+{{--
+  El ojo para ver la contraseña. Con la sesión iniciada lo necesitan dos
+  pantallas y las dos son MODALES —el formulario de usuario y la confirmación
+  de borrado—, así que el guion no se conforma con barrer al arrancar: observa
+  lo que se inserta después. Por eso da igual que vaya detrás de `acciones.js`.
+--}}
+<script src="@recurso('js/ver-clave.js')" defer></script>
 @stack('scripts')
 </body>
 </html>

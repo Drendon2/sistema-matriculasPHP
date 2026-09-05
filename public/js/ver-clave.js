@@ -1,13 +1,19 @@
 /*
  * EL OJO PARA VER LA CONTRASENA que se esta escribiendo.
  *
- * Pedido por el usuario el 05/09/2026 para las tres pantallas sin sesion:
- * entrar, la inscripcion del estudiante y el registro del profesor. La razon es
- * la de siempre en este proyecto — casi todo el uso es desde el celular, y
- * teclear una clave a ciegas en un teclado de pulgar es donde mas gente se
- * atasca. En el registro y en la inscripcion hay ademas DOS campos que tienen
- * que coincidir, y sin verlos el unico modo de saber que no coinciden es
- * enviar el formulario y que te lo rechacen.
+ * Pedido por el usuario el 05/09/2026. Empezo por las tres pantallas sin
+ * sesion —entrar, la inscripcion del estudiante y el registro del profesor— y
+ * el mismo dia se extendio a las de dentro. La razon es la de siempre en este
+ * proyecto — casi todo el uso es desde el celular, y teclear una clave a ciegas
+ * en un teclado de pulgar es donde mas gente se atasca. En el registro y en la
+ * inscripcion hay ademas DOS campos que tienen que coincidir, y sin verlos el
+ * unico modo de saber que no coinciden es enviar el formulario y que te lo
+ * rechacen.
+ *
+ * ALCANZA A TODO CAMPO DE CLAVE, se llame como se llame la pantalla, y por eso
+ * el selector no nombra ninguna. Hoy son cinco: los tres de fuera, el de crear
+ * o editar un usuario y el que pide TU clave para confirmar el borrado de una
+ * cuenta.
  *
  * EL BOTON LO CREA ESTE ARCHIVO, no la plantilla, y es a proposito: un boton de
  * «ver la clave» sin JavaScript es un boton que no hace nada. Asi la pagina que
@@ -80,5 +86,37 @@
     envoltorio.appendChild(boton);
   }
 
-  document.querySelectorAll(".caja input[type='password']").forEach(preparar);
+  function barrer(raiz) {
+    if (raiz.nodeType !== 1) { return; }
+    if (raiz.matches && raiz.matches("input[type='password']")) { preparar(raiz); }
+    if (raiz.querySelectorAll) {
+      raiz.querySelectorAll("input[type='password']").forEach(preparar);
+    }
+  }
+
+  barrer(document.body);
+
+  /*
+   * Y LO QUE LLEGUE DESPUES, que es la mitad del trabajo con la sesion
+   * iniciada.
+   *
+   * Las dos pantallas de dentro que tienen clave viven en un MODAL: el
+   * formulario de usuario y la confirmacion de borrado. `acciones.js` pide esa
+   * tarjeta por `fetch` y la mete en el <dialog> ya cargada la pagina, asi que
+   * un barrido de arranque no la ve nunca — el ojo sencillamente no aparecia,
+   * sin fallar ni avisar. Lo mismo cada vez que se repinta <main>.
+   *
+   * Se vigila con un observador y NO llamando a este archivo desde
+   * `acciones.js`: alli habria que acordarse de invocarlo en los dos sitios que
+   * insertan HTML, y el que se olvide deja un campo sin ojo. Asi esto se basta
+   * solo y cualquier pantalla futura lo hereda sin tocar nada.
+   *
+   * Es barato: solo mira los nodos que ACABAN de entrar, no vuelve a recorrer
+   * el documento, y `preparar()` se planta solo con su marca.
+   */
+  new MutationObserver(function (lotes) {
+    lotes.forEach(function (lote) {
+      lote.addedNodes.forEach(barrer);
+    });
+  }).observe(document.body, { childList: true, subtree: true });
 })();

@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\ConfiguracionInstitucion;
+use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -87,6 +89,54 @@ class VerLaClaveTest extends TestCase
             $html,
             "{$url} no tiene ningun campo de contrasena."
         );
+    }
+
+    /**
+     * Y LAS DOS DE DENTRO, que son las que obligaron al observador.
+     *
+     * Las dos viven en un MODAL: `acciones.js` pide la tarjeta por `fetch` y la
+     * mete en el <dialog> con la pagina ya cargada. Un barrido de arranque no la
+     * ve nunca, asi que el ojo no aparecia — sin fallar y sin avisar. Lo unico
+     * que una prueba de PHP puede mirar es que la pantalla que envuelve al modal
+     * cargue el guion y que el campo siga ahi; que el ojo APAREZCA dentro del
+     * dialogo se vio abriendo la pagina.
+     */
+    public function test_las_pantallas_con_sesion_tambien_llevan_ojo(): void
+    {
+        $admin = $this->perfilSuelto('jefa', 'administrador');
+        $otro = $this->perfilSuelto('otra');
+
+        foreach ([
+            route('usuario-nuevo'),
+            route('usuario-editar', $otro),
+            route('usuario-eliminar', $otro),
+        ] as $url) {
+            $html = $this->actingAs($admin->user)->get($url)->assertOk()->getContent();
+
+            $this->assertStringContainsString(
+                'js/ver-clave.js',
+                $html,
+                "{$url} no carga el guion, asi que su campo de clave no tiene ojo."
+            );
+            $this->assertMatchesRegularExpression(
+                '/<input[^>]*type="password"/',
+                $html,
+                "{$url} ya no tiene campo de contrasena."
+            );
+        }
+    }
+
+    private function perfilSuelto(string $username, string $rol = 'profesor'): Perfil
+    {
+        $user = User::create(['username' => $username, 'password' => 'x', 'activo' => true]);
+
+        return Perfil::create([
+            'user_id' => $user->id,
+            'rol' => $rol,
+            'nombre_completo' => ucfirst($username),
+            'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
+            'telefono' => '3000000000',
+        ]);
     }
 
     /**
