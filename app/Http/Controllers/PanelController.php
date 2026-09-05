@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\LoteNoCabe;
 use App\Models\Actividad;
+use App\Models\Area;
 use App\Models\Clase;
 use App\Models\CupoPromotoria;
 use App\Models\DocumentoRequerido;
@@ -68,7 +69,13 @@ class PanelController extends Controller
     {
         $promotorias = $this->visiblesPara($perfil)
             ->with(['area', 'profesor'])
-            ->orderBy('id')
+            ->join('areas', 'areas.id', '=', 'promotorias.area_id')
+            // Por departamento y por nombre: la portada se agrupa por
+            // departamento, asi que el orden que llega ya es el de la pantalla.
+            // Antes iba por id, que no significa nada para quien mira.
+            ->orderBy('areas.nombre')
+            ->orderBy('promotorias.nombre')
+            ->select('promotorias.*')
             ->get();
 
         // Lo unico que necesita la portada de cada promotoria: cuantas
@@ -82,6 +89,22 @@ class PanelController extends Controller
 
         return [
             'promotorias' => $promotorias,
+            // AGRUPADAS POR DEPARTAMENTO, que es como se pinta la portada desde
+            // el 04/09/2026: un director ve veintiuna promotorias seguidas y lo
+            // que pidio el usuario fue poder plegarlas por departamento.
+            //
+            // El agrupado se hace aqui y no en la vista para que las dos ramas
+            // —abrir el Panel y responder sin recargar— reciban lo mismo ya
+            // hecho. Se reparte en memoria sobre la coleccion que ya se trajo:
+            // no cuesta una consulta mas.
+            'porDepartamento' => $promotorias->groupBy(function (Promotoria $p) {
+                // Anotada porque la relacion no lleva tipo y el area llega como
+                // un `Model` cualquiera, sin nombre para el analizador.
+                /** @var Area $area */
+                $area = $p->area;
+
+                return $area->nombre;
+            }),
             'pendientes' => $pendientes,
             // Cuantos cursos, talleres o grupos de proyeccion tiene a la vista.
             // Se cuenta para decidir si el enlace se pinta: mientras no haya

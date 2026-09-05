@@ -27,7 +27,42 @@
 @if ($promotorias->isEmpty())
   <p class="vacio">No hay promotorías para mostrar todavía.</p>
 @else
-  @foreach ($promotorias as $promotoria)
+  {{--
+    PLEGADO POR DEPARTAMENTO desde el 04/09/2026, a petición del usuario: un
+    director tiene veintiuna promotorías y verlas todas seguidas es demasiada
+    pantalla para encontrar una.
+
+    Va CERRADO salvo que solo haya un departamento, porque entonces plegar no
+    esconde nada y solo añade un clic — que es justo lo que le pasaría a un
+    profesor que dicta en uno solo.
+
+    El resumen dice cuántas promotorías tiene y cuántas solicitudes esperan
+    dentro, y esa cifra es la mitad del asunto: plegado no puede significar
+    escondido, así que desde fuera ya se ve dónde hay algo que hacer.
+
+    El `id` no es decorativo: `acciones.js` reabre los <details> que lo llevan
+    después de repintar. Sin él, confirmar una matrícula cerraría el
+    departamento entero y devolvería a quien está resolviendo veinte seguidas al
+    principio de todo.
+  --}}
+  @php($unSoloDepartamento = $porDepartamento->count() === 1)
+  @foreach ($porDepartamento as $departamento => $delDepartamento)
+  @php($pendientesDelDepartamento = $delDepartamento->sum(fn ($p) => $pendientes[$p->id] ?? 0))
+  <details class="panel-departamento" id="departamento-{{ \Illuminate\Support\Str::slug($departamento) }}"
+           @if ($unSoloDepartamento) open @endif>
+    <summary class="panel-departamento-resumen">
+      <span class="tag-dot {{ $delDepartamento->first()->area->tag_color }}"></span>{{ $departamento }}
+      <span class="panel-departamento-cuenta">
+        {{ $delDepartamento->count() }} {{ $delDepartamento->count() == 1 ? 'promotoría' : 'promotorías' }}
+      </span>
+      @if ($pendientesDelDepartamento)
+        <span class="estado estado-pendiente">
+          {{ $pendientesDelDepartamento }} {{ $pendientesDelDepartamento == 1 ? 'pendiente' : 'pendientes' }}
+        </span>
+      @endif
+      <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
+  @foreach ($delDepartamento as $promotoria)
   @php($cuantasPendientes = $pendientes[$promotoria->id] ?? 0)
   {{--
     El id no es decorativo: es lo que permite que la promotoría siga abierta
@@ -42,8 +77,13 @@
   <details class="panel-item" id="promotoria-{{ $promotoria->id }}"
            data-cuerpo="{{ route('panel-promotoria-cuerpo', $promotoria) }}">
     <summary class="panel-item-resumen">
+      {{--
+        El departamento YA NO se repite aquí: lo dice el <summary> del grupo que
+        contiene a esta promotoría, y repetirlo en cada una de las veintiuna era
+        la misma palabra veintiuna veces. El punto de color se queda, que es lo
+        que permite reconocerlo de un vistazo sin leer.
+      --}}
       <span class="tag-dot {{ $promotoria->area->tag_color }}"></span>{{ $promotoria->nombre }}
-      <span style="color:var(--ink-faint);font-weight:400;">({{ $promotoria->area->nombre }})</span>
       @if ($cuantasPendientes)
         <span class="estado estado-pendiente">
           {{ $cuantasPendientes }} {{ $cuantasPendientes == 1 ? 'pendiente' : 'pendientes' }}
@@ -71,6 +111,8 @@
         </noscript>
       @endif
     </div>
+  </details>
+  @endforeach
   </details>
   @endforeach
 @endif

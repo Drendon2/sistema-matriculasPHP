@@ -634,6 +634,48 @@
   }
 
   /* Promotorías desplegables del Panel. */
+  /* EL DEPARTAMENTO PLEGABLE del Panel, del 04/09/2026. Envuelve a sus
+     promotorias, que ya eran plegables: son dos niveles de <details> y el de
+     fuera pesa MENOS que el de dentro a proposito — es un rotulo de seccion, no
+     una tarjeta mas. Si pesara igual, la portada pareceria una lista de
+     veintiuna cosas del mismo rango en vez de un arbol. */
+  .panel-departamento { margin: 0 0 0.5rem; }
+  .panel-departamento-resumen {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.6rem 0.2rem;
+    /* 44px de alto minimo: es un control y se toca con el pulgar. */
+    min-height: 44px;
+    cursor: pointer; list-style: none;
+    font-size: 0.82rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-departamento-resumen::-webkit-details-marker { display: none; }
+  .panel-departamento-resumen:hover { color: var(--ink); }
+  .panel-departamento-resumen:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  /* Cuantas promotorias hay dentro. En minusculas y en tinta tenue: acompana al
+     nombre, no compite con el. */
+  .panel-departamento-cuenta {
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+    color: var(--ink-faint); font-size: 0.78rem;
+  }
+  /* La insignia se va a la derecha: es lo que se busca cuando la portada esta
+     plegada, asi que queda pegada al chevron y no a mitad de la fila.
+     EL `margin-left: 0` DEL CHEVRON NO SOBRA. `.perfil-seccion-chevron` ya trae
+     su propio `margin-left: auto`, y DOS margenes automaticos en la misma fila
+     se REPARTEN el hueco libre a partes iguales en vez de empujar hasta el
+     borde: medido, la insignia quedaba a 255px de donde tenia que estar, y
+     ademas en un sitio distinto en cada fila segun lo larga que fuera la cifra.
+     Se ve midiendo la caja, no mirando la pantalla. */
+  .panel-departamento-resumen .estado { margin-left: auto; }
+  .panel-departamento-resumen .perfil-seccion-chevron { margin-left: 0; }
+  /* Sin la sangria, plegar no se entiende: las promotorias tienen que verse
+     DENTRO de su departamento y no debajo de el. */
+  .panel-departamento > .panel-item { margin-left: 0.9rem; }
+
   .panel-item { border-bottom: 1px solid var(--border); margin-bottom: 0.3rem; }
   .panel-item:last-of-type { border-bottom: none; }
   .panel-item-resumen {
