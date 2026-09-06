@@ -40,7 +40,10 @@ class InstalarTest extends TestCase
 
         $this->assertSame('Casa de la Cultura', ConfiguracionInstitucion::actual()->nombre_institucion);
         $this->assertSame(4, Area::count());
-        $this->assertSame(3, DocumentoRequerido::count());
+        // CUATRO y no tres: los tres de la lista de ejemplo mas la autorizacion
+        // de tratamiento de datos, que la pone el instalador por su cuenta y no
+        // sale de ninguna lista tecleada. Ver el test de mas abajo.
+        $this->assertSame(4, DocumentoRequerido::count());
 
         $periodo = Periodo::enCurso();
 
@@ -57,6 +60,33 @@ class InstalarTest extends TestCase
      * perfiles con rol administrador no dice nada sobre si la contrasena quedo
      * utilizable ni sobre si la pantalla se abre.
      */
+    /**
+     * UNA ENTIDAD NUEVA NACE CON EL FORMATO DE AUTORIZACION DE DATOS PUESTO.
+     *
+     * Lo crea el instalador por su cuenta y no se pregunta con los demas
+     * papeles: es el que sostiene que este sistema pueda guardar datos de
+     * menores, y ademas es el UNICO que el sistema imprime. Uno tecleado a mano
+     * con el mismo nombre naceria sin `plantilla`, o sea sin boton de descarga,
+     * y sin que nada fallara.
+     *
+     * Y comprueba de paso lo otro: que el instalador SIGUE FUNCIONANDO. Sembrar
+     * un requerido desde una migracion ya rompio `php artisan instalar` una vez
+     * —se niega a montar una institucion si la base «ya tiene datos», y entre lo
+     * que cuenta estan los documentos requeridos—, asi que la migracion del
+     * consentimiento solo siembra donde ya hay usuarios.
+     */
+    public function test_una_entidad_recien_instalada_trae_el_formato_de_autorizacion(): void
+    {
+        $this->artisan('instalar --ejemplo')->assertSuccessful();
+
+        $requerido = DocumentoRequerido::where('nombre', DocumentoRequerido::CONSENTIMIENTO)->first();
+
+        $this->assertNotNull($requerido, 'el instalador no dejó puesta la autorización de datos.');
+        $this->assertSame(DocumentoRequerido::FORMATO_CONSENTIMIENTO, $requerido->plantilla);
+        $this->assertTrue($requerido->obligatorio);
+        $this->assertTrue($requerido->activo);
+    }
+
     public function test_despues_de_instalar_se_entra_a_gestion_con_la_cuenta_creada(): void
     {
         $this->artisan('instalar --ejemplo')->assertSuccessful();
@@ -212,8 +242,11 @@ class InstalarTest extends TestCase
         $this->assertFalse($configuracion->promotorias_visibles_para_estudiantes);
 
         $this->assertSame(['Danza', 'Música'], Area::orderBy('nombre')->pluck('nombre')->all());
+        // La autorizacion de datos encabeza y no sale de lo que se tecleo: la
+        // pone el instalador por su cuenta, con orden 0. Los dos de la lista
+        // van detras, en el orden en que se escribieron.
         $this->assertSame(
-            ['Documento de identidad', 'Recibo de servicios'],
+            [DocumentoRequerido::CONSENTIMIENTO, 'Documento de identidad', 'Recibo de servicios'],
             DocumentoRequerido::ordenados()->pluck('nombre')->all()
         );
 

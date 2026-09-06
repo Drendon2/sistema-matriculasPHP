@@ -19,11 +19,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class DocumentoRequerido extends Model
 {
+    /**
+     * El nombre con el que NACE el consentimiento de datos.
+     *
+     * Es solo el nombre inicial —el que le ponen la migracion y el instalador—:
+     * la entidad puede renombrarlo desde Gestion como a cualquier otro. Lo que
+     * lo identifica es la columna `plantilla`, no esta constante.
+     */
+    public const CONSENTIMIENTO = 'Autorización de tratamiento de datos y uso de imagen';
+
+    /**
+     * El unico formato que el sistema sabe imprimir hoy.
+     *
+     * Es el valor que lleva `plantilla` en ese requerido. Vacia en todos los
+     * demas, que es lo corriente: los otros papeles son ranuras donde se sube
+     * algo que ya existe, y este hay que generarlo para poder firmarlo.
+     */
+    public const FORMATO_CONSENTIMIENTO = 'consentimiento';
+
     protected $table = 'documentos_requeridos';
 
     protected $fillable = [
         'nombre',
         'descripcion',
+        'plantilla',
         'obligatorio',
         'activo',
         'orden',

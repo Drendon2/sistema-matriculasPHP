@@ -181,3 +181,57 @@
     body { padding: 1.5rem 0.85rem; }
     .caja { padding: 1.6rem 1.35rem; }
   }
+
+  /* EL PIE DE LAS PANTALLAS SIN SESION. Va dentro de `.envoltorio` y no suelto
+     en el body, que aqui es un contenedor flex centrado: un hijo mas se
+     colocaria al LADO de la caja en vez de debajo.
+
+     Sin consulta de medios a proposito, igual que su gemelo de `app.css`: una
+     linea centrada que envuelve sola se lee igual a 320px que a 1440, y las dos
+     trampas caras de este proyecto con las consultas de medios se esquivan no
+     escribiendo ninguna.
+
+     El enlace mide 44px de alto: es el unico control de la franja y se toca con
+     el pulgar. */
+  .pie {
+    margin: 1.1rem auto 0;
+    max-width: var(--caja-ancho, 400px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .pie a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.2rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .pie a:hover { color: var(--accent-dark); }
+  .pie-separador { color: var(--border-strong); }
+
+  /* LA POLITICA DE TRATAMIENTO DE DATOS. Es la unica pantalla de este
+     envoltorio que es un DOCUMENTO para leer seguido y no un formulario, de ahi
+     que la caja se abra a 760px desde la propia vista (`@yield('ancho')`).
+
+     El texto lo genera `Support\PoliticaDatos` a partir de lo que hay escrito en
+     Gestion, asi que aqui solo se pueden dar por seguros tres elementos: h3, p y
+     ul. Cualquier otro que aparezca es que alguien amplio ese conversor y se
+     olvido de esta hoja. */
+  .politica { font-size: 0.92rem; line-height: 1.6; color: var(--ink); }
+  .politica h3 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ink);
+    margin: 1.6rem 0 0.5rem;
+  }
+  .politica h3:first-child { margin-top: 0.4rem; }
+  .politica p { margin: 0 0 0.8rem; }
+  .politica ul { margin: 0 0 0.9rem; padding-left: 1.15rem; }
+  .politica li { margin-bottom: 0.35rem; }
+  .politica-vuelta { margin: 1.6rem 0 0; font-size: 0.85rem; }

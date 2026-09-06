@@ -134,6 +134,105 @@
 
     </fieldset>
 
+    {{--
+      LOS DATOS DE LA ENTIDAD Y LA POLÍTICA DE TRATAMIENTO DE DATOS.
+
+      Van aquí y no en una pantalla aparte porque son lo mismo que el resto de
+      esta: identidad de la institución, editable sin tocar código. La Ley 1581
+      de 2012 exige que la política identifique al responsable —nombre, NIT,
+      dirección, correo y teléfono— y diga a dónde se dirige quien quiere
+      conocer, actualizar o suprimir lo suyo. Nada de eso puede estar quemado en
+      una plantilla: esto se instala para otras entidades.
+
+      Los cuatro campos son opcionales para no dejar el sistema plantado tras
+      actualizar, pero la página pública ESCONDE el renglón que falta en vez de
+      pintar «Teléfono:» y nada, así que una entidad que no los rellene publica
+      una política sin forma de contactarla. De ahí el aviso.
+    --}}
+    <fieldset class="config-seccion">
+    <legend class="config-seccion-titulo">Datos de la entidad</legend>
+
+    <p class="config-ayuda" style="margin-top:0;">
+      Se publican en la página de <a href="{{ route('politica-datos') }}">tratamiento de datos</a>,
+      que es pública y a la que lleva el pie de todas las pantallas. Son los datos por los que
+      alguien puede pedir que se corrijan o se borren los suyos.
+    </p>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="entidad_nit">NIT</label>
+      <input type="text" name="entidad_nit" id="entidad_nit" maxlength="40"
+             value="{{ old('entidad_nit', $institucion->entidad_nit) }}">
+      @error('entidad_nit')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="entidad_direccion">Dirección</label>
+      <input type="text" name="entidad_direccion" id="entidad_direccion" maxlength="160"
+             autocomplete="street-address"
+             value="{{ old('entidad_direccion', $institucion->entidad_direccion) }}">
+      @error('entidad_direccion')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="entidad_correo">Correo de contacto</label>
+      <input type="email" name="entidad_correo" id="entidad_correo" maxlength="120"
+             value="{{ old('entidad_correo', $institucion->entidad_correo) }}">
+      @error('entidad_correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Es la dirección a la que se pide conocer, actualizar o borrar los datos. Sin ella, la
+        política sale diciendo «escribiendo a la dirección de contacto de la institución», que
+        no le sirve a nadie.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="entidad_telefono">Teléfono</label>
+      <input type="text" name="entidad_telefono" id="entidad_telefono" maxlength="40"
+             autocomplete="tel"
+             value="{{ old('entidad_telefono', $institucion->entidad_telefono) }}">
+      @error('entidad_telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="politica_datos">Texto de la política</label>
+      <textarea name="politica_datos" id="politica_datos" rows="14" class="config-politica"
+                >{{ old('politica_datos', $institucion->politica_datos) }}</textarea>
+      @error('politica_datos')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        @if ($politicaEsLaDeFabrica)
+          <strong>Vacío significa que se publica el texto de fábrica</strong>, escrito sobre la
+          Ley 1581 de 2012 y el Decreto 1377 de 2013, con el nombre y el contacto de esta
+          entidad ya dentro. Se pone al día solo cuando cambias esos datos.
+          Escribe aquí únicamente si tu entidad tiene su propia política aprobada; para volver
+          al texto de fábrica, vacía el campo.
+        @else
+          Estás publicando un texto propio. Vacía el campo para volver al de fábrica, que se
+          escribe solo con el nombre y el contacto de esta entidad.
+        @endif
+        Se admite un formato mínimo: una línea que empiece por <code>##</code> es un título,
+        una que empiece por <code>-</code> es una viñeta, y lo demás son párrafos separados por
+        una línea en blanco.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <span class="config-etiqueta">Formato de autorización</span>
+      <p class="config-ayuda" style="margin-top:0.2rem;">
+        Es el papel que el estudiante descarga, firma y sube. Aquí están los dos en blanco,
+        para imprimir y repartir en ventanilla. Llevan el logo y el nombre de la institución.
+      </p>
+      <p class="accion-fila">
+        <a class="btn btn-blanco btn-sm" href="{{ route('consentimiento-formato', 'mayor') }}">
+          Mayor de edad
+        </a>
+        <a class="btn btn-blanco btn-sm" href="{{ route('consentimiento-formato', 'menor') }}">
+          Menor de edad
+        </a>
+      </p>
+    </div>
+
+    </fieldset>
+
     <fieldset class="config-seccion">
     <legend class="config-seccion-titulo">Reglas de matrícula</legend>
 

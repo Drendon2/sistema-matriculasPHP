@@ -35,6 +35,12 @@
       @include('partials.mensajes')
       @yield('caja')
     </div>
+    {{--
+      El pie va DENTRO del envoltorio y no suelto en el <body>: aquí el body es
+      un contenedor flex centrado, y un hijo más se colocaría al LADO de la caja
+      en vez de debajo.
+    --}}
+    @include('partials.pie')
   </div>
   {{--
     El ojo para ver la contraseña. Va aquí y no en cada formulario porque las

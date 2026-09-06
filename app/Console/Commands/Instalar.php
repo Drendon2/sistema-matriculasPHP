@@ -456,6 +456,25 @@ class Instalar extends Command
         $configuracion->fill($plan['institucion']);
         $configuracion->save();
 
+        // LA AUTORIZACION DE TRATAMIENTO DE DATOS LA CREA EL INSTALADOR SIEMPRE,
+        // y no se pregunta con los demas. No es un papel que la entidad decida
+        // si pide: es el que sostiene legalmente que este sistema guarde datos
+        // de menores, y ademas es el unico que el sistema sabe IMPRIMIR — uno
+        // tecleado a mano con el mismo nombre nace sin `plantilla` y por tanto
+        // sin boton de descarga, que es un fallo callado.
+        //
+        // Va PRIMERO para llevarse el orden 0. Si la entidad no lo quiere, lo
+        // apaga en Gestion → Institucion: eso es una decision suya y no un
+        // descuido al instalar.
+        DocumentoRequerido::firstOrCreate(
+            ['nombre' => DocumentoRequerido::CONSENTIMIENTO],
+            [
+                'descripcion' => 'Descárgalo, fírmalo y súbelo. Si eres menor de edad lo firma tu acudiente.',
+                'plantilla' => DocumentoRequerido::FORMATO_CONSENTIMIENTO,
+                'orden' => 0,
+            ]
+        );
+
         foreach ($plan['documentos'] as $posicion => $nombre) {
             // `firstOrCreate` y no `create`, desde el 05/09/2026: la migracion
             // que convirtio el documento de identidad en un requerido mas lo
@@ -518,8 +537,14 @@ class Instalar extends Command
             .$plan['periodo']['fecha_inicio'].' al '.$plan['periodo']['fecha_fin']);
         $this->line('  · '.count($plan['departamentos']).' departamentos: '
             .implode(', ', $plan['departamentos']));
-        $this->line('  · '.count($plan['documentos']).' documentos requeridos'
-            .($plan['documentos'] === [] ? '' : ': '.implode(', ', $plan['documentos'])));
+        // El +1 y la linea de abajo: el consentimiento no sale de la lista que
+        // se tecleo, lo pone el instalador por su cuenta. Contarlo sin decirlo
+        // dejaria a quien instala buscando de donde salio un papel de mas.
+        $this->line('  · '.(count($plan['documentos']) + 1).' documentos requeridos: '
+            .DocumentoRequerido::CONSENTIMIENTO
+            .($plan['documentos'] === [] ? '' : ', '.implode(', ', $plan['documentos'])));
+        $this->line('    La autorización de tratamiento de datos la pone el sistema y trae');
+        $this->line('    su formato imprimible. Se apaga en Gestión → Institución si no se usa.');
         $this->line('  · 2 administradores: '
             .implode(' y ', array_column($plan['administradores'], 'username')));
 

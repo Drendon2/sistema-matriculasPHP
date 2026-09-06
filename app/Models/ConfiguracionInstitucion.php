@@ -45,6 +45,11 @@ class ConfiguracionInstitucion extends Model
 
     protected $fillable = [
         'nombre_institucion',
+        'entidad_nit',
+        'entidad_direccion',
+        'entidad_correo',
+        'entidad_telefono',
+        'politica_datos',
         'logo',
         'firma',
         'firmante_nombre',
@@ -74,6 +79,21 @@ class ConfiguracionInstitucion extends Model
      */
     protected $attributes = [
         'nombre_institucion' => 'Casa de la Cultura',
+        // Los cuatro datos de contacto de la entidad, por la misma razon que
+        // sus vecinas: `actual()` crea la fila con `firstOrCreate` y esa
+        // instancia NO relee lo que la base puso por defecto. Sin esta linea
+        // salen null en la peticion que estrena el sistema, y la pagina de
+        // tratamiento de datos —que es publica y la lee cualquiera— reventaria
+        // justo ahi.
+        //
+        // `politica_datos` NO va aqui, y es deliberado: su ausencia es un valor
+        // con significado —«usa el texto por defecto de `PoliticaDatos`»— y
+        // nula es exactamente como tiene que llegar. Es el mismo caso de
+        // `alertas_desde`, unas lineas mas abajo.
+        'entidad_nit' => '',
+        'entidad_direccion' => '',
+        'entidad_correo' => '',
+        'entidad_telefono' => '',
         'logo' => '',
         'firma' => '',
         'firmante_nombre' => '',

@@ -128,6 +128,15 @@
 <div class="sr-solo" role="status" aria-live="polite" data-voz="bien"></div>
 <div class="sr-solo" role="alert" aria-live="assertive" data-voz="mal"></div>
 
+{{--
+  El pie. FUERA de <main> por la misma razón que las dos cajas de arriba: lo que
+  vive dentro se lo lleva el repintado de `acciones.js`, y `layouts.fragmento`
+  —que es lo que va dentro de <main>— no lo incluye. Metido ahí, el enlace a la
+  política de tratamiento de datos desaparecería tras la primera acción hecha
+  sin recargar, sin que nada fallara ni avisara.
+--}}
+@include('partials.pie')
+
 <script src="@recurso('js/acciones.js')" defer></script>
 {{--
   El ojo para ver la contraseña. Con la sesión iniciada lo necesitan dos

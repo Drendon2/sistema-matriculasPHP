@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\RegistroController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\ClaseController;
+use App\Http\Controllers\ConsentimientoController;
 use App\Http\Controllers\FichaController;
 use App\Http\Controllers\Gestion;
 use App\Http\Controllers\InformeController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\MisMatriculasController;
 use App\Http\Controllers\PanelActividadController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PanelGrupoController;
+use App\Http\Controllers\PoliticaDatosController;
 use App\Http\Controllers\RenovarController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +52,15 @@ use Illuminate\Support\Facades\Route;
 // El del login cuenta por usuario+IP a traves del limitador con nombre `entrar`
 // (ver `AppServiceProvider`); los otros dos van por IP, que es lo que
 // corresponde cuando lo que se frena es crear cuentas en masa.
+// La politica de tratamiento de datos. Publica y sin sesion a proposito: su
+// enlace va en el pie de TODAS las pantallas, incluidas las tres de quien
+// todavia no tiene cuenta. Una politica que solo se lee despues de entregar los
+// datos no cumple para lo que existe.
+//
+// Fuera de `guest` por lo mismo que la de abajo: quien ya entro tiene que poder
+// leerla sin cerrar su sesion primero.
+Route::get('/tratamiento-de-datos', PoliticaDatosController::class)->name('politica-datos');
+
 // El enlace de una actividad. Va FUERA de `guest`, al contrario que las tres de
 // abajo: aquellas ofrecen crear una cuenta y no tienen sentido con la sesion ya
 // abierta, pero esta no crea ninguna. Y quien comparte el enlace —el profesor,
@@ -252,6 +263,29 @@ Route::get('/certificado/matricula/{matricula}', [CertificadoController::class, 
 Route::get('/certificado/estudiante/{estudiante}', [CertificadoController::class, 'todo'])
     ->middleware('auth')
     ->name('certificado-todo');
+
+// ---------------------------------------------------------------------------
+// La autorizacion de tratamiento de datos y uso de imagen
+// ---------------------------------------------------------------------------
+//
+// El unico papel de los que pide la institucion que el sistema IMPRIME: los
+// demas son ranuras donde se sube algo que ya existe.
+//
+// La de abajo, la del formato en blanco, va DESPUES: con `{tipo}` colgando de
+// `/consentimiento` no habria choque —son dos segmentos distintos— pero el
+// orden deja a la vista que la primera es la que usa todo el mundo y la
+// segunda el caso de ventanilla.
+
+// Sin `rol:` a proposito, igual que los certificados: quien puede bajarlo no lo
+// decide el rol sino que sea un estudiante, y eso lo mira el controlador. Un
+// `rol:estudiante` aqui daria 403 en vez del 404 que corresponde.
+Route::get('/consentimiento', [ConsentimientoController::class, 'mio'])
+    ->middleware('auth')
+    ->name('consentimiento');
+
+Route::get('/consentimiento/formato/{tipo}', [ConsentimientoController::class, 'formato'])
+    ->middleware(['auth', 'rol:administrador,director'])
+    ->name('consentimiento-formato');
 
 // ---------------------------------------------------------------------------
 // Archivos servidos de forma controlada (nunca como carpeta publica)

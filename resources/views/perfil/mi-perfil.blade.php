@@ -224,6 +224,30 @@
       @elseif ($p['requerido']->obligatorio)
         <span class="estado estado-pendiente">Falta</span>
       @endif
+      {{--
+        LA DESCARGA DEL FORMATO. Solo la tiene el papel que el sistema sabe
+        imprimir, y quién es lo dice la columna `plantilla` — no su nombre, que
+        la entidad puede cambiar desde Institución.
+
+        Va DENTRO de la ficha del papel y no en una sección aparte: bajar el
+        formato y devolverlo firmado son dos mitades del mismo trámite, y
+        separarlas deja a quien lo abre buscando dónde estaba el papel que
+        acaba de firmar.
+
+        El enlace se pinta también cuando ya lo entregó: un consentimiento se
+        vuelve a bajar para releer qué se autorizó, y para volver a firmarlo si
+        se quiere cambiar una de las dos casillas.
+      --}}
+      @if ($p['requerido']->plantilla === \App\Models\DocumentoRequerido::FORMATO_CONSENTIMIENTO)
+        <a class="papel-formato" href="{{ route('consentimiento') }}">
+          <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <path d="M7 10l5 5 5-5"/>
+            <path d="M12 15V3"/>
+          </svg>
+          Descargar el formato para firmar
+        </a>
+      @endif
     </div>
     <input type="file" name="archivo" aria-label="Archivo de {{ $p['requerido']->nombre }}">
     <button type="submit" class="btn btn-sm">{{ $p['entrega'] ? 'Reemplazar' : 'Subir' }}</button>

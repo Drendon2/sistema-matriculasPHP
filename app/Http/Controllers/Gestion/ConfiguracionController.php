@@ -8,6 +8,7 @@ use App\Models\DocumentoRequerido;
 use App\Models\Periodo;
 use App\Rules\ImagenProcesable;
 use App\Support\Imagen;
+use App\Support\PoliticaDatos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -37,6 +38,10 @@ class ConfiguracionController extends Controller
     {
         return view('gestion.configuracion', [
             'institucion' => ConfiguracionInstitucion::actual(),
+            // Para que la ayuda del textarea diga la verdad: el campo se ve
+            // vacio en los dos casos, y «vacio» significa cosas distintas antes
+            // y despues de haber escrito algo.
+            'politicaEsLaDeFabrica' => PoliticaDatos::esLaDeFabrica(ConfiguracionInstitucion::actual()),
             // Para el aviso de la fecha de las alertas. Tenerla aqui y no en el
             // periodo tiene un riesgo conocido: que se quede vieja al cambiar de
             // semestre y apague las alertas sin decirlo. Eso no lo arregla el
@@ -58,6 +63,19 @@ class ConfiguracionController extends Controller
 
         $datos = $request->validate([
             'nombre_institucion' => ['required', 'string', 'max:80'],
+            // Los cuatro datos de la entidad son OPCIONALES, y no por descuido:
+            // se anadieron el 06/09/2026 a una instalacion que ya estaba
+            // corriendo, y exigirlos habria dejado esta pantalla imposible de
+            // guardar —para cambiar el color de acento, por ejemplo— hasta que
+            // alguien los rellenara. La pagina publica se lee igual sin ellos:
+            // esconde el renglon que falta.
+            'entidad_nit' => ['nullable', 'string', 'max:40'],
+            'entidad_direccion' => ['nullable', 'string', 'max:160'],
+            'entidad_correo' => ['nullable', 'email', 'max:120'],
+            'entidad_telefono' => ['nullable', 'string', 'max:40'],
+            // Sin tope de largo: es un texto legal y el de fabrica ya ocupa
+            // varias pantallas. La columna es TEXT.
+            'politica_datos' => ['nullable', 'string'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firmante_nombre' => ['nullable', 'string', 'max:120'],
@@ -80,6 +98,11 @@ class ConfiguracionController extends Controller
             'firma' => 'firma',
             'firmante_nombre' => 'nombre de quien firma',
             'firmante_cargo' => 'cargo de quien firma',
+            'entidad_nit' => 'NIT',
+            'entidad_direccion' => 'dirección',
+            'entidad_correo' => 'correo de contacto',
+            'entidad_telefono' => 'teléfono',
+            'politica_datos' => 'texto de la política',
         ]);
 
         // Quitar el logo es una casilla aparte y no "subir vacio": dejar el
@@ -129,6 +152,20 @@ class ConfiguracionController extends Controller
         // decidido como se escribe el cargo.
         $configuracion->firmante_nombre = trim($datos['firmante_nombre'] ?? '');
         $configuracion->firmante_cargo = trim($datos['firmante_cargo'] ?? '');
+        $configuracion->entidad_nit = trim($datos['entidad_nit'] ?? '');
+        $configuracion->entidad_direccion = trim($datos['entidad_direccion'] ?? '');
+        $configuracion->entidad_correo = trim($datos['entidad_correo'] ?? '');
+        $configuracion->entidad_telefono = trim($datos['entidad_telefono'] ?? '');
+        // VACIA SE GUARDA COMO NULL, y esa distincion es la funcion entera del
+        // campo: null significa «publica el texto de fabrica», que se escribe
+        // solo con el nombre y el contacto de esta entidad y se pone al dia
+        // cuando cambian. Guardando '' se publicaria una politica en blanco, y
+        // ademas no habria forma de volver atras desde la pantalla.
+        //
+        // El `?: null` no sobra aunque `ConvertEmptyStringsToNull` ya lo haga:
+        // aqui se recorta antes, asi que un textarea con solo espacios o saltos
+        // de linea —que ese middleware deja pasar— tambien vuelve al de fabrica.
+        $configuracion->politica_datos = trim($datos['politica_datos'] ?? '') ?: null;
         $configuracion->color_acento = strtolower($datos['color_acento']);
         $configuracion->limite_promotorias_por_periodo = $datos['limite_promotorias_por_periodo'];
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');

@@ -1000,6 +1000,28 @@
   .papel-nombre { font-weight: 700; color: var(--ink); }
   .papel-fila input[type="file"] { width: auto; flex: 0 1 auto; }
 
+  /* LA DESCARGA DEL FORMATO A FIRMAR. Solo la lleva el consentimiento, que es
+     el unico papel que el sistema imprime.
+
+     `align-self: flex-start` por lo mismo que el chip de estado de dos reglas
+     mas arriba: `.papel-datos` apila en COLUMNA, y ahi un hijo se estira a todo
+     el ancho por defecto — un enlace de ancho completo se lee como un boton de
+     fila y se toca por accidente al arrastrar la lista.
+
+     44px de alto porque se toca con el pulgar, como el resto de acciones. */
+  .papel-formato {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    margin-top: 0.1rem;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .papel-formato:hover { color: var(--accent-dark); }
+
   .doc-alta-campo { display: flex; flex-direction: column; gap: 0.25rem; }
   .doc-alta-ancho { flex: 1 1 12rem; }
   .doc-alta input[type="text"] { width: 100%; }
@@ -1817,6 +1839,19 @@
   }
   .config-campo { padding-block: 1.35rem; }
   .config-campo:first-of-type { padding-top: 0; }
+
+  /* EL TEXTO DE LA POLITICA DE TRATAMIENTO DE DATOS. Monoespaciada porque su
+     formato depende de como empiece cada linea —`##` un titulo, `-` una
+     vinneta— y con la proporcional esas dos marcas se pierden dentro del
+     parrafo. Vertical y no libre: `resize: both` deja estirarla a lo ancho por
+     encima de su tarjeta, y una tarjeta que se sale no vuelve sola. */
+  .config-politica {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.55;
+    resize: vertical;
+    min-height: 12rem;
+  }
   .config-campo:last-of-type { padding-bottom: 0.4rem; }
   .config-campo + .config-campo { border-top: 1px solid var(--border); }
   .config-etiqueta {
@@ -2517,3 +2552,43 @@
     dialog.modal .modal-botones { flex-direction: column; align-items: stretch; }
     dialog.modal .modal-botones .btn { width: 100%; }
   }
+
+  /* EL PIE DE PAGINA. Nace el 06/09/2026 y hasta ese dia no habia ninguno en
+     todo el sistema: lo pide el enlace a la politica de tratamiento de datos,
+     que tiene que verse en TODAS las pantallas.
+
+     NO LLEVA CONSULTA DE MEDIOS, y es deliberado. Dos de las trampas caras de
+     este proyecto viven ahi —el hueco entre `max-width: 640px` y
+     `min-width: 641px`, y una consulta que no anade especificidad— y un pie de
+     una sola linea centrada no necesita ninguna: envuelve solo y se lee igual a
+     320px que a 1440.
+
+     El enlace mide 44px de alto aunque el texto mida 14: es el unico control de
+     esta franja y se toca con el pulgar. Sin ese minimo queda un objetivo de
+     20px al borde de la pantalla, que es justo la forma del defecto que ya
+     costo una vez en los catalogos. */
+  .pie {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1.25rem 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+  .pie a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.2rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .pie a:hover { color: var(--accent-dark); }
+  .pie-separador { color: var(--border-strong); }
+  .pie-entidad { color: var(--ink-soft); }
