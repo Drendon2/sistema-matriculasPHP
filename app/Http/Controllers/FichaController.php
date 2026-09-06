@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Actividad;
 use App\Models\DocumentoEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\Matricula;
@@ -129,6 +130,24 @@ class FichaController extends Controller
                     ->orderBy('areas.nombre')
                     ->orderBy('promotorias.nombre')
                     ->select('promotorias.*')
+                    ->get(),
+            // LOS CURSOS, TALLERES Y GRUPOS DE PROYECCION A CARGO.
+            //
+            // Faltaban del todo hasta el 06/09/2026: la ficha decia
+            // «Promotorias a cargo» y una actividad asignada no aparecia por
+            // ningun lado. Asignabas un taller a un director y su ficha seguia
+            // diciendo lo mismo que antes. Lo reporto el usuario: «si le asigno
+            // un curso, taller o grupo de proyeccion no se diferencia de las
+            // demas cosas y lo hace un poco confuso».
+            //
+            // Cuelgan de `responsable_id` y NO de `promotorias.profesor_id`, que
+            // es exactamente la razon por la que se cayeron de esta pantalla: la
+            // consulta de al lado nunca las iba a encontrar.
+            'actividades' => $esEstudiante
+                ? collect()
+                : Actividad::where('responsable_id', $usuario->id)
+                    ->withCount(['inscritos', 'sesiones'])
+                    ->orderBy('nombre')
                     ->get(),
             'puedeGestionarUsuarios' => in_array($perfil->rol, ['director', 'administrador'], true),
         ]);

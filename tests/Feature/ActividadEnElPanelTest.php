@@ -157,6 +157,50 @@ class ActividadEnElPanelTest extends TestCase
         $this->assertStringNotContainsString('Cursos, talleres y grupos de proyección', $html);
     }
 
+    /**
+     * LA FICHA DE UNA PERSONA DICE QUE ACTIVIDADES DIRIGE.
+     *
+     * Faltaban del todo: la ficha tenia «Promotorias a cargo» y una actividad
+     * asignada no aparecia por ningun lado, asi que asignarle un taller a un
+     * director no cambiaba nada de lo que se ve ahi. Palabras del usuario: «si
+     * le asigno un curso, taller o grupo de proyeccion no se diferencia de las
+     * demas cosas y lo hace un poco confuso».
+     *
+     * Cuelgan de `responsable_id` y NO de `promotorias.profesor_id`, que es
+     * exactamente por lo que se cayeron de esa pantalla.
+     */
+    public function test_la_ficha_dice_que_actividades_dirige(): void
+    {
+        $taller = $this->actividad('Taller de cerámica', 'taller', $this->profesor);
+
+        $html = (string) $this->actingAs($this->admin->user)
+            ->get(route('detalle-usuario', $this->profesor))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Cursos, talleres y grupos de proyección a cargo', $html);
+        $this->assertStringContainsString('Taller de cerámica', $html);
+        // Con su tipo, que es lo que lo distingue de una promotoría.
+        $this->assertStringContainsString('tipo-chip', $html);
+        $this->assertStringContainsString(route('panel-actividad', $taller), $html);
+    }
+
+    /**
+     * Y quien no dirige ninguna no ve una sección vacía.
+     *
+     * Al contrario que «Promotorías a cargo», que sí se enseña vacía porque ahí
+     * el hueco es el dato. Una institución puede no usar cursos en absoluto.
+     */
+    public function test_quien_no_dirige_ninguna_no_ve_la_seccion(): void
+    {
+        $html = (string) $this->actingAs($this->admin->user)
+            ->get(route('detalle-usuario', $this->otroProfesor))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Cursos, talleres y grupos de proyección a cargo', $html);
+    }
+
     // ------------------------------------------------------------------
     // Andamiaje
     // ------------------------------------------------------------------

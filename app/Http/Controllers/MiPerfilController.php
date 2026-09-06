@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Actividad;
 use App\Models\DocumentoEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
@@ -518,6 +519,35 @@ class MiPerfilController extends Controller
     }
 
     /**
+     * Los cursos, talleres y grupos de proyeccion que dirige, si dirige alguno.
+     *
+     * SOLO SI HAY, igual que «Promotorias a cargo» del director y por la misma
+     * razon escrita alli: a quien no dirige ninguno no se le ensena un cero que
+     * no significa nada.
+     *
+     * Existe desde el 06/09/2026, y hasta ese dia una actividad asignada no
+     * aparecia en ningun sitio de «Mi perfil»: alguien cuyo unico encargo era un
+     * taller leia «0 promotorias a cargo, 0 grupos», que es lo mismo que ve
+     * quien no tiene nada. Cuelgan de `responsable_id` y no de
+     * `promotorias.profesor_id`, que es por lo que se cayeron de aqui.
+     *
+     * @return list<array{numero: int, etiqueta: string}>
+     */
+    private function actividadesACargo(Perfil $perfil): array
+    {
+        $cuantas = Actividad::where('responsable_id', $perfil->id)->count();
+
+        if ($cuantas === 0) {
+            return [];
+        }
+
+        return [[
+            'numero' => $cuantas,
+            'etiqueta' => $cuantas === 1 ? 'Curso o taller a cargo' : 'Cursos y talleres a cargo',
+        ]];
+    }
+
+    /**
      * Las cifras de la tarjeta, segun el rol.
      *
      * @return list<array{numero: int, etiqueta: string}>
@@ -545,7 +575,7 @@ class MiPerfilController extends Controller
         }
 
         if ($perfil->rol === 'profesor') {
-            return [
+            $cifras = [
                 [
                     'numero' => Promotoria::where('profesor_id', $perfil->id)->count(),
                     'etiqueta' => 'Promotorías a cargo',
@@ -555,6 +585,8 @@ class MiPerfilController extends Controller
                     'etiqueta' => 'Grupos',
                 ],
             ];
+
+            return [...$cifras, ...$this->actividadesACargo($perfil)];
         }
 
         if (in_array($perfil->rol, ['director', 'administrador'], true)) {
@@ -573,7 +605,7 @@ class MiPerfilController extends Controller
                 $cifras[] = ['numero' => $aCargo, 'etiqueta' => 'Promotorías a cargo'];
             }
 
-            return $cifras;
+            return [...$cifras, ...$this->actividadesACargo($perfil)];
         }
 
         return [];

@@ -171,6 +171,41 @@
 @endif
 
 {{--
+  CURSOS, TALLERES Y GRUPOS DE PROYECCIÓN A CARGO.
+
+  Faltaban del todo hasta el 06/09/2026: la ficha decía «Promotorías a cargo» y
+  una actividad asignada no salía por ningún lado, así que asignarle un taller a
+  alguien no cambiaba nada de lo que se ve aquí. Cuelgan de `responsable_id` y
+  no de `promotorias.profesor_id`, que es justo por lo que se cayeron.
+
+  A DIFERENCIA de la sección de arriba, esta NO se enseña vacía: allí el hueco
+  es el dato —un profesor sin promotorías es algo que hay que ver— y aquí no
+  dice nada, porque una institución puede no usar cursos ni grupos de proyección
+  en absoluto.
+
+  Cada una lleva su `.tipo-chip`, que es lo que las distingue entre sí y de una
+  promotoría sin depender de dónde esté puesta la tabla.
+--}}
+@if (count($actividades))
+<h3>Cursos, talleres y grupos de proyección a cargo</h3>
+<table>
+  <thead>
+    <tr><th>Nombre</th><th>Tipo</th><th class="num">Inscritos</th><th class="num">Sesiones</th></tr>
+  </thead>
+  <tbody>
+    @foreach ($actividades as $a)
+    <tr>
+      <td><a href="{{ route('panel-actividad', $a) }}">{{ $a->nombre }}</a></td>
+      <td><span class="tipo-chip">{{ $a->etiquetaTipo() }}</span></td>
+      <td class="num"><span class="cupo-cifra">{{ $a->inscritos_count }}</span></td>
+      <td class="num"><span class="cupo-cifra">{{ $a->sesiones_count }}</span></td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
+@endif
+
+{{--
   Solo si hay algo que contar. Un panel de ceros no informa de nada y además
   miente por omisión: en una ficha sin clases todavía no se distingue "no ha
   faltado nunca" de "no ha empezado el periodo".
