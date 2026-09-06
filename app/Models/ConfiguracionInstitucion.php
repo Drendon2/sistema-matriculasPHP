@@ -38,6 +38,33 @@ class ConfiguracionInstitucion extends Model
      */
     public const RANURA_MAXIMA_ABSOLUTA = 6;
 
+    /**
+     * Las dos finalidades de fabrica: lo que se autoriza cuando la entidad no
+     * ha escrito las suyas.
+     *
+     * NO NOMBRAN NI SECTOR NI NATURALEZA. Decian «politicas publicas del sector
+     * cultura» y «procesos formativos y culturales», que es exacto para una
+     * casa de la cultura publica y falso para un colegio privado, una escuela
+     * deportiva o una fundacion — y este producto se vende a esas tambien. El
+     * porque entero esta en `Support\PoliticaDatos`.
+     *
+     * LA FORMA GRAMATICAL IMPORTA, porque cada una se incrusta en DOS frases:
+     *
+     *   DATOS, sintagma nominal:
+     *     politica  -> «Para el analisis estadistico y la planeacion…»
+     *     formato   -> «…y para el analisis estadistico y la planeacion…»
+     *
+     *   IMAGEN, infinitivo:
+     *     politica  -> «Para comunicar y promocionar…»
+     *     formato   -> «…con el fin de comunicar y promocionar…»
+     *
+     * Quien las cambie desde Gestion ve la frase entera delante, para que se
+     * note donde cae lo suyo.
+     */
+    public const FINALIDAD_DATOS = 'el análisis estadístico y la planeación de los procesos formativos';
+
+    public const FINALIDAD_IMAGEN = 'comunicar y promocionar los procesos formativos de la institución';
+
     /** Clave con la que la peticion en curso guarda la fila ya resuelta. */
     private const MEMORIA = 'configuracion-institucion.actual';
 
@@ -50,6 +77,8 @@ class ConfiguracionInstitucion extends Model
         'entidad_correo',
         'entidad_telefono',
         'politica_datos',
+        'finalidad_datos',
+        'finalidad_imagen',
         'logo',
         'firma',
         'firmante_nombre',
@@ -94,6 +123,11 @@ class ConfiguracionInstitucion extends Model
         'entidad_direccion' => '',
         'entidad_correo' => '',
         'entidad_telefono' => '',
+        // Las dos finalidades SI van aqui, al contrario que `politica_datos`:
+        // aquella es nula y la ausencia es su valor; estas nacen '' en la base y
+        // la instancia que crea `firstOrCreate` no lo releeria.
+        'finalidad_datos' => '',
+        'finalidad_imagen' => '',
         'logo' => '',
         'firma' => '',
         'firmante_nombre' => '',
@@ -196,6 +230,25 @@ class ConfiguracionInstitucion extends Model
         static::deleting(function () {
             throw new RuntimeException('La configuracion de la institucion no se puede eliminar.');
         });
+    }
+
+    /**
+     * QUE se autoriza tratar, tal como se lee en la politica y en el formato.
+     *
+     * Los dos sitios llaman aqui, y eso es lo que impide que se separen: la
+     * politica tiene que ANUNCIAR lo que el consentimiento autoriza, y si no
+     * coinciden lo firmado no vale. Antes dependia de que alguien se acordara de
+     * tocar los dos textos.
+     */
+    public function finalidadDeDatos(): string
+    {
+        return trim((string) $this->finalidad_datos) ?: self::FINALIDAD_DATOS;
+    }
+
+    /** Lo mismo para el uso de la imagen. Va en infinitivo — ver la constante. */
+    public function finalidadDeImagen(): string
+    {
+        return trim((string) $this->finalidad_imagen) ?: self::FINALIDAD_IMAGEN;
     }
 
     public function getColorAcentoOscuroAttribute(): string

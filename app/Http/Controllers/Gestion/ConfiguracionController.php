@@ -76,6 +76,11 @@ class ConfiguracionController extends Controller
             // Sin tope de largo: es un texto legal y el de fabrica ya ocupa
             // varias pantallas. La columna es TEXT.
             'politica_datos' => ['nullable', 'string'],
+            // Las dos finalidades SI llevan tope: son una frase que se incrusta
+            // dentro de otra, en la politica y en el papel que se firma. Un
+            // parrafo entero ahi rompe las dos.
+            'finalidad_datos' => ['nullable', 'string', 'max:255'],
+            'finalidad_imagen' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firmante_nombre' => ['nullable', 'string', 'max:120'],
@@ -103,6 +108,8 @@ class ConfiguracionController extends Controller
             'entidad_correo' => 'correo de contacto',
             'entidad_telefono' => 'teléfono',
             'politica_datos' => 'texto de la política',
+            'finalidad_datos' => 'finalidad del tratamiento de datos',
+            'finalidad_imagen' => 'finalidad del uso de imagen',
         ]);
 
         // Quitar el logo es una casilla aparte y no "subir vacio": dejar el
@@ -166,6 +173,10 @@ class ConfiguracionController extends Controller
         // aqui se recorta antes, asi que un textarea con solo espacios o saltos
         // de linea —que ese middleware deja pasar— tambien vuelve al de fabrica.
         $configuracion->politica_datos = trim($datos['politica_datos'] ?? '') ?: null;
+        // Estas dos guardan '' y no null: la columna no admite nulo y su vacio
+        // significa lo mismo —«usa la de fabrica»—, que resuelve el modelo.
+        $configuracion->finalidad_datos = trim($datos['finalidad_datos'] ?? '');
+        $configuracion->finalidad_imagen = trim($datos['finalidad_imagen'] ?? '');
         $configuracion->color_acento = strtolower($datos['color_acento']);
         $configuracion->limite_promotorias_por_periodo = $datos['limite_promotorias_por_periodo'];
         $configuracion->promotorias_visibles_para_estudiantes = $request->boolean('promotorias_visibles_para_estudiantes');

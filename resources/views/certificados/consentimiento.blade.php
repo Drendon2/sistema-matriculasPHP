@@ -252,7 +252,7 @@
       usar y tratar los datos personales, académicos y sociodemográficos
       {{ $esMenor ? 'del menor que represento' : 'que he entregado' }} para la
       gestión de la matrícula y de las actividades formativas, y para el
-      <strong>análisis estadístico y la planeación de los procesos formativos</strong>,
+      <strong>{{ $institucion->finalidadDeDatos() }}</strong>,
       incluyendo su entrega a las autoridades competentes cuando la ley lo exija.
     </td>
     <td class="marcar">
@@ -275,8 +275,8 @@
       divulgar la imagen, la voz y las fotografías o videos
       {{ $esMenor ? 'del menor que represento' : 'de mi persona' }} tomados
       durante las actividades, con el fin de
-      <strong>comunicar y promocionar los procesos formativos de la
-      institución</strong>, en piezas informativas, publicaciones, redes sociales
+      <strong>{{ $institucion->finalidadDeImagen() }}</strong>, en piezas
+      informativas, publicaciones, redes sociales
       y material de divulgación, sin contraprestación económica alguna.
     </td>
     <td class="marcar">

@@ -191,6 +191,114 @@ class TratamientoDeDatosTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // Las dos finalidades editables
+    // ------------------------------------------------------------------
+
+    /**
+     * CAMBIAR UNA FINALIDAD LA MUEVE EN LOS DOS SITIOS A LA VEZ.
+     *
+     * Esta es la prueba que sostiene el diseño entero. La política tiene que
+     * ANUNCIAR lo que el consentimiento autoriza: si no coinciden, lo firmado no
+     * vale. Con dos textos independientes eso dependía de que alguien se
+     * acordara de tocar los dos —había un aviso escrito en `PoliticaDatos`
+     * pidiéndolo—. Leyendo los dos de la misma columna, no hay forma de que se
+     * separen, y si alguien la rompe esta prueba se pone roja.
+     */
+    public function test_la_finalidad_cambia_la_politica_y_el_formato_a_la_vez(): void
+    {
+        $configuracion = ConfiguracionInstitucion::actual();
+        $configuracion->finalidad_datos = 'la caracterización de la población deportiva del municipio';
+        $configuracion->finalidad_imagen = 'difundir los torneos y escuelas de formación';
+        $configuracion->save();
+
+        $politica = $this->get(route('politica-datos'))->assertOk()->getContent();
+
+        $formato = view('certificados.consentimiento', [
+            'institucion' => ConfiguracionInstitucion::actual()->fresh(),
+            'esMenor' => false,
+            'estudiante' => null,
+            'documento' => null,
+            'acudiente' => null,
+            'politica' => route('politica-datos'),
+            'expedido' => Carbon::now(),
+            'logo' => null,
+        ])->render();
+
+        foreach ([$politica, $formato] as $texto) {
+            $this->assertStringContainsString('caracterización de la población deportiva', $texto);
+            $this->assertStringContainsString('difundir los torneos', $texto);
+            // Y la de fábrica desaparece de los dos, no solo de uno.
+            $this->assertStringNotContainsString('análisis estadístico y la planeación', $texto);
+        }
+    }
+
+    /** Vacías, mandan las de fábrica. Es el camino de vuelta. */
+    public function test_sin_finalidad_propia_se_usa_la_de_fabrica(): void
+    {
+        $html = $this->get(route('politica-datos'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(ConfiguracionInstitucion::FINALIDAD_DATOS, $html);
+        $this->assertStringContainsString(ConfiguracionInstitucion::FINALIDAD_IMAGEN, $html);
+    }
+
+    /** Y se guardan desde Institución, recortadas. */
+    public function test_las_finalidades_se_guardan_desde_institucion(): void
+    {
+        $this->actingAs($this->perfil('jefa', 'administrador')->user)
+            ->post(route('gestion-configuracion'), $this->formularioDeInstitucion([
+                'finalidad_datos' => '  la planeación de la oferta académica  ',
+                'finalidad_imagen' => '  difundir la vida escolar  ',
+            ]))
+            ->assertRedirect();
+
+        $guardada = ConfiguracionInstitucion::actual()->fresh();
+
+        $this->assertSame('la planeación de la oferta académica', $guardada->finalidad_datos);
+        $this->assertSame('difundir la vida escolar', $guardada->finalidad_imagen);
+    }
+
+    /**
+     * LA SECCIÓN PLEGADA NO ESCONDE SUS ERRORES.
+     *
+     * Es la trampa de CLAUDE.md: un `<details>` cerrado deja el campo en rojo
+     * fuera de la vista, y el aviso de arriba manda a buscar algo que no se ve.
+     * Se abre solo cuando el error es de SUS campos — no con `$errors->any()`,
+     * que la abriría porque falló cualquier otro campo de la pantalla.
+     */
+    public function test_la_seccion_plegable_se_abre_si_su_campo_falla(): void
+    {
+        $admin = $this->perfil('jefa', 'administrador');
+
+        // Un correo inválido: el error es de esta sección.
+        $rechazo = $this->actingAs($admin->user)
+            ->from(route('gestion-configuracion'))
+            ->post(route('gestion-configuracion'), $this->formularioDeInstitucion([
+                'entidad_correo' => 'esto-no-es-un-correo',
+            ]));
+
+        $rechazo->assertRedirect(route('gestion-configuracion'));
+
+        // Se SIGUE la redirección: el error vive en la sesión y la sección se
+        // abre al pintar la pantalla siguiente, no en la respuesta del POST.
+        $html = (string) $this->followRedirects($rechazo)->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '#<details[^>]*id="bloque-datos-entidad"[^>]*\sopen#',
+            $html,
+            'la sección quedó plegada con un error dentro: nadie lo va a encontrar.'
+        );
+
+        // Y con la pantalla limpia se queda plegada, que es para lo que existe.
+        $limpia = $this->actingAs($admin->user)->get(route('gestion-configuracion'))->getContent();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '#<details[^>]*id="bloque-datos-entidad"[^>]*\sopen#',
+            $limpia,
+            'la sección sale desplegada sin motivo.'
+        );
+    }
+
+    // ------------------------------------------------------------------
     // El conversor de texto a HTML
     // ------------------------------------------------------------------
 

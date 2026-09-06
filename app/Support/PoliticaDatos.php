@@ -218,15 +218,16 @@ class PoliticaDatos
                     .'asistencia y expedir tus certificados.',
                 '- Para comunicarnos contigo o con tu acudiente sobre las actividades en las que '
                     .'participas.',
-                '- Para el análisis estadístico y la planeación de los procesos formativos: saber '
-                    .'quién participa, en qué y con qué continuidad, y decidir con eso la oferta. Los '
-                    .'datos se usan agregados y anonimizados siempre que el análisis lo permita, y se '
-                    .'entregan a las autoridades competentes cuando la ley lo exige o cuando tú lo has '
-                    .'autorizado.',
-                '- Para la comunicación y la promoción de los procesos formativos de la '
-                    .'institución, usando tu imagen en piezas informativas, redes sociales, '
-                    .'publicaciones y material de divulgación. Esta finalidad requiere tu autorización '
-                    .'expresa y puedes negarla sin que eso afecte tu matrícula.',
+                // LA FINALIDAD SALE DE LA CONFIGURACION, no de aqui: es la misma
+                // que firma el consentimiento, y leerla del mismo sitio es lo
+                // que impide que los dos textos se separen.
+                "- Para {$institucion->finalidadDeDatos()}. Los datos se usan agregados y "
+                    .'anonimizados siempre que el análisis lo permita, y se entregan a las autoridades '
+                    .'competentes cuando la ley lo exige o cuando tú lo has autorizado.',
+                "- Para {$institucion->finalidadDeImagen()}, usando tu imagen en piezas "
+                    .'informativas, redes sociales, publicaciones y material de divulgación. Esta '
+                    .'finalidad requiere tu autorización expresa y puedes negarla sin que eso afecte '
+                    .'tu matrícula.',
                 '- Para cumplir las obligaciones legales de reporte y de conservación de información '
                     .'que nos correspondan.',
             ]),

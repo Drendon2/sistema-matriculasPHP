@@ -7,11 +7,13 @@
 <h2>Institución</h2>
 
 <p class="aviso">
-  Tres grupos de ajustes. La <strong>marca</strong> solo cambia cómo se ve el sistema: el nombre de
-  la cabecera y los títulos, el logo de las pantallas públicas, y el color de acento del que salen
-  botones, enlaces, foco y mensajes de éxito. La <strong>firma</strong> es la que sella los
-  certificados de matrícula. Las <strong>reglas de matrícula</strong> sí cambian lo que los
-  estudiantes pueden hacer. Ninguno de los tres toca el catálogo académico.
+  La <strong>marca</strong> solo cambia cómo se ve el sistema: el nombre de la cabecera y los
+  títulos, el logo de las pantallas públicas, y el color de acento del que salen botones, enlaces,
+  foco y mensajes de éxito. La <strong>firma</strong> es la que sella los certificados de matrícula.
+  Los <strong>datos de la entidad</strong> son lo que se publica en la página de tratamiento de
+  datos y lo que se imprime en el formato que firman los estudiantes. Las
+  <strong>reglas de matrícula</strong> sí cambian lo que los estudiantes pueden hacer. Nada de esto
+  toca el catálogo académico.
 </p>
 
 <div class="card">
@@ -149,8 +151,37 @@
       pintar «Teléfono:» y nada, así que una entidad que no los rellene publica
       una política sin forma de contactarla. De ahí el aviso.
     --}}
-    <fieldset class="config-seccion">
-    <legend class="config-seccion-titulo">Datos de la entidad</legend>
+    {{--
+      VA PLEGADA porque creció demasiado: cuatro datos de contacto, dos
+      finalidades, el texto entero de la política y los dos formatos. Desplegada
+      empujaba hacia abajo todo lo que sí se viene a tocar a diario —la marca,
+      el límite de promotorías, las alertas—.
+
+      ARRANCA ABIERTA SI ALGUNO DE **SUS** CAMPOS TRAE ERROR, y acotado a ellos:
+      con `$errors->any()` se abriría porque falló cualquier otro campo de la
+      pantalla. Es la trampa escrita en CLAUDE.md — un `<details>` plegado
+      esconde los errores de su formulario y el aviso de arriba te manda a
+      buscar algo rojo que no se ve.
+
+      Lleva `id` a propósito: `acciones.js` conserva abiertos los `<details>`
+      que lo tienen, así que al guardar no se cierra sobre quien estaba
+      escribiendo aquí.
+    --}}
+    @php($camposDeDatos = ['entidad_nit', 'entidad_direccion', 'entidad_correo',
+                           'entidad_telefono', 'politica_datos', 'finalidad_datos', 'finalidad_imagen'])
+    <details class="perfil-seccion" id="bloque-datos-entidad" style="max-width:none;"
+             @if ($errors->hasAny($camposDeDatos)) open @endif>
+    <summary class="perfil-seccion-cabecera">
+      <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+          <path d="M14 3v5h5"/>
+        </svg>
+      </span>
+      <h3 style="margin:0;">Datos de la entidad y textos legales</h3>
+      @if ($errors->hasAny($camposDeDatos))<span class="estado estado-pendiente">Hay algo por corregir</span>@endif
+      <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
 
     <p class="config-ayuda" style="margin-top:0;">
       Se publican en la página de <a href="{{ route('politica-datos') }}">tratamiento de datos</a>,
@@ -193,6 +224,41 @@
       @error('entidad_telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
     </div>
 
+    {{--
+      LAS DOS FINALIDADES. Es lo único de este bloque que sale también en el
+      papel que se firma, y por eso la ayuda enseña la frase entera: quien
+      escribe tiene que ver dónde cae lo suyo, porque cada una se incrusta en
+      dos oraciones distintas y una forma gramatical equivocada las rompe.
+    --}}
+    <div class="config-campo">
+      <label class="config-etiqueta" for="finalidad_datos">Para qué se tratan los datos</label>
+      <input type="text" name="finalidad_datos" id="finalidad_datos" maxlength="255"
+             placeholder="{{ \App\Models\ConfiguracionInstitucion::FINALIDAD_DATOS }}"
+             value="{{ old('finalidad_datos', $institucion->finalidad_datos) }}">
+      @error('finalidad_datos')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Se lee en los dos sitios, así que <strong>escríbelo como un complemento</strong>
+        («el análisis…», «la caracterización…»):<br>
+        en la política — «Para <em>{{ $institucion->finalidadDeDatos() }}</em>. Los datos se usan agregados…»<br>
+        en el formato firmado — «…y para <em>{{ $institucion->finalidadDeDatos() }}</em>, incluyendo su entrega
+        a las autoridades competentes.»
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="finalidad_imagen">Para qué se usa la imagen</label>
+      <input type="text" name="finalidad_imagen" id="finalidad_imagen" maxlength="255"
+             placeholder="{{ \App\Models\ConfiguracionInstitucion::FINALIDAD_IMAGEN }}"
+             value="{{ old('finalidad_imagen', $institucion->finalidad_imagen) }}">
+      @error('finalidad_imagen')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Esta va <strong>en infinitivo</strong> («comunicar…», «difundir…»):<br>
+        en la política — «Para <em>{{ $institucion->finalidadDeImagen() }}</em>, usando tu imagen en piezas
+        informativas…»<br>
+        en el formato firmado — «…con el fin de <em>{{ $institucion->finalidadDeImagen() }}</em>.»
+      </p>
+    </div>
+
     <div class="config-campo">
       <label class="config-etiqueta" for="politica_datos">Texto de la política</label>
       <textarea name="politica_datos" id="politica_datos" rows="14" class="config-politica"
@@ -231,7 +297,7 @@
       </p>
     </div>
 
-    </fieldset>
+    </details>
 
     <fieldset class="config-seccion">
     <legend class="config-seccion-titulo">Reglas de matrícula</legend>
