@@ -112,8 +112,14 @@ class ConsentimientoTest extends TestCase
     {
         $html = $this->pintar(esMenor: false);
 
-        $this->assertStringContainsString('políticas públicas del sector cultura', $html);
+        $this->assertStringContainsString('diseño de políticas públicas', $html);
         $this->assertStringContainsString('comunicar y promocionar los procesos formativos', $html);
+
+        // El formato que se FIRMA tampoco nombra ningun sector, por lo mismo
+        // que la politica: se vende a instituciones que no son culturales, y
+        // este es el papel que sale impreso de la casa.
+        $this->assertStringNotContainsString('sector cultura', $html);
+        $this->assertStringNotContainsString('culturales', $html);
 
         // Cuatro casillas: sí/no para cada una de las dos.
         $this->assertSame(4, substr_count($html, 'class="casilla"'), 'no hay un sí y un no por autorización.');

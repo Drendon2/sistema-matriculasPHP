@@ -252,7 +252,7 @@
       usar y tratar los datos personales, académicos y sociodemográficos
       {{ $esMenor ? 'del menor que represento' : 'que he entregado' }} para la
       gestión de la matrícula y de las actividades formativas, y para el
-      <strong>análisis y el diseño de políticas públicas del sector cultura</strong>,
+      <strong>análisis y el diseño de políticas públicas</strong>,
       incluyendo su entrega a las entidades públicas competentes para ese fin.
     </td>
     <td class="marcar">
@@ -275,7 +275,7 @@
       divulgar la imagen, la voz y las fotografías o videos
       {{ $esMenor ? 'del menor que represento' : 'de mi persona' }} tomados
       durante las actividades, con el fin de
-      <strong>comunicar y promocionar los procesos formativos y culturales de la
+      <strong>comunicar y promocionar los procesos formativos de la
       institución</strong>, en piezas informativas, publicaciones, redes sociales
       y material de divulgación, sin contraprestación económica alguna.
     </td>

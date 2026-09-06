@@ -26,7 +26,7 @@
 
   <p class="info">
     Cómo {{ $institucion->nombre_institucion }} recoge, usa y protege los datos
-    personales de quienes participan en sus procesos formativos y culturales.
+    personales de quienes participan en sus procesos formativos.
   </p>
 
   <div class="politica">

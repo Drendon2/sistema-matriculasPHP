@@ -133,10 +133,18 @@ class PoliticaDatos
      *
      * LAS DOS FINALIDADES QUE LO MOTIVAN estan en «Para que los usamos» y son
      * exactamente las que se firman en el formato de consentimiento: el
-     * analisis y diseno de politica publica del sector cultura, y el uso de la
-     * imagen para comunicar y promocionar los procesos formativos. Si algun dia
-     * cambian en el formato hay que cambiarlas tambien aqui — un consentimiento
-     * que autoriza algo que la politica no anuncia no vale.
+     * analisis y diseno de politicas publicas, y el uso de la imagen para
+     * comunicar y promocionar los procesos formativos. Si algun dia cambian en
+     * el formato hay que cambiarlas tambien aqui — un consentimiento que
+     * autoriza algo que la politica no anuncia no vale.
+     *
+     * NO SE NOMBRA NINGUN SECTOR, y eso es deliberado desde el 06/09/2026.
+     * Decia «politicas publicas del sector cultura» y «procesos formativos y
+     * culturales», que es exacto para una casa de la cultura y falso para
+     * cualquier otra: este producto se vende a instituciones que no son
+     * entidades culturales, y un texto de fabrica que las llama culturales sale
+     * mal el primer dia. La entidad que quiera concretar su sector reescribe la
+     * politica desde Gestion, que para eso es editable.
      *
      * Los renglones de contacto que la entidad no ha rellenado NO se pintan
      * vacios: se caen. Es preferible una politica sin telefono a una que diga
@@ -169,7 +177,7 @@ class PoliticaDatos
             '## Quiénes somos',
             $identificacion,
             'Esta política explica qué datos personales recogemos de quienes participan en nuestros '
-                .'procesos formativos y culturales, para qué los usamos, con quién los compartimos y qué '
+                .'procesos formativos, para qué los usamos, con quién los compartimos y qué '
                 .'puedes hacer tú con ellos. Se rige por la Ley 1581 de 2012, el Decreto 1377 de 2013 y '
                 .'las demás normas colombianas sobre protección de datos personales.',
 
@@ -188,8 +196,8 @@ class PoliticaDatos
                 '- Respuestas a la encuesta de caracterización: barrio, zona, estrato, nivel educativo, '
                     .'ocupación y otros datos sociodemográficos.',
                 '- Fotografía de perfil y las copias de los documentos que se piden para la matrícula.',
-                '- Tu imagen —fotografías, video y voz— cuando se registran las actividades formativas '
-                    .'y culturales.',
+                '- Tu imagen —fotografías, video y voz— cuando se registran las actividades '
+                    .'formativas.',
             ]),
 
             '## Para qué los usamos',
@@ -198,11 +206,11 @@ class PoliticaDatos
                     .'asistencia y expedir tus certificados.',
                 '- Para comunicarnos contigo o con tu acudiente sobre las actividades en las que '
                     .'participas.',
-                '- Para el análisis y el diseño de políticas públicas del sector cultura. Los datos se '
+                '- Para el análisis y el diseño de políticas públicas. Los datos se '
                     .'usan agregados y anonimizados siempre que el análisis lo permita, y se comparten '
                     .'con las entidades públicas competentes cuando la ley lo exige o cuando tú lo has '
                     .'autorizado.',
-                '- Para la comunicación y la promoción de los procesos formativos y culturales de la '
+                '- Para la comunicación y la promoción de los procesos formativos de la '
                     .'institución, usando tu imagen en piezas informativas, redes sociales, '
                     .'publicaciones y material de divulgación. Esta finalidad requiere tu autorización '
                     .'expresa y puedes negarla sin que eso afecte tu matrícula.',
