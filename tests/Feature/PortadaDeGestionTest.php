@@ -238,7 +238,15 @@ class PortadaDeGestionTest extends TestCase
         // registraron son las que la alerta encuentra.
         SesionGrupo::create([
             'grupo_id' => $grupo->id,
-            'dia' => (int) Carbon::today()->subWeek()->dayOfWeekIso,
+            // FIJO, y no el dia de hoy. Era
+            // `(int) Carbon::today()->subWeek()->dayOfWeekIso`, que devuelve 7
+            // los domingos: el CHECK `dia_valido` de `sesiones_grupo` lo
+            // rechaza porque la casa no abre ese dia. O sea que estas tres
+            // pruebas se ponian rojas UN DIA DE CADA SIETE con el codigo
+            // intacto — se vio el domingo 06/09/2026. Cual sea el dia da igual
+            // para lo que se prueba: la alerta busca una clase del horario que
+            // ya paso, y toda la semana pasada ya paso.
+            'dia' => 1,
             'hora_inicio' => '08:00',
             'hora_fin' => '10:00',
         ]);
