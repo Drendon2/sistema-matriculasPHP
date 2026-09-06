@@ -13,18 +13,22 @@ use App\Models\Promotoria;
 use App\Rules\ImagenProcesable;
 use App\Support\Auditoria;
 use App\Support\Companeros;
+use App\Support\Documento;
 use App\Support\GestionAsistida;
 use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Lo que cada quien completa aqui, ya con sesion, es lo que los formularios
@@ -336,9 +340,32 @@ class MiPerfilController extends Controller
      * dia tenia su propio metodo y su propia columna. Ya no: es un requerido
      * mas, y por eso aqui no hay ningun caso especial que mirar.
      *
-     * Se guarda TAL CUAL llega, sin pasar por `Imagen`: puede ser un PDF, y
-     * aunque sea una foto es evidencia de un tramite. Reescribirla la convierte
-     * en otra cosa.
+     * DESDE EL 06/09/2026 UNA IMAGEN SE CONVIERTE A PDF Y SE ALIGERA, y esto
+     * INVIERTE lo que decia aqui —«se guarda tal cual llega... reescribirla la
+     * convierte en otra cosa»—. La linea vieja no era un capricho, asi que
+     * conviene saber por que se cambio y que se puso en su lugar.
+     *
+     * EL DATO QUE LO DECIDIO, medido en produccion ese dia: 70 documentos, 100
+     * MB. De ellos 56 eran fotos de celular de 4000x3000 —88,5 MB, hasta 4,9 MB
+     * cada una— y 14 PDF, que sumaban 10,9. El 89% del peso eran fotos sin
+     * reducir, en un hosting compartido con disco y ancho de banda contados.
+     *
+     * LO QUE SE CONSERVA de la decision anterior: se conserva la LEGIBILIDAD,
+     * que es lo que esa linea protegia de verdad. Se reduce a 2000 px de lado
+     * mayor y calidad 78, que sobre un documento enfocado deja el numero y la
+     * firma indistinguibles del original a la misma escala —comparado a 1:1 en
+     * el navegador, no supuesto—. Y no se toca nada mas: la orientacion se
+     * endereza, el color se mantiene, no se recorta ni se pasa a gris.
+     *
+     * LOS PDF SIGUEN GUARDANDOSE TAL CUAL, y eso tambien esta medido:
+     * recomprimirlos los deja MAS GRANDES —uno de 480 KB salia en 5.832— porque
+     * ya vienen comprimidos, y solo encogen bajando a una resolucion donde un
+     * numero de cedula deja de leerse. El porque entero esta en `Documento`.
+     *
+     * SI LA CONVERSION FALLA SE GUARDA EL ORIGINAL. Un papel que llega raro
+     * —un formato que GD no entiende, una imagen corrupta a medias— vale mas
+     * entregado que perdido: quien lo sube no tiene forma de saber que paso y
+     * probablemente no lo vuelva a intentar.
      */
     private function guardarPapel(Request $request, Perfil $perfil): RedirectResponse
     {
@@ -361,10 +388,50 @@ class MiPerfilController extends Controller
         ]);
 
         $this->borrarAnterior($entrega->archivo);
-        $entrega->archivo = $request->file('archivo')->store('documentos', 'local');
+        $entrega->archivo = $this->guardarAligerado($request->file('archivo'));
         $entrega->save();
 
         return redirect()->route('mi-perfil')->with('success', "«{$requerido->nombre}» quedó guardado.");
+    }
+
+    /**
+     * Guarda el papel y devuelve su ruta, convirtiendo la imagen a PDF.
+     *
+     * TRES COSAS QUE NO SE VEN LEYENDO LA LLAMADA:
+     *
+     * 1. Se pregunta por el CONTENIDO y no por la extension ni por el tipo que
+     *    declara el navegador: los dos los escribe quien sube el archivo. Un
+     *    «.pdf» que en realidad es una foto se convierte igual, y un «.jpg» que
+     *    en realidad es un PDF se guarda tal cual, que es lo correcto en los dos
+     *    casos.
+     *
+     * 2. LA RUTA ORIGINAL SE LE PASA A `Documento` para que lea el EXIF. Ahi
+     *    vive la orientacion con la que el celular tomo la foto, y sin ella un
+     *    documento vertical se guarda tumbado — sin fallar y sin avisar. Solo se
+     *    nota al abrirlo.
+     *
+     * 3. SI LA CONVERSION FALLA SE GUARDA EL ORIGINAL. Un papel raro vale mas
+     *    entregado que perdido: quien lo sube no tiene forma de enterarse de que
+     *    algo salio mal, y este sistema no avisa a nadie de nada.
+     */
+    private function guardarAligerado(UploadedFile $archivo): string
+    {
+        $binario = (string) file_get_contents($archivo->getRealPath());
+
+        if (! Documento::esImagen($binario)) {
+            return $archivo->store('documentos', 'local');
+        }
+
+        try {
+            $pdf = Documento::aPdf($binario, $archivo->getRealPath());
+        } catch (Throwable) {
+            return $archivo->store('documentos', 'local');
+        }
+
+        $ruta = 'documentos/'.Str::random(40).'.pdf';
+        Storage::disk('local')->put($ruta, $pdf);
+
+        return $ruta;
     }
 
     private function guardarEncuesta(Request $request, Perfil $perfil): RedirectResponse
