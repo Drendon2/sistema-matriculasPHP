@@ -85,7 +85,7 @@
     NO es el que está en curso: siempre trae valor, así que contarlo tal cual
     diría «1 puesto» en una pantalla sin filtrar nada.
   --}}
-  @php($cuantosFiltros = collect([$seleccion['rol'], $seleccion['area'], $seleccion['promotoria'], $seleccion['grupo']])->filter()->count()
+  @php($cuantosFiltros = collect([$seleccion['rol'], $seleccion['area'], $seleccion['promotoria'], $seleccion['grupo'], $seleccion['papeles']])->filter()->count()
       + (($seleccion['periodo'] && ! $seleccion['periodo']->activo) ? 1 : 0))
   <details class="filtros-plegables">
     <summary class="filtros-resumen">
@@ -109,6 +109,38 @@
       </option>
     </select>
   </div>
+
+  {{--
+    A QUIÉN LE FALTA UN PAPEL. Nace el 06/09/2026 porque no había forma de
+    saberlo: Institución dice cuántos han entregado, no quiénes, y la única
+    alternativa era abrir la ficha de cada estudiante — entre 800, eso es
+    adivinar. Se volvió urgente el mismo día, al nacer obligatorio el
+    consentimiento de tratamiento de datos.
+
+    Va aquí arriba, justo detrás del rol, porque es un filtro de PERSECUCIÓN: se
+    usa para armar una lista de a quién llamar, no para mirar un catálogo.
+
+    NO expone ningún dato restringido —dice quién no ha entregado, no qué
+    entregó ni qué dice—, que es lo que separa esto del buscador de al lado: ahí
+    el comentario del controlador explica por qué no se puede buscar por
+    documento ni por teléfono.
+  --}}
+  @if ($papeles->isNotEmpty())
+  <div class="filtro">
+    <label for="f-papeles">Papeles</label>
+    <select name="papeles" id="f-papeles">
+      <option value="">Todos</option>
+      <option value="{{ $papelesObligatorios }}" @selected($seleccion['papeles'] === $papelesObligatorios)>
+        Le falta alguno obligatorio
+      </option>
+      @foreach ($papeles as $papel)
+        <option value="{{ $papel->id }}" @selected($seleccion['papeles'] === (string) $papel->id)>
+          Le falta: {{ $papel->nombre }}
+        </option>
+      @endforeach
+    </select>
+  </div>
+  @endif
 
   <div class="filtro">
     <label for="f-area">Departamento</label>

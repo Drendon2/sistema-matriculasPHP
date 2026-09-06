@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\DatosEstudiante;
+use App\Models\DocumentoEstudiante;
+use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -313,6 +315,79 @@ class InformeTest extends TestCase
 
         $this->assertSame('', $this->celdaDeEdad($csv, 'Profe Apellido'));
         $this->assertSame('14', $this->celdaDeEdad($csv, 'Ana Apellido'));
+    }
+
+    /**
+     * QUIEN ENTREGO CADA PAPEL, que es para lo que se anadieron las columnas.
+     *
+     * Sin esto no habia forma de saberlo: Gestion → Institucion dice CUANTOS
+     * han entregado pero no quienes, y la unica alternativa era abrir la ficha
+     * de cada estudiante — con 800 usuarios eso es adivinar. Palabras del
+     * usuario el 06/09/2026, y la peticion se volvio urgente ese mismo dia al
+     * nacer obligatorio el consentimiento: 775 personas a las que perseguir.
+     */
+    public function test_el_informe_dice_quien_entrego_cada_papel(): void
+    {
+        $identidad = DocumentoRequerido::create(['nombre' => 'Documento de identidad', 'orden' => 1]);
+        DocumentoRequerido::create(['nombre' => 'Certificado de EPS', 'orden' => 2]);
+
+        $conPapel = $this->crearEstudiante('ana');
+        $sinPapel = $this->crearEstudiante('caro');
+
+        DocumentoEstudiante::create([
+            'datos_estudiante_id' => $conPapel->datosEstudiante->id,
+            'requerido_id' => $identidad->id,
+            'archivo' => 'documentos/loquesea.pdf',
+        ]);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->admin->user)->get(route('informe-institucion'))
+        );
+
+        $this->assertStringContainsString('Entregó: Documento de identidad', $csv);
+        $this->assertStringContainsString('Entregó: Certificado de EPS', $csv);
+
+        // Entregó el de identidad y no el de EPS.
+        $this->assertSame(['Sí', 'No'], $this->celdasDePapeles($csv, 'Ana Apellido'));
+        $this->assertSame(['No', 'No'], $this->celdasDePapeles($csv, 'Caro Apellido'));
+
+        // Y al PERSONAL no se le pide ninguno: van VACIAS, no «No». Con un «No»
+        // ahi, quien filtre la hoja por «No» para saber a quien llamar se
+        // encuentra a toda la plantilla dentro.
+        $this->assertSame(['', ''], $this->celdasDePapeles($csv, 'Profe Apellido'));
+    }
+
+    /** Un papel que se dejo de pedir no deja columna: ya no es una pregunta. */
+    public function test_un_papel_desactivado_no_sale_en_el_informe(): void
+    {
+        DocumentoRequerido::create(['nombre' => 'Recibo de servicios', 'orden' => 1, 'activo' => false]);
+
+        $csv = $this->contenido(
+            $this->actingAs($this->admin->user)->get(route('informe-institucion'))
+        );
+
+        $this->assertStringNotContainsString('Recibo de servicios', $csv);
+    }
+
+    /**
+     * Las ultimas N celdas de la fila de alguien: una por papel pedido.
+     *
+     * Se cuentan desde el FINAL porque ahi es donde se anadieron, para no mover
+     * las columnas que ya existian.
+     *
+     * @return list<string>
+     */
+    private function celdasDePapeles(string $csv, string $nombre): array
+    {
+        $cuantos = DocumentoRequerido::activos()->count();
+
+        foreach (explode("\n", $csv) as $linea) {
+            if (str_contains($linea, $nombre)) {
+                return array_slice(explode(';', trim($linea)), -$cuantos);
+            }
+        }
+
+        $this->fail("El informe no trae ninguna fila de {$nombre}.");
     }
 
     /**

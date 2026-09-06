@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Acudiente;
 use App\Models\Area;
 use App\Models\DatosEstudiante;
+use App\Models\DocumentoRequerido;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
@@ -40,6 +41,15 @@ class UsuarioController extends Controller
      * ya significa "no filtres por rol" en un formulario GET.
      */
     public const ROL_PENDIENTE = '__sin__';
+
+    /**
+     * El valor del filtro «le falta alguno de los obligatorios».
+     *
+     * Es una palabra y no un id porque no señala a un papel concreto: los
+     * obligatorios cambian cuando la entidad los cambia, y el filtro tiene que
+     * seguirlos sin que nadie reescriba un enlace guardado.
+     */
+    public const PAPELES_OBLIGATORIOS = 'obligatorios';
 
     /**
      * Cuantos usuarios por pagina.
@@ -140,6 +150,37 @@ class UsuarioController extends Controller
             });
         }
 
+        // A QUIEN LE FALTA UN PAPEL.
+        //
+        // El `where('rol')` ES IMPRESCINDIBLE, y conviene saber por que: la
+        // segunda rama de aqui abajo —«no tiene ni ficha de estudiante»— la
+        // cumple TODO el personal, asi que sin acotar por rol este filtro
+        // devolveria la plantilla entera en la lista de a quien hay que llamar.
+        //
+        // Y LA SEGUNDA RAMA NO SOBRA. Un estudiante sin fila en
+        // `datos_estudiante` no es que le falte «alguno»: le faltan TODOS, y sin
+        // ella se quedaba invisible justo en la lista que existe para no dejar a
+        // nadie fuera. En produccion hoy no hay ninguno —comprobado el
+        // 06/09/2026— pero en la base de desarrollo habia OCHO, y el dia que
+        // aparezca uno nadie va a estar mirando esta consulta.
+        //
+        // La primera rama es «tiene MENOS entregas de las que se le piden», con
+        // un solo contador en la base en vez de una comprobacion por papel.
+        // Sirve igual para «le falta alguno de los obligatorios» —la lista son
+        // todos— y para «le falta este» —la lista es uno—.
+        if ($papelesQueFaltan = $this->papelesQueFaltan($seleccion['papeles'])) {
+            $consulta->where('rol', 'estudiante')
+                ->where(function ($q) use ($papelesQueFaltan) {
+                    $q->whereHas('datosEstudiante', fn ($d) => $d->whereHas(
+                        'documentos',
+                        fn ($e) => $e->whereIn('requerido_id', $papelesQueFaltan)->where('archivo', '!=', ''),
+                        '<',
+                        count($papelesQueFaltan)
+                    ))
+                        ->orWhereDoesntHave('datosEstudiante');
+                });
+        }
+
         // `withQueryString()` conserva los filtros en los enlaces: sin el,
         // pasar de pagina limpiaba rol, departamento, promotoria y periodo, y
         // la pagina 2 era la de TODOS los usuarios.
@@ -184,7 +225,12 @@ class UsuarioController extends Controller
                 ->get(),
             'periodos' => Periodo::orderByDesc('activo')->orderByDesc('fecha_inicio')->get(),
             'hayFiltros' => $seleccion['buscar'] !== '' || $seleccion['rol'] !== ''
-                || $seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo'],
+                || $seleccion['area'] || $seleccion['promotoria'] || $seleccion['grupo']
+                || $seleccion['papeles'] !== '',
+            // Para el desplegable. Solo los activos: no se puede buscar a quien
+            // le falta un papel que ya no se pide.
+            'papeles' => DocumentoRequerido::activos()->ordenados()->get(),
+            'papelesObligatorios' => self::PAPELES_OBLIGATORIOS,
         ]);
     }
 
@@ -640,7 +686,36 @@ class UsuarioController extends Controller
             'promotoria' => $request->query('promotoria') ? Promotoria::find($request->query('promotoria')) : null,
             'grupo' => $request->query('grupo') ? Grupo::find($request->query('grupo')) : null,
             'periodo' => $this->periodo($request),
+            // Vacio = no filtrar. `obligatorios` = le falta alguno de los que se
+            // exigen. Un numero = le falta ESE papel.
+            'papeles' => (string) $request->query('papeles', ''),
         ];
+    }
+
+    /**
+     * Los papeles cuya ausencia se esta buscando, o null si no se filtra.
+     *
+     * @return list<int>|null
+     */
+    private function papelesQueFaltan(string $seleccionado): ?array
+    {
+        if ($seleccionado === '') {
+            return null;
+        }
+
+        if ($seleccionado === self::PAPELES_OBLIGATORIOS) {
+            $ids = DocumentoRequerido::activos()->where('obligatorio', true)->pluck('id')->all();
+
+            // Sin ninguno obligatorio no falta nada, y devolver una lista vacia
+            // haria pasar a TODO el mundo por el filtro —«tiene menos de 0»— o
+            // a nadie, segun como se lea. Ninguna de las dos es lo que pidio
+            // quien lo puso.
+            return $ids === [] ? null : $ids;
+        }
+
+        $id = (int) $seleccionado;
+
+        return DocumentoRequerido::activos()->whereKey($id)->exists() ? [$id] : null;
     }
 
     /**

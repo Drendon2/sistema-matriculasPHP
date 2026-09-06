@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Area;
 use App\Models\DatosEstudiante;
+use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
 use App\Models\Matricula;
 use App\Models\Perfil;
@@ -58,6 +59,15 @@ class InformeCuadradoTest extends TestCase
         ]);
 
         $this->admin = $this->perfil('jefa', 'administrador');
+
+        // DOS PAPELES PEDIDOS, y no es decorado: desde el 06/09/2026 el informe
+        // de la institucion lleva una columna POR PAPEL, o sea que su ancho es
+        // dinamico. Sin ninguno sembrado esas columnas miden cero y esta clase
+        // —que existe justamente para cazar una columna anadida a un lado y
+        // olvidada en el otro— pasaria sin mirarlas. Una prueba que no puede
+        // fallar por lo que dice vigilar es peor que no tenerla.
+        DocumentoRequerido::create(['nombre' => 'Documento de identidad', 'orden' => 1]);
+        DocumentoRequerido::create(['nombre' => 'Certificado de EPS', 'orden' => 2]);
     }
 
     /**

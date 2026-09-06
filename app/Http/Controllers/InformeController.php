@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Area;
+use App\Models\DocumentoEstudiante;
+use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -12,6 +14,7 @@ use App\Models\Promotoria;
 use App\Support\Csv;
 use App\Support\Permisos;
 use Generator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -250,6 +253,18 @@ class InformeController extends Controller
      */
     public function institucion(): StreamedResponse
     {
+        // LOS PAPELES SE CONSULTAN UNA SOLA VEZ y se pasan a las dos partes.
+        // La lista es dinamica —cada entidad pide los suyos y los cambia cuando
+        // quiere—, asi que preguntarla dos veces abre la puerta a que la
+        // cabecera y las filas salgan de listas distintas si alguien crea o
+        // desactiva un papel entre las dos consultas. Cuadrar cabecera y filas
+        // es lo que vigila `InformeCuadradoTest`, y ya se torcio una vez por
+        // contar huecos a mano.
+        //
+        // Solo los ACTIVOS: un papel que se dejo de pedir no es una casilla que
+        // nadie ha rellenado, es una pregunta que ya no se hace.
+        $papeles = DocumentoRequerido::activos()->ordenados()->get();
+
         return Csv::descargar('institucion-completo', [
             'Rol',
             'Nombre completo',
@@ -276,13 +291,20 @@ class InformeController extends Controller
             'Víctima del conflicto',
             'Autoriza tratamiento de datos',
             'Fecha de autorización',
-        ], $this->filasDeInstitucion());
+            // Una columna por papel pedido, al final para no mover las que ya
+            // existian: quien tenga una hoja hecha sobre este informe la
+            // conserva. «Entregó:» delante porque un papel puede llamarse como
+            // una columna de arriba —nada impide llamarlo «Teléfono»— y dos
+            // cabeceras iguales rompen cualquier tabla dinamica.
+            ...$papeles->map(fn (DocumentoRequerido $p) => 'Entregó: '.$p->nombre)->all(),
+        ], $this->filasDeInstitucion($papeles));
     }
 
     /**
+     * @param  Collection<int, DocumentoRequerido>  $papeles
      * @return Generator<int, list<string>>
      */
-    private function filasDeInstitucion(): Generator
+    private function filasDeInstitucion(Collection $papeles): Generator
     {
         $trayectorias = $this->trayectorias();
         $periodo = Periodo::enCurso();
@@ -304,6 +326,10 @@ class InformeController extends Controller
                 'matriculas.promotoria.area',
                 'matriculas.grupo.sesiones',
                 'matriculas.periodo',
+                // Los papeles entregados. Se traen aqui y no se preguntan fila a
+                // fila: son 800 personas y esto lo descarga alguien esperando
+                // delante de la pantalla.
+                'datosEstudiante.documentos',
             ])
             ->orderBy('rol')
             ->orderBy('nombre_completo');
@@ -312,7 +338,10 @@ class InformeController extends Controller
         // nombre, y paginar por id con otro orden repite filas.
         foreach ($consulta->lazy(self::POR_TANDA) as $perfil) {
             $comunes = $this->columnasDePersona($perfil);
-            $encuesta = $this->columnasDeEncuesta($perfil->encuesta);
+            $encuesta = [
+                ...$this->columnasDeEncuesta($perfil->encuesta),
+                ...$this->columnasDeDocumentos($perfil, $papeles),
+            ];
 
             if ($perfil->matriculas->isEmpty()) {
                 yield array_map(Csv::celda(...), [
@@ -355,6 +384,40 @@ class InformeController extends Controller
      *
      * @return list<string|int|null>
      */
+    /**
+     * Una columna por papel pedido: «Sí» si lo entrego, «No» si no.
+     *
+     * PARA EL PERSONAL VAN VACIAS, no «No». A un profesor no se le piden
+     * papeles —cuelgan de `datos_estudiante`, que solo tienen los estudiantes—
+     * asi que un «No» ahi seria una falta que no existe, y quien filtre la hoja
+     * por «No» se encontraria a toda la plantilla dentro de la lista de a quien
+     * llamar. Es el mismo trato que ya recibe la edad, y por la misma razon.
+     *
+     * Se mira `archivo !== ''` y no la existencia de la fila: una entrega puede
+     * quedar con la ruta vacia y eso no es haber entregado.
+     *
+     * @param  Collection<int, DocumentoRequerido>  $papeles
+     * @return list<string|null>
+     */
+    private function columnasDeDocumentos(Perfil $perfil, Collection $papeles): array
+    {
+        $datos = $perfil->datosEstudiante;
+
+        if ($datos === null) {
+            return array_fill(0, $papeles->count(), null);
+        }
+
+        $entregados = $datos->documentos
+            ->filter(fn (DocumentoEstudiante $d) => $d->archivo !== '')
+            ->pluck('requerido_id')
+            ->all();
+
+        return $papeles
+            ->map(fn (DocumentoRequerido $p) => in_array($p->id, $entregados, true) ? 'Sí' : 'No')
+            ->values()
+            ->all();
+    }
+
     /**
      * Las siete columnas que describen UNA matricula, o siete vacias si no hay.
      *
