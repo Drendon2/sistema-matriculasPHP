@@ -133,18 +133,30 @@ class PoliticaDatos
      *
      * LAS DOS FINALIDADES QUE LO MOTIVAN estan en «Para que los usamos» y son
      * exactamente las que se firman en el formato de consentimiento: el
-     * analisis y diseno de politicas publicas, y el uso de la imagen para
-     * comunicar y promocionar los procesos formativos. Si algun dia cambian en
-     * el formato hay que cambiarlas tambien aqui — un consentimiento que
-     * autoriza algo que la politica no anuncia no vale.
+     * analisis estadistico y planeacion de los procesos formativos, y el uso de
+     * la imagen para comunicarlos y promocionarlos. Si algun dia cambian en el
+     * formato hay que cambiarlas tambien aqui — un consentimiento que autoriza
+     * algo que la politica no anuncia no vale.
      *
-     * NO SE NOMBRA NINGUN SECTOR, y eso es deliberado desde el 06/09/2026.
-     * Decia «politicas publicas del sector cultura» y «procesos formativos y
-     * culturales», que es exacto para una casa de la cultura y falso para
-     * cualquier otra: este producto se vende a instituciones que no son
-     * entidades culturales, y un texto de fabrica que las llama culturales sale
-     * mal el primer dia. La entidad que quiera concretar su sector reescribe la
-     * politica desde Gestion, que para eso es editable.
+     * EL TEXTO DE FABRICA NO DA POR HECHO NADA SOBRE QUIEN LO USA, y eso es
+     * deliberado desde el 06/09/2026. Decia «politicas publicas del sector
+     * cultura» y «procesos formativos y culturales», que es exacto para una casa
+     * de la cultura publica y falso para un colegio privado, una escuela
+     * deportiva o una fundacion. Este producto se vende a esas tambien, y un
+     * texto por defecto que llama «cultural» o «publica» a quien no lo es sale
+     * mal justo el primer dia, que es el dia en que nadie lo ha revisado.
+     *
+     * Se quito en dos pasos y los dos los pidio el usuario: primero el sector,
+     * despues lo de publicas. Lo que quedo —«analisis estadistico y planeacion
+     * de los procesos formativos», con entrega «a las autoridades competentes
+     * cuando la ley lo exija»— cubre igual el caso de la casa de la cultura, que
+     * si alimenta politica publica: lo hace sin obligar a las demas a decir que
+     * son algo que no son.
+     *
+     * La entidad que quiera concretar su sector o su naturaleza reescribe la
+     * politica desde Gestion, que para eso es editable. **El FORMATO que se
+     * firma no lo es**, y esa asimetria esta viva: si alguien la necesita, es
+     * una decision a tomar a proposito.
      *
      * Los renglones de contacto que la entidad no ha rellenado NO se pintan
      * vacios: se caen. Es preferible una politica sin telefono a una que diga
@@ -206,9 +218,10 @@ class PoliticaDatos
                     .'asistencia y expedir tus certificados.',
                 '- Para comunicarnos contigo o con tu acudiente sobre las actividades en las que '
                     .'participas.',
-                '- Para el análisis y el diseño de políticas públicas. Los datos se '
-                    .'usan agregados y anonimizados siempre que el análisis lo permita, y se comparten '
-                    .'con las entidades públicas competentes cuando la ley lo exige o cuando tú lo has '
+                '- Para el análisis estadístico y la planeación de los procesos formativos: saber '
+                    .'quién participa, en qué y con qué continuidad, y decidir con eso la oferta. Los '
+                    .'datos se usan agregados y anonimizados siempre que el análisis lo permita, y se '
+                    .'entregan a las autoridades competentes cuando la ley lo exige o cuando tú lo has '
                     .'autorizado.',
                 '- Para la comunicación y la promoción de los procesos formativos de la '
                     .'institución, usando tu imagen en piezas informativas, redes sociales, '

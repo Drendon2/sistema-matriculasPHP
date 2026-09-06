@@ -60,15 +60,18 @@ class TratamientoDeDatosTest extends TestCase
         // Las dos finalidades del encargo. Si alguna se cae del texto de
         // fabrica, el consentimiento pasa a autorizar algo que la politica no
         // anuncia, y eso no vale.
-        $this->assertStringContainsString('diseño de políticas públicas', $html);
+        $this->assertStringContainsString('análisis estadístico y la planeación', $html);
         $this->assertStringContainsString('uso de tu imagen', $html);
 
-        // Y NINGUN SECTOR. Decia «del sector cultura» y «procesos formativos y
-        // culturales», que es exacto para una casa de la cultura y falso para
-        // cualquier otra institucion: esto se vende a entidades que no son
-        // culturales. Es una prueba de PRODUCTO, no de redaccion.
+        // Y NADA SOBRE QUIEN ES LA ENTIDAD. Decia «politicas publicas del sector
+        // cultura» y «procesos formativos y culturales»: exacto para una casa de
+        // la cultura publica, falso para un colegio privado o una fundacion.
+        // Esto se vende a esas tambien. Es una prueba de PRODUCTO, no de
+        // redaccion — vigila a quien se le puede vender el sistema.
         $this->assertStringNotContainsString('sector cultura', $html);
         $this->assertStringNotContainsString('culturales', $html);
+        $this->assertStringNotContainsString('políticas públicas', $html);
+        $this->assertStringNotContainsString('entidades públicas', $html);
         $this->assertStringContainsString('Ley 1581 de 2012', $html);
     }
 

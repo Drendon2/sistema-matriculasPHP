@@ -252,8 +252,8 @@
       usar y tratar los datos personales, académicos y sociodemográficos
       {{ $esMenor ? 'del menor que represento' : 'que he entregado' }} para la
       gestión de la matrícula y de las actividades formativas, y para el
-      <strong>análisis y el diseño de políticas públicas</strong>,
-      incluyendo su entrega a las entidades públicas competentes para ese fin.
+      <strong>análisis estadístico y la planeación de los procesos formativos</strong>,
+      incluyendo su entrega a las autoridades competentes cuando la ley lo exija.
     </td>
     <td class="marcar">
       <table class="casillas">
