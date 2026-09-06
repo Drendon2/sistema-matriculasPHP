@@ -2592,3 +2592,105 @@
   .pie a:hover { color: var(--accent-dark); }
   .pie-separador { color: var(--border-strong); }
   .pie-entidad { color: var(--ink-soft); }
+
+  /* LAS SESIONES DE UNA ACTIVIDAD EN LA PORTADA DEL PANEL. Nace el 06/09/2026,
+     cuando los cursos y talleres pasaron de estar detras de un boton a estar
+     desplegables como una promotoria.
+
+     Es una LISTA y no una tabla a proposito: son tres datos por renglon —fecha,
+     estado y un enlace— y una tabla aqui heredaria las dos trampas de este
+     proyecto con ellas, la del recorte sin barra por encima de 640px y la del
+     arrastre horizontal en el telefono. Envolviendo, no tiene ninguna.
+
+     El enlace mide 44px de alto porque es el que lleva a pasar lista, que es
+     para lo que se abrio todo esto, y se toca con el pulgar. */
+  .sesiones-rapidas { list-style: none; margin: 0.4rem 0 0; padding: 0; }
+  .sesiones-rapidas li {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    padding: 0.15rem 0;
+    border-top: 1px solid var(--border);
+  }
+  .sesiones-rapidas li:first-child { border-top: 0; }
+  /* SIN ESTA LINEA EL FILTRO DE DIA NO ESCONDE NADA. El atributo `hidden` vale
+     `display: none` porque lo dice la hoja del navegador, y cualquier regla de
+     autor que ponga `display` —el `flex` de aqui arriba— le gana. El guion
+     marcaba las filas como ocultas, `fila.hidden` devolvia true, y en pantalla
+     seguian las seis dias. Se vio en el navegador: la cuenta decia «4 clases»
+     con veintiseis a la vista. */
+  .sesiones-rapidas li[hidden] { display: none; }
+  .sesiones-rapidas-fecha {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    min-width: 6.2rem;
+  }
+  .sesiones-rapidas a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+  }
+
+  /* EL SELECTOR DE DIA de «clases del dia», en la portada del Panel.
+
+     Son ENLACES y no un formulario: funciona sin JavaScript, se puede guardar
+     en marcadores y no anade otro control a una pantalla que ya va cargada.
+
+     El dia que se mira NO es un enlace, y esa es la distincion que lo marca sin
+     depender del color — la misma regla de FORMA que usa el resto del sistema
+     para los estados. Los enlaces miden 44px porque en el telefono son seis
+     objetivos seguidos, que es justo la forma del defecto que ya costo una vez
+     en los catalogos. */
+  .dias-selector {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.5rem;
+    margin: 0.5rem 0 0.2rem;
+  }
+  /* El dia elegido. La regla va DESPUES de `.dias-selector-boton` a proposito:
+     las dos pesan lo mismo —una clase— asi que manda la que aparece la ultima,
+     y escrita antes el boton normal le ganaba el fondo y el estado activo no se
+     veia. Es la misma clase de descuido que ya costo una vez con una consulta
+     de medios que no anadia especificidad. */
+
+  /* El dia por delante de cada clase. Se ve SIEMPRE, tambien con el filtro
+     puesto: es lo que deja la pantalla legible sin JavaScript, cuando los seis
+     dias salen seguidos. */
+  .sesiones-rapidas-dia {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    min-width: 4.6rem;
+  }
+
+  /* Los botones del selector de dia: mismo aspecto que los enlaces que hubo
+     antes, pero son <button> porque no llevan a ninguna parte — filtran lo que
+     ya esta en la pagina. */
+  .dias-selector-boton {
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 0.7rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--accent);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dias-selector-boton:hover { background: var(--accent-soft); color: var(--accent-dark); }
+  .dias-selector-actual {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 700;
+  }
+  .dias-selector-actual:hover { background: var(--accent-dark); color: #fff; }

@@ -145,6 +145,16 @@
   lo que se inserta después. Por eso da igual que vaya detrás de `acciones.js`.
 --}}
 <script src="@recurso('js/ver-clave.js')" defer></script>
+{{--
+  El selector de día de «Clases de la semana», en la portada del Panel. Lo monta
+  este guion y NO la plantilla, igual que el ojo de la contraseña: un selector
+  que filtra sin JavaScript es un control que no hace nada. Sin él se ven los
+  seis días seguidos, que es una pantalla útil.
+
+  Observa el DOM porque la portada del Panel se repinta sin recargar, así que
+  da igual que vaya detrás de `acciones.js`.
+--}}
+<script src="@recurso('js/clases-del-dia.js')" defer></script>
 @stack('scripts')
 </body>
 </html>

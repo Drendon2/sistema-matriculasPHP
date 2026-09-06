@@ -14,16 +14,146 @@
 @include('partials.recordar-encuesta')
 
 {{--
-  El enlace a las actividades se pinta solo si hay alguna a la vista. Mientras
-  la institución no use cursos ni grupos de proyección, lleva a una pantalla
-  vacía y solo estorba.
+  LAS CLASES DE LA SEMANA, con un selector de día que NO pide nada al servidor.
+
+  Lo pidió el usuario el 06/09/2026: «un filtro por día y hora para los grupos,
+  para que lleguen rápido al grupo que le van a dar clase».
+
+  LA PRIMERA VERSIÓN FILTRABA POR `?dia=` Y LA RECHAZÓ, con la razón exacta: «no
+  puede quedar recargando toda la página». Este Panel se apoya en `<details>`
+  abiertos —departamentos, promotorías, actividades— y una navegación los cierra
+  todos: quien estaba mirando una promotoría la perdía a cada cambio de día.
+
+  Así que llega la SEMANA ENTERA y el día se elige en el navegador. Cabe de
+  sobra: son los grupos de quien mira con su horario, sin un solo matriculado.
+
+  EL SELECTOR LO CREA `clases-del-dia.js` Y NO ESTA PLANTILLA, igual que el ojo
+  de la contraseña y por la misma razón: un selector que filtra sin JavaScript es
+  un control que no hace nada. Sin él se ven las seis días seguidos, cada renglón
+  con el suyo delante, que es una pantalla útil y no una rota.
 --}}
-@if ($cuantasActividades)
-<p>
-  <a class="btn btn-blanco btn-sm" href="{{ route('panel-actividades') }}">
-    Cursos, talleres y grupos de proyección ({{ $cuantasActividades }})
-  </a>
-</p>
+@if ($clasesDeLaSemana !== [])
+<details class="panel-departamento" id="bloque-clases-dia"
+         data-clases-dia
+         data-hoy="{{ $diaDeHoy }}">
+  <summary class="panel-departamento-resumen">
+    Clases de la semana
+    <span class="panel-departamento-cuenta" data-clases-cuenta>
+      {{ count($clasesDeLaSemana) }} {{ count($clasesDeLaSemana) == 1 ? 'clase' : 'clases' }}
+    </span>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  <ul class="sesiones-rapidas" data-clases-lista>
+    @foreach ($clasesDeLaSemana as $fila)
+    <li data-dia="{{ $fila['dia'] }}">
+      <span class="sesiones-rapidas-dia">{{ $diasDeClase[$fila['dia']] ?? '' }}</span>
+      <span class="sesiones-rapidas-fecha">{{ $fila['sesion']->inicio_display }}</span>
+      <span class="tag-dot {{ $fila['grupo']->promotoria->area->tag_color }}"></span>
+      <span>{{ $fila['grupo']->promotoria->nombre }} · {{ $fila['grupo']->nombre_con_nivel }}</span>
+      @if ($fila['grupo']->salon)
+        <span class="campo-info" style="margin:0;">{{ $fila['grupo']->salon }}</span>
+      @endif
+      <a href="{{ route('grupo-clases', $fila['grupo']) }}">clases</a>
+    </li>
+    @endforeach
+  </ul>
+
+  {{-- Solo se ve cuando el filtro deja la lista vacía; lo enseña el guion. --}}
+  <p class="vacio" data-clases-vacio hidden style="margin:0.5rem 0;">
+    No hay ninguna clase ese día.
+  </p>
+</details>
+@endif
+
+{{--
+  CURSOS, TALLERES Y GRUPOS DE PROYECCIÓN, con sus clases dentro.
+
+  Hasta el 06/09/2026 esto era un botón suelto que llevaba a otra pantalla, y
+  desde ahí había que entrar a la actividad y buscar la sesión: tres pantallas
+  para llegar a pasar lista, cuando un grupo de promotoría tiene su enlace
+  «clases» a un clic dentro de la promotoría desplegada. Lo pidió el usuario con
+  esas palabras — que fuera «como los grupos de las promotorías».
+
+  Se pinta solo si hay alguna a la vista: mientras la institución no use cursos
+  ni grupos de proyección, esto no es más que ruido en la pantalla más usada.
+
+  Misma forma que un departamento y por la misma razón: plegado no puede
+  significar escondido, así que el resumen dice cuántas hay. Y el `id` no es
+  decorativo — `acciones.js` reabre los `<details>` que lo llevan después de
+  repintar, y esta portada se repinta entera con cada acción del Panel.
+--}}
+@if ($actividades->isNotEmpty())
+<details class="panel-departamento" id="bloque-actividades">
+  <summary class="panel-departamento-resumen">
+    Cursos, talleres y grupos de proyección
+    <span class="panel-departamento-cuenta">
+      {{ $actividades->count() }} {{ $actividades->count() == 1 ? 'en total' : 'en total' }}
+    </span>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  @foreach ($actividades as $actividad)
+  {{--
+    Cada una se despliega como una promotoría, y dentro están sus clases. El
+    cuerpo viene YA PUESTO y no por `data-cuerpo` como el de una promotoría: lo
+    que hay aquí son unas pocas sesiones con su fecha, no la lista de
+    matriculados de nadie — o sea, nada que crezca con los estudiantes, que es
+    la razón por la que aquel se pide aparte.
+  --}}
+  <details class="panel-item" id="actividad-{{ $actividad->id }}">
+    <summary class="panel-item-resumen">
+      {{ $actividad->nombre }}
+      <span class="tipo-chip">{{ $actividad->etiquetaTipo() }}</span>
+      <span class="panel-departamento-cuenta">
+        {{ $actividad->inscritos_count }} {{ $actividad->inscritos_count == 1 ? 'inscrito' : 'inscritos' }}
+      </span>
+      <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </summary>
+
+    <div class="panel-item-cuerpo">
+      @if ($actividad->sesiones->isEmpty())
+        <p class="vacio" style="margin:0.6rem 0;">
+          @if ($actividad->llevaFechas())
+            Todavía no tiene fechas. Las pone dirección, en Gestión → Cursos y talleres.
+          @else
+            Todavía no se ha hecho ningún {{ $actividad->etiquetaSesion() }}.
+          @endif
+        </p>
+      @else
+      <ul class="sesiones-rapidas">
+        @foreach ($actividad->sesiones as $sesion)
+        <li>
+          <span class="sesiones-rapidas-fecha">{{ $sesion->fecha->format('d/m/Y') }}</span>
+          @if ($sesion->yaEmpezo())
+            <span class="estado estado-activa">Iniciada</span>
+            {{--
+              La lista se ofrece a todo el que ve la pantalla y no solo a quien
+              dirige: dirección la abre en solo lectura, que es exactamente
+              para lo que entra. Misma regla que en la ficha de la actividad.
+            --}}
+            <a href="{{ route('panel-actividad-lista', $sesion) }}">ver la lista</a>
+          @else
+            <span class="estado estado-pendiente">Sin iniciar</span>
+          @endif
+        </li>
+        @endforeach
+      </ul>
+      @endif
+
+      <p class="accion-fila" style="margin:0.7rem 0 0.2rem;">
+        <a class="btn btn-blanco btn-sm" href="{{ route('panel-actividad', $actividad) }}">
+          Abrir {{ $actividad->nombre }}
+        </a>
+      </p>
+    </div>
+  </details>
+  @endforeach
+
+  <p style="margin:0.9rem 0 0.2rem;">
+    <a href="{{ route('panel-actividades') }}">Ver la lista completa</a>
+  </p>
+</details>
 @endif
 
 @if ($promotorias->isEmpty())

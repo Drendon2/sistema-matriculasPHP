@@ -13,6 +13,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Models\SesionGrupo;
 use App\Support\Fragmento;
 use App\Support\Permisos;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -65,6 +67,67 @@ class PanelController extends Controller
      *
      * @return array<string, mixed>
      */
+    /**
+     * TODAS las clases de la semana, ordenadas por dia y hora.
+     *
+     * ─── Por que existe ────────────────────────────────────────────────────
+     *
+     * Lo pidio el usuario el 06/09/2026: «un filtro por dia y hora para los
+     * grupos, para que lleguen rapido al grupo que le van a dar clase». Antes
+     * habia que acordarse de en que promotoria estaba el grupo, desplegarla y
+     * buscarlo entre los suyos.
+     *
+     * ─── POR QUE VIENE LA SEMANA ENTERA Y NO EL DIA QUE SE MIRA ────────────
+     *
+     * La primera version filtraba por `?dia=` y cada cambio de dia era una
+     * NAVEGACION. El usuario lo rechazo con la razon exacta: «no puede quedar
+     * recargando toda la pagina», porque al volver la portada llega con todos
+     * los desplegables cerrados y quien estaba mirando una promotoria la
+     * pierde. Este Panel se apoya en `<details>` abiertos —departamentos,
+     * promotorias, actividades— y una recarga los cierra todos.
+     *
+     * Asi que se manda la semana entera UNA vez y el dia se elige en el
+     * navegador, sin pedir nada. Cabe de sobra: son los grupos de quien mira
+     * con su horario, sin un solo matriculado — lo unico que crece con los
+     * estudiantes.
+     *
+     * @return list<array{dia: int, grupo: Grupo, sesion: SesionGrupo}>
+     */
+    private function clasesDeLaSemana(Perfil $perfil): array
+    {
+        $grupos = Grupo::query()
+            ->whereIn('promotoria_id', $this->visiblesPara($perfil)->select('promotorias.id'))
+            ->whereHas('sesiones')
+            ->with(['promotoria.area', 'sesiones'])
+            ->get();
+
+        $clases = [];
+
+        foreach ($grupos as $grupo) {
+            foreach ($grupo->sesiones as $sesion) {
+                // Anotada por lo mismo que sus vecinas de este archivo y de
+                // `InformeController`: la relacion no lleva tipo y la sesion
+                // llega como un `Model` cualquiera, sin dia ni hora para el
+                // analizador. Ponerle el tipo a la relacion seria lo correcto y
+                // destapa seis avisos ajenos a esto —comprobado—, o sea otra
+                // tarea.
+                /** @var SesionGrupo $sesion */
+                $clases[] = [
+                    'dia' => (int) $sesion->dia,
+                    'grupo' => $grupo,
+                    'sesion' => $sesion,
+                ];
+            }
+        }
+
+        // Por dia y, dentro del dia, por hora: es el orden en que se vive la
+        // semana, y el que hace que «que me toca ahora» se lea de un vistazo.
+        usort($clases, fn (array $a, array $b) => [$a['dia'], $a['sesion']->hora_inicio]
+            <=> [$b['dia'], $b['sesion']->hora_inicio]);
+
+        return $clases;
+    }
+
     private function datosDelIndice(Perfil $perfil): array
     {
         $promotorias = $this->visiblesPara($perfil)
@@ -106,16 +169,47 @@ class PanelController extends Controller
                 return $area->nombre;
             }),
             'pendientes' => $pendientes,
-            // Cuantos cursos, talleres o grupos de proyeccion tiene a la vista.
-            // Se cuenta para decidir si el enlace se pinta: mientras no haya
-            // ninguno, lleva a una pantalla vacia y solo estorba. Es un COUNT
-            // sin filas, no el listado.
-            'cuantasActividades' => Actividad::query()
+            // LOS CURSOS, TALLERES Y GRUPOS DE PROYECCION, con sus sesiones.
+            //
+            // Aqui habia un COUNT a proposito —«sin filas, no el listado»— y se
+            // cambia sabiendo lo que costaba. La razon es de uso: a la
+            // asistencia de una actividad NO SE LLEGABA. Un grupo de promotoria
+            // tiene su enlace «clases» dentro de la promotoria desplegada; una
+            // actividad estaba detras de un boton suelto y a dos pantallas mas
+            // —lista, ficha, sesion—. Palabras del usuario el 06/09/2026: «desde
+            // el perfil de administrador no se puede ingresar facilmente», y
+            // pidio que fuera «como los grupos de las promotorias».
+            //
+            // EL COSTE ES CONSTANTE, que es lo que importa aqui: dos consultas
+            // —las actividades y sus sesiones— que no crecen con los
+            // estudiantes ni con las matriculas, que es lo que si crece en esta
+            // pantalla. No se cargan los INSCRITOS de cada sesion, que es lo
+            // unico que si crecería; para eso esta la ficha.
+            'actividades' => Actividad::query()
                 ->when(
                     ! in_array($perfil->rol, ['director', 'administrador'], true),
                     fn ($q) => $q->where('responsable_id', $perfil->id)
                 )
-                ->count(),
+                ->withCount('inscritos')
+                // Ordenadas como se van a pintar: las mas recientes primero
+                // dentro de cada actividad, que es la sesion a la que se va.
+                ->with(['sesiones' => fn ($q) => $q->orderByDesc('fecha')])
+                ->orderBy('nombre')
+                ->get(),
+            // LA SEMANA ENTERA, y el dia se elige en el navegador. Ver
+            // `clasesDeLaSemana()`.
+            'clasesDeLaSemana' => $this->clasesDeLaSemana($perfil),
+            // El dia de HOY, para que el selector arranque ahi. Nulo el
+            // domingo, que la casa no abre: entonces se ven los seis dias.
+            'diaDeHoy' => (int) Carbon::today()->dayOfWeekIso <= 6
+                ? (int) Carbon::today()->dayOfWeekIso
+                : null,
+            'diasDeClase' => SesionGrupo::DIAS,
+            // Abierta para QUIEN DICTA, plegada para direccion. La pidio un
+            // profesor para llegar rapido a su clase, y ahi es lo primero que
+            // se viene a ver; un director tiene cuarenta clases en un dia y eso
+            // desplazaria las promotorias fuera de la pantalla.
+            'abrirClasesDelDia' => $perfil->rol === 'profesor',
         ];
     }
 
