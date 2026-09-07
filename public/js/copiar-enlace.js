@@ -95,9 +95,17 @@
       if (bien) {
         avisar(boton, "¡Copiado!");
       } else {
-        // Ni el portapapeles ni el respaldo. Se deja el enlace MARCADO: quien
-        // llegue hasta aqui al menos se ahorra la parte dificil en un celular,
-        // que es acertar con los dos extremos de la seleccion.
+        // Ni el portapapeles ni el respaldo. Se DESTAPA el campo y se deja el
+        // enlace MARCADO: quien llegue hasta aqui al menos se ahorra la parte
+        // dificil en un celular, que es acertar con los dos extremos de la
+        // seleccion.
+        //
+        // Destaparlo es lo que hace honesto plegarlo. En la lista de
+        // actividades el campo va escondido —la URL entera en cada fila era lo
+        // que mas pesaba de esa pantalla— y sin esta linea el respaldo marcaba
+        // un texto invisible: el boton diria «Copia a mano» sin que hubiera
+        // nada que copiar a mano.
+        fila.classList.remove("enlace-fila-plegada");
         marcar(campo);
         avisar(boton, "Copia a mano");
       }
@@ -114,7 +122,9 @@
       var boton = document.createElement("button");
       boton.type = "button";
       boton.className = "btn btn-blanco btn-sm enlace-boton";
-      boton.textContent = "Copiar";
+      // «Copiar enlace» y no «Copiar» donde el campo va plegado: sin la URL
+      // delante, «Copiar» a secas no dice copiar QUE.
+      boton.textContent = fila.hasAttribute("data-enlace-plegado") ? "Copiar enlace" : "Copiar";
       boton.setAttribute("data-copiar-enlace", "");
       // El campo ya trae su <label> oculto con el nombre de la actividad; el
       // boton lo reutiliza para no decir «Copiar» trece veces seguidas a un

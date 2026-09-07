@@ -2694,3 +2694,33 @@
     font-weight: 700;
   }
   .dias-selector-actual:hover { background: var(--accent-dark); color: #fff; }
+
+  /* EL CAMPO DEL ENLACE, PLEGADO. En la lista de actividades la URL entera se
+     repetia en cada fila y era lo que mas pesaba en esa pantalla; el boton de
+     copiar es lo que se usa. Solo se pliega ahi: en la ficha de la actividad y
+     en el enlace de registro de Usuarios el campo ES el contenido.
+
+     Se esconde con la misma tecnica que `.sr-solo` y NO con `display:none`, y
+     esa diferencia es la funcion entera: el respaldo de `copiar-enlace.js`
+     necesita poder marcar el texto cuando el portapapeles falla, y sobre un
+     elemento sin caja `select()` no marca nada. Ahi el guion le quita la clase
+     y el campo aparece. */
+  .enlace-fila-plegada .enlace-copiable {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  /* SE QUEDA EN BLOQUE, no en linea. Con `inline-flex` el boton se pegaba
+     detras del nombre en las filas sin nota de fechas y bajaba a su propio
+     renglon en las que si la tienen: la misma lista con el boton en dos sitios
+     distintos segun el contenido de la fila, que es justo lo que hace que una
+     lista no se pueda recorrer con la vista. En bloque empieza siempre renglon,
+     y el `max-width` de la fila base deja de importar porque dentro ya solo hay
+     un boton, que trae su ancho. Se vio comparando las dos secciones. */
+  .enlace-fila-plegada { max-width: none; }

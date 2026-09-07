@@ -119,6 +119,76 @@ class MenuDeFilaTest extends TestCase
     }
 
     /**
+     * CADA OPCION DICE DE QUE FILA ES, y no solo el boton que las abre.
+     *
+     * El <summary> ya llevaba «Acciones de X» y con el menu cerrado eso basta.
+     * Abierto, quien recorre la pantalla por sus controles --que es como se
+     * navega con un lector-- oye «Editar» tantas veces como filas haya, todas
+     * iguales y ninguna diciendo de que. Medido el 06/09/2026 en Programas
+     * formativos: nueve «Editar» y cuatro «Eliminar» identicos.
+     *
+     * EL TEXTO VISIBLE VA ENTERO Y DE PRIMERO dentro del nombre accesible. No
+     * es adorno: el criterio 2.5.3 de WCAG existe para que quien dicta por voz
+     * pueda decir lo que LEE, y un nombre que reescriba la palabra --«Modificar
+     * el departamento Musica» sobre un boton que pone «Editar»-- deja ese
+     * control sin forma de alcanzarlo. Por eso se CONCATENA.
+     *
+     * Vale para los seis catalogos, Programas y Usuarios de una vez, porque
+     * todos pasan por el mismo parcial.
+     */
+    public function test_cada_opcion_del_menu_dice_de_que_fila_es(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        $panel = $this->panel($html);
+
+        $this->assertStringContainsString('aria-label="Editar: Musica"', $panel);
+        $this->assertStringContainsString('aria-label="Eliminar: Musica"', $panel);
+    }
+
+    /**
+     * Y el nombre accesible CONTIENE el visible, en todo el menu.
+     *
+     * Esta es la mitad que se rompe sola: nombrar la fila es facil y hacerlo
+     * sin partir la palabra que se lee es lo que se olvida. El mismo dia se
+     * escribio «Cerrar el enlace de X» sobre un boton que pone «Cerrar
+     * enlace», y ese control se quedo fuera del alcance de la voz sin que nada
+     * fallara.
+     */
+    public function test_el_nombre_accesible_contiene_el_texto_que_se_lee(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        preg_match_all(
+            '#<(?:a|button)[^>]*aria-label="([^"]+)"[^>]*>\s*([^<]+?)\s*</(?:a|button)>#',
+            $html,
+            $controles,
+            PREG_SET_ORDER
+        );
+
+        $this->assertNotEmpty($controles, 'la sonda no encontró ningún control con nombre accesible.');
+
+        foreach ($controles as [, $accesible, $visible]) {
+            $limpio = trim(html_entity_decode($visible));
+
+            // Los simbolos decorativos no son texto: «+ Nuevo» se lee «Nuevo».
+            $limpio = trim((string) preg_replace('/[^\p{L}\p{N} ]+/u', ' ', $limpio));
+
+            if ($limpio === '') {
+                continue;
+            }
+
+            $this->assertStringContainsStringIgnoringCase(
+                $limpio,
+                html_entity_decode($accesible),
+                "«{$accesible}» no contiene «{$limpio}»: quien dicta por voz no alcanza ese control."
+            );
+        }
+    }
+
+    /**
      * La linea mas fragil. Ver la cabecera de esta clase.
      */
     public function test_el_menu_no_lleva_id(): void

@@ -91,7 +91,7 @@ class DocumentoAligeradoTest extends TestCase
      */
     public function test_el_pdf_pesa_mucho_menos_que_la_foto(): void
     {
-        $foto = $this->foto(4000, 3000);
+        $foto = $this->foto(3000, 2250);
         $pesoOriginal = strlen((string) file_get_contents($foto->getRealPath()));
 
         $this->subir($foto);
@@ -108,7 +108,7 @@ class DocumentoAligeradoTest extends TestCase
     /** La imagen se reduce a 2000 px de lado mayor, ni mas ni menos. */
     public function test_la_imagen_se_acota_al_lado_maximo(): void
     {
-        $this->subir($this->foto(4000, 3000));
+        $this->subir($this->foto(3000, 2250));
 
         [$ancho, $alto] = $this->medidasDentroDelPdf($this->rutaGuardada());
 
@@ -372,11 +372,21 @@ class DocumentoAligeradoTest extends TestCase
      * El ruido no es adorno: una imagen de un solo color se comprime a casi
      * nada y la prueba del ahorro pasaria por la razon equivocada.
      *
-     * Y la DENSIDAD tampoco: con un pixel de cada doce, una de 4000x3000 salia
+     * Y la DENSIDAD tampoco: con un pixel de cada doce, una de 3000x2250 salia
      * de 9 MB y la rechazaba la propia validacion de subida —«no puede pesar
      * mas de 8192 kilobytes»—, o sea que la prueba fallaba antes de llegar a
      * lo que queria probar. Uno de cada sesenta se parece mas a una foto de
      * celular de verdad, que son de 3 a 5 MB.
+     *
+     * EL TAMANO NO SE SUBE. Un lienzo truecolor ocupa cuatro bytes por pixel
+     * —3000x2250 son 27 MB— y la conversion tiene DOS vivos a la vez. Aislada,
+     * una de 4000x3000 medida el 06/09/2026 picaba en 70 MB; dentro de la suite
+     * completa, sobre lo que el proceso ya lleva gastado, agotaba los 128 MB de
+     * PHP y tumbaba tres pruebas de este archivo. Y no fallaba sola: aislada
+     * pasa, asi que quien la suba lo vera en verde y lo descubrira otro.
+     *
+     * 3000 sigue estando por encima de LADO_MAXIMO, que es lo unico que estas
+     * pruebas necesitan del tamano.
      */
     private function foto(int $ancho, int $alto): UploadedFile
     {

@@ -100,6 +100,78 @@ class ProgramasFormativosTest extends TestCase
     }
 
     /**
+     * SE ENTRA A CADA COSA DESDE SU NOMBRE, tambien a un curso, un taller o un
+     * grupo de proyeccion.
+     *
+     * Lo pidio el usuario el 06/09/2026: «seria bueno que en la seccion de
+     * programas formativos sea posible ingresar a cada curso, taller o grupo de
+     * proyeccion desde el nombre». Los departamentos ya lo hacian --son la raiz
+     * del arbol-- y las actividades no, asi que en la misma pantalla el nombre
+     * era unas veces una puerta y otras un texto muerto: quien aprendia a
+     * pulsarlo arriba lo intentaba abajo y no pasaba nada.
+     *
+     * Se comprueba el ENLACE y no la palabra, que ya la vigila la prueba de
+     * arriba: el nombre puede estar impreso y no llevar a ningun sitio, que es
+     * exactamente lo que pasaba.
+     */
+    public function test_se_entra_a_una_actividad_desde_su_nombre(): void
+    {
+        $curso = Actividad::create([
+            'tipo' => Actividad::CURSO, 'nombre' => 'Iniciación a la guitarra',
+            'responsable_id' => $this->admin->id, 'abierta' => true,
+        ]);
+
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            '<a href="'.route('panel-actividad', $curso).'">Iniciación a la guitarra</a>',
+            $html,
+            'el nombre de la actividad no es una puerta: se lee y no lleva a ningun sitio.'
+        );
+    }
+
+    /**
+     * LAS TRES SECCIONES SON REGIONES CON NOMBRE.
+     *
+     * Es una pantalla de tres listas seguidas y sin esto un lector de pantalla
+     * las anuncia como una sola: quien no ve la pantalla no tiene forma de
+     * saltar a «Cursos y talleres» ni de saber en cual esta. No cambia un solo
+     * pixel, asi que quien lo quite creyendo que sobra no rompera nada que el
+     * vaya a mirar --- que es por lo que existe esta prueba.
+     */
+    public function test_cada_seccion_es_una_region_con_nombre(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        foreach (['departamentos', 'cursos', 'proyeccion'] as $seccion) {
+            $this->assertStringContainsString(
+                'aria-labelledby="seccion-'.$seccion.'"',
+                $html,
+                "la sección {$seccion} dejó de ser una región con nombre."
+            );
+            $this->assertStringContainsString('id="seccion-'.$seccion.'"', $html);
+        }
+    }
+
+    /**
+     * Los tres «+ Nuevo» se distinguen entre si.
+     *
+     * Visualmente los separa el titulo que tienen encima; recorridos por sus
+     * controles son tres enlaces con el mismo texto y destinos distintos.
+     */
+    public function test_los_tres_nuevo_no_se_llaman_igual(): void
+    {
+        $html = $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('aria-label="Nuevo departamento"', $html);
+        $this->assertStringContainsString('aria-label="Nuevo curso o taller"', $html);
+        $this->assertStringContainsString('aria-label="Nuevo grupo de proyección"', $html);
+    }
+
+    /**
      * El árbol se recorre desde aquí, y las dos listas planas se alcanzan por
      * un enlace: la de grupos es el único sitio donde se filtra por profesor, y
      * por el árbol se llega a los grupos de UNA promotoría.

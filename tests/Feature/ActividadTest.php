@@ -115,7 +115,16 @@ class ActividadTest extends TestCase
         foreach ([route('panel-actividad', $taller), route('actividad-curso-lista')] as $url) {
             $html = $this->actingAs($this->admin->user)->get($url)->assertOk()->getContent();
 
-            $this->assertStringContainsString('class="enlace-fila"', $html, "Falta el envoltorio en {$url}");
+            // La clase, no el atributo entero: desde el 06/09/2026 puede
+            // llevar al lado `enlace-fila-plegada`, que esconde el campo hasta
+            // que se pulsa. Fijar `class="enlace-fila"` clavaba tambien lo que
+            // NO puede acompaniarla, y esta prueba se puso roja por un cambio
+            // que no rompia nada de lo que dice vigilar.
+            $this->assertMatchesRegularExpression(
+                '#class="enlace-fila[ "]#',
+                $html,
+                "Falta el envoltorio en {$url}"
+            );
             $this->assertMatchesRegularExpression('#js/copiar-enlace\.js\?v=\d+#', $html, "Falta el script en {$url}");
             $this->assertStringContainsString($taller->enlace(), $html);
         }

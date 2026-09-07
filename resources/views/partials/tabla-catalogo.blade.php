@@ -49,6 +49,15 @@
   posición de la celda no es el dato, así que la regla del DESIGN.md se cumple.
 --}}
 <table class="tabla-personas tabla-catalogo tabla-menu-esquina">
+  {{--
+    CABECERA OCULTA. Esta tabla no la enseña —sus filas son una frase, no campos
+    etiquetados— pero sin ninguna se anuncia como «tabla de 2 columnas» sin
+    decir de qué, que es lo que oye quien la recorre con un lector de pantalla.
+    Va en `.sr-solo` y no se pinta en ningún ancho.
+  --}}
+  <thead class="sr-solo">
+    <tr><th scope="col">Nombre</th><th scope="col">Acciones</th></tr>
+  </thead>
   <tbody>
     @foreach ($objetos as $fila)
     @php($obj = $fila['objeto'])
@@ -59,9 +68,20 @@
         @if ($etiquetaPlural && $fila['hijos'] !== null)
           <span class="lista-nota">— {{ $fila['hijos'] }} {{ $fila['hijos'] == 1 ? $etiquetaSingular : $etiquetaPlural }}</span>
         @endif
-        @if ($fila['protegido'])
-          <span class="lista-nota">· {{ $fila['protegido'] }} {{ $etiquetaProtegido }} en historial</span>
-        @endif
+        {{--
+          AQUÍ IBA «· N registros en historial» y se quitó el 06/09/2026, a
+          petición del usuario. Decía la misma cifra dos veces en el mismo
+          renglón —«Danza — 4 promotorías · 4 promotorías en historial»— y las
+          dos casi siempre coinciden, así que informaba menos de lo que
+          estorbaba en una pantalla de la que dijo que tenía demasiada
+          información.
+
+          NO SE PIERDE EL DATO, y por eso se pudo quitar: lo que ese número
+          significaba de verdad es que este registro NO se puede borrar, y eso
+          lo dice la opción «Eliminar» del menú, que sale apagada y con su
+          porqué en el `title`. Si algún día esa opción dejara de explicarse,
+          este renglón hay que devolverlo.
+        --}}
         {{--
           Quién dicta, en su propio renglón: esta lista es la de un catálogo y en
           ella "sin asignar" no es un hueco cosmético — es la promotoría en la

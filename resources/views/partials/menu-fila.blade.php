@@ -16,8 +16,17 @@
     borrar .... si es la acción destructiva (se pinta en rojo)
     porque .... el `title` de una opción apagada, que dice por qué no se puede
 
-  Y `$etiqueta`, para que un lector de pantalla no oiga «botón» catorce veces
-  seguidas sin saber de cuál fila es.
+  Y `$etiqueta`, para que un lector de pantalla no oiga «boton» catorce veces
+  seguidas sin saber de cual fila es.
+
+  LA ETIQUETA VA TAMBIEN EN CADA OPCION, y no solo en el boton que las abre. El
+  <summary> nombra la fila mientras esta cerrado; una vez abierto, quien recorre
+  la pantalla por sus controles —que es como se navega con un lector— se
+  encuentra «Editar» nueve veces y «Eliminar» cuatro, todas iguales y ninguna
+  diciendo de que. El texto visible se conserva ENTERO y de primero dentro del
+  nombre accesible («Editar: Taller de ceramica»): esa es la condicion del
+  criterio 2.5.3 de WCAG, que exige que quien dicta por voz pueda decir lo que
+  LEE. Por eso se concatena y no se reescribe.
 
   LO QUE CAMBIA DATOS VA EN UN FORMULARIO, no en un enlace, y no es purismo:
   «Desactivar» de Usuarios apaga una cuenta. Un GET que cambia algo lo dispara
@@ -65,10 +74,12 @@
         <form method="post" action="{{ $opcion['url'] }}"
               @if (! empty($opcion['recarga'])) data-recarga-completa @endif>
           @csrf
-          <button type="submit" @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])>{{ $opcion['texto'] }}</button>
+          <button type="submit" aria-label="{{ $opcion['texto'] }}: {{ $etiqueta }}"
+                  @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])>{{ $opcion['texto'] }}</button>
         </form>
       @else
         <a href="{{ $opcion['url'] }}"
+           aria-label="{{ $opcion['texto'] }}: {{ $etiqueta }}"
            @class(['menu-fila-borrar' => ! empty($opcion['borrar'])])
            @if (! empty($opcion['modal'])) data-modal @endif>{{ $opcion['texto'] }}</a>
       @endif
