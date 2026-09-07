@@ -179,6 +179,48 @@ class ClasesDelDiaTest extends TestCase
     }
 
     /**
+     * A DIRECCIÓN NO SE LE PINTA: no dicta, no tiene clases que buscar.
+     *
+     * Es la corrección del 06/09/2026 y la razón por la que este bloque se
+     * acota por `profesor_id` y no por lo que cada quien puede VER. Con
+     * `visiblesPara()` un director se encontraba encima las clases de la casa
+     * entera —en producción, 199 sesiones medidas— sobre la pantalla más usada
+     * del sistema. Palabras del usuario: «no sirve de nada... eso sirve para
+     * los profesores».
+     */
+    public function test_a_quien_no_dicta_no_se_le_pinta_el_bloque(): void
+    {
+        $this->grupoConClase('Violín', 'A', dia: 1, hora: '08:00');
+
+        $admin = $this->perfil('jefa', 'administrador');
+        $directora = $this->perfil('dire', 'director');
+
+        $this->assertStringNotContainsString('bloque-clases-dia', $this->panel($admin));
+        $this->assertStringNotContainsString('bloque-clases-dia', $this->panel($directora));
+    }
+
+    /**
+     * PERO UN DIRECTOR QUE DICTA SÍ, y solo con LAS SUYAS.
+     *
+     * Este proyecto ya contempla ese caso en otras dos pantallas —un director
+     * que además dicta—, y por eso el corte va por el vínculo y no por el rol:
+     * con `rol === 'profesor'` se le habría escondido a quien sí lo necesita.
+     */
+    public function test_un_director_que_dicta_ve_solo_las_suyas(): void
+    {
+        $directora = $this->perfil('dire', 'director');
+
+        $this->grupoConClase('Violín', 'Suya', dia: 1, hora: '08:00', profesor: $directora);
+        $this->grupoConClase('Trompeta', 'Ajena', dia: 1, hora: '09:00', profesor: $this->otro);
+
+        $html = $this->panel($directora);
+
+        $this->assertStringContainsString('bloque-clases-dia', $html);
+        $this->assertStringContainsString('Suya', $html);
+        $this->assertStringNotContainsString('Ajena', $html, 'un director vio las clases de otro.');
+    }
+
+    /**
      * SIN NINGÚN HORARIO no se pinta el bloque.
      *
      * La portada del Panel es la pantalla más usada del sistema; una sección

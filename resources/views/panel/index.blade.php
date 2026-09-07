@@ -121,8 +121,16 @@
           @endif
         </p>
       @else
+      {{--
+        SOLO LAS OCHO MÁS RECIENTES. El bloque de una actividad va plegado, así
+        que esto no se ve hasta que alguien lo abre — pero el HTML viaja igual,
+        y una institución con veinte cursos de veinte sesiones metería
+        cuatrocientos renglones en la pantalla más usada del sistema. Ocho es lo
+        que se mira: a las clases viejas se va por la ficha, que está abajo.
+      --}}
+      @php($ultimas = $actividad->sesiones->take(8))
       <ul class="sesiones-rapidas">
-        @foreach ($actividad->sesiones as $sesion)
+        @foreach ($ultimas as $sesion)
         <li>
           <span class="sesiones-rapidas-fecha">{{ $sesion->fecha->format('d/m/Y') }}</span>
           @if ($sesion->yaEmpezo())
@@ -139,6 +147,11 @@
         </li>
         @endforeach
       </ul>
+      @if ($actividad->sesiones->count() > $ultimas->count())
+        <p class="campo-info" style="margin:0.4rem 0 0;">
+          Y {{ $actividad->sesiones->count() - $ultimas->count() }} más. Están todas en la ficha.
+        </p>
+      @endif
       @endif
 
       <p class="accion-fila" style="margin:0.7rem 0 0.2rem;">

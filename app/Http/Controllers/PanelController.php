@@ -77,6 +77,12 @@ class PanelController extends Controller
      * habia que acordarse de en que promotoria estaba el grupo, desplegarla y
      * buscarlo entre los suyos.
      *
+     * ─── Y POR QUE SOLO LO DE QUIEN DICTA ──────────────────────────────────
+     *
+     * Ver el comentario de la consulta. En resumen: para direccion serian las
+     * 199 sesiones de la casa, que no las lee nadie; para quien dicta son las
+     * suyas, que son pocas y es justo lo que se vino a buscar.
+     *
      * ─── POR QUE VIENE LA SEMANA ENTERA Y NO EL DIA QUE SE MIRA ────────────
      *
      * La primera version filtraba por `?dia=` y cada cambio de dia era una
@@ -95,8 +101,23 @@ class PanelController extends Controller
      */
     private function clasesDeLaSemana(Perfil $perfil): array
     {
+        // SOLO LO QUE DICTA ESTA PERSONA, y no lo que puede VER.
+        //
+        // Es la diferencia entera de este bloque, y la primera version la tenia
+        // mal: usaba `visiblesPara()`, que para direccion son TODAS las
+        // promotorias de la casa. En produccion eso son 199 sesiones de golpe
+        // —medidas— encima de la pantalla mas usada del sistema, y ningun
+        // director va a leer eso buscando nada. Palabras del usuario: «en el
+        // panel de administrador o director no sirve de nada... eso sirve para
+        // los profesores, que si necesitan revisar sus clases por dia».
+        //
+        // Se acota por `profesor_id` y no por ROL a proposito: un director que
+        // ademas dicta —caso que este proyecto ya contempla en otras dos
+        // pantallas— ve las SUYAS y solo esas, que son pocas y le sirven. Y
+        // quien no dicta nada no ve el bloque, porque se queda vacio y la vista
+        // no lo pinta.
         $grupos = Grupo::query()
-            ->whereIn('promotoria_id', $this->visiblesPara($perfil)->select('promotorias.id'))
+            ->whereIn('promotoria_id', Promotoria::where('profesor_id', $perfil->id)->select('id'))
             ->whereHas('sesiones')
             ->with(['promotoria.area', 'sesiones'])
             ->get();
@@ -205,11 +226,12 @@ class PanelController extends Controller
                 ? (int) Carbon::today()->dayOfWeekIso
                 : null,
             'diasDeClase' => SesionGrupo::DIAS,
-            // Abierta para QUIEN DICTA, plegada para direccion. La pidio un
-            // profesor para llegar rapido a su clase, y ahi es lo primero que
-            // se viene a ver; un director tiene cuarenta clases en un dia y eso
-            // desplazaria las promotorias fuera de la pantalla.
-            'abrirClasesDelDia' => $perfil->rol === 'profesor',
+            // ABIERTA SIEMPRE que se pinte, porque ya solo se pinta a quien
+            // dicta y son sus pocas clases. Estuvo condicionada al rol
+            // 'profesor' mientras el bloque le salia tambien a direccion con la
+            // casa entera dentro; acotada la consulta, esa condicion sobraba y
+            // encima dejaba plegado al director que si dicta.
+            'abrirClasesDelDia' => true,
         ];
     }
 
