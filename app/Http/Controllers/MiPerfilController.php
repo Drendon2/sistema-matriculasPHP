@@ -149,7 +149,14 @@ class MiPerfilController extends Controller
     {
         $request->validate([
             'foto_perfil' => ['required', 'image', 'mimes:'.implode(',', self::IMAGENES), 'max:8192', new ImagenProcesable],
-        ], [], ['foto_perfil' => 'foto de perfil']);
+        ], [
+            // El de Laravel dice «no debe ser mayor que 8192 kilobytes», que en
+            // un telefono no le dice nada a nadie. El tope por MEGAPIXELES —que
+            // es otro y ataja lo que este no ve— lo explica `ImagenProcesable`.
+            'foto_perfil.max' => 'La foto pesa demasiado. El máximo son 8 MB: '
+                .'tómala con menos resolución desde los ajustes de la cámara, '
+                .'o envía una copia más pequeña.',
+        ], ['foto_perfil' => 'foto de perfil']);
 
         // Se convierte a WebP, se endereza y se acota antes de tocar el disco
         // (ver `Imagen`). Es una diferencia deliberada con el original, que
@@ -376,9 +383,23 @@ class MiPerfilController extends Controller
 
         $request->validate([
             'documento_id' => ['required', Rule::exists('documentos_requeridos', 'id')->where('activo', true)],
-            'archivo' => ['required', 'file', 'mimes:'.implode(',', self::ARCHIVOS), 'max:8192'],
+            // `ImagenProcesable` con `puedeNoSerImagen`, porque aqui vale
+            // tambien un PDF. Sobre una imagen mide los lados leyendo la
+            // cabecera y rechaza la que no quepa en la memoria de la maquina
+            // ANTES de que nadie la descomprima; un JPEG puede declarar 200
+            // megapixeles y pesar poco, asi que el `max:8192` de al lado no
+            // para eso. El porque entero esta en la regla.
+            'archivo' => [
+                'required', 'file', 'mimes:'.implode(',', self::ARCHIVOS), 'max:8192',
+                new ImagenProcesable(puedeNoSerImagen: true),
+            ],
         ], [
             'archivo.required' => 'Elige un archivo antes de subirlo.',
+            // El mensaje de Laravel dice «no debe ser mayor que 8192
+            // kilobytes», que en un telefono no le dice nada a nadie.
+            'archivo.max' => 'El archivo pesa demasiado. El máximo son 8 MB: '
+                .'vuelve a tomar la foto con menos resolución desde los ajustes '
+                .'de la cámara, o envía una copia más pequeña.',
         ], ['archivo' => 'archivo']);
 
         $requerido = DocumentoRequerido::findOrFail($request->input('documento_id'));

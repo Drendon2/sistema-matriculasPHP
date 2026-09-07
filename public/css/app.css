@@ -305,6 +305,26 @@
     border: 1.5px dashed var(--border-strong);
     cursor: help;
   }
+
+  /* EL ERROR DE UN CAMPO. Hasta el 06/09/2026 esta regla NO EXISTIA: el rojo lo
+     ponía un `style=` a mano en 44 sitios y faltaba en 25 —el inicio de sesión,
+     el registro, la inscripción pública—, donde el mensaje salía del color del
+     texto normal. Y el aviso de arriba dice literalmente «marcado en rojo más
+     abajo», así que la promesa era falsa justo donde alguien la va a buscar.
+     Se vio abriendo Mi perfil, no en una prueba: el color computado era el de
+     la tinta corriente.
+     Los 44 en línea ganan por especificidad y no cambian; lo que cambia son los
+     25 que no tenían nada. Al añadir un error nuevo ya no hace falta acordarse
+     del `style=`. */
+  .errorlist {
+    color: var(--danger);
+    font-size: 0.82rem;
+    margin: 0.35rem 0 0;
+    padding-left: 1.1rem;
+  }
+  /* Sin viñeta cuando es un solo mensaje, que es el caso corriente: un punto
+     suelto delante de una línea parece un elemento de lista huérfano. */
+  .errorlist li:only-child { list-style: none; margin-left: -1.1rem; }
   .estado-retirada {
     background: var(--danger-bg); color: var(--danger);
     border: 1.5px solid var(--danger);
@@ -998,7 +1018,19 @@
      leerse como chip. */
   .papel-datos > .estado { align-self: flex-start; }
   .papel-nombre { font-weight: 700; color: var(--ink); }
-  .papel-fila input[type="file"] { width: auto; flex: 0 1 auto; }
+  /* EL SELECTOR DE ARCHIVO NO ENCOGE SOLO, y por eso lleva `max-width`. Un
+     `input[type=file]` mide lo que mide su botón nativo más el nombre del
+     archivo, y `flex: 0 1 auto` no lo baja de ahí: los controles de formulario
+     traen un ancho intrínseco que el navegador respeta. Medido el 06/09/2026 en
+     un viewport de 390 px, este input llegaba hasta x=380 sobre 375 de página
+     útil, y a 320 hasta los mismos 380 sobre 305 — o sea que Mi perfil se
+     arrastraba a lo ancho en un teléfono, que es desde donde se sube casi todo.
+     `min-width: 0` no basta; hace falta un ancho. Ver la trampa del `<select>`
+     de «Asignar a» en CLAUDE.md, que es el mismo mecanismo. */
+  .papel-fila input[type="file"] { width: auto; flex: 0 1 auto; max-width: 100%; }
+  /* El error de esta fila ocupa el renglón entero: es una frase, y partida en
+     la columna sobrante del flex se lee en una tira de cuatro palabras. */
+  .papel-fila .errorlist { flex: 1 0 100%; }
 
   /* LA DESCARGA DEL FORMATO A FIRMAR. Solo la lleva el consentimiento, que es
      el unico papel que el sistema imprime.

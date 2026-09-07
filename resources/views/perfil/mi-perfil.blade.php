@@ -251,6 +251,27 @@
     </div>
     <input type="file" name="archivo" aria-label="Archivo de {{ $p['requerido']->nombre }}">
     <button type="submit" class="btn btn-sm">{{ $p['entrega'] ? 'Reemplazar' : 'Subir' }}</button>
+    {{--
+      EL RECHAZO, EN LA FILA QUE SE INTENTO.
+
+      Hasta el 06/09/2026 esta pantalla no pintaba NINGUN error de esta sección:
+      el aviso de arriba decía «No se guardó. Hay un campo por corregir, marcado
+      en rojo más abajo» y no había nada rojo en ninguna parte. O sea el fallo
+      que ya costó un profesor en producción, otra vez, y en la pantalla desde
+      la que 740 personas tienen que subir su consentimiento.
+
+      Y va acotado con `old('documento_id')` a propósito. Aquí hay un formulario
+      POR PAPEL y todos mandan un campo que se llama `archivo`, así que un
+      `@error('archivo')` a secas pinta el mismo error en los cinco: quien
+      falló al subir la cédula vería «demasiado grande» también bajo el
+      consentimiento, que no ha tocado. Es la misma regla que abre un <details>
+      solo si el error es SUYO.
+    --}}
+    @error('archivo')
+      @if ((int) old('documento_id') === $p['requerido']->id)
+        <ul class="errorlist"><li>{{ $message }}</li></ul>
+      @endif
+    @enderror
   </form>
   @endforeach
 </details>

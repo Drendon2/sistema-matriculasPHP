@@ -71,6 +71,149 @@ class Documento
     /** Calidad JPEG. Misma decision y mismo margen que el lado mayor. */
     public const CALIDAD = 78;
 
+    /**
+     * Lo que cuesta convertir un megapixel, en bytes de memoria.
+     *
+     * MEDIDO el 06/09/2026 convirtiendo fotos de 6, 12 y 20 MP en un proceso
+     * limpio: 36, 60 y 108 MB por encima de la linea de base, o sea 6,0 / 5,0 /
+     * 5,4 MB por megapixel. Se redondea a 6 hacia arriba.
+     *
+     * No es un capricho de GD: un lienzo truecolor son CUATRO bytes por pixel
+     * —una foto de 12 MP ocupa 48 MB descomprimida, pese lo que pese el
+     * archivo— y la conversion tiene dos vivos a la vez, el original y el
+     * reducido. Los dos bytes de mas por pixel son ese segundo lienzo y el
+     * buffer del JPEG de salida.
+     */
+    private const BYTES_POR_MEGAPIXEL = 6 * 1024 * 1024;
+
+    /**
+     * Lo que se le deja a la aplicacion, en megabytes.
+     *
+     * Servir una peticion cuesta 26 MB medidos en esta version. A eso hay que
+     * sumarle el archivo subido —8 MB como mucho, que es el tope del
+     * formulario— y un margen. Con 48 MB, un hosting con el `memory_limit` de
+     * 128 MB que trae PHP por defecto sigue aceptando una foto de celular
+     * normal (12 MP): quedan 80 MB, que dan para 13.
+     */
+    private const RESERVA_MB = 48;
+
+    /**
+     * El tope absoluto, en megapixeles, por generosa que sea la maquina.
+     *
+     * 50 cubre cualquier celular del mercado, incluidos los modos de 48 y 50 MP
+     * de los gama alta. Por encima de eso ya no es una foto de un documento.
+     *
+     * Y existe aunque sobre memoria por una razon que no es la memoria: un JPEG
+     * puede declarar 200 megapixeles y pesar unos cientos de kilobytes. El tope
+     * de 8 MB del formulario no lo para —lo que es grande es lo que sale al
+     * descomprimir, no lo que llega— asi que sin esta linea cualquiera con
+     * cuenta puede pedirle al servidor 800 MB de una sola vez, y repetirlo.
+     */
+    private const MEGAPIXELES_TOPE = 50.0;
+
+    /**
+     * Cuantos megapixeles admite ESTA maquina.
+     *
+     * Se deduce del `memory_limit` en vez de escribirse a mano, y esa es la
+     * decision: este producto se instala en hostings ajenos, cada uno con el
+     * suyo. Un numero fijo seria mentira en los dos sentidos —rechazaria fotos
+     * buenas en un servidor holgado y aceptaria las que tumban uno apretado—.
+     *
+     * Produccion tiene 2048 MB (consultado el 06/09/2026), asi que ahi manda el
+     * tope absoluto y practicamente no se rechaza nada. En una maquina de 128
+     * el tope baja a 13 MP, y ahi es donde este calculo se gana el sueldo.
+     */
+    public static function megapixelesMaximos(): float
+    {
+        return self::topeParaMemoria(self::limiteDeMemoria());
+    }
+
+    /**
+     * El tope que permite un presupuesto de memoria dado, en megapixeles.
+     *
+     * Va aparte de `megapixelesMaximos()` para poder comprobarse: el limite de
+     * ESTA maquina es un dato del entorno, y bajarlo a mitad de una prueba para
+     * ver que pasa es la clase de sonda que mata al proceso que la ejecuta. Asi
+     * la aritmetica se prueba con numeros y la lectura del entorno se prueba
+     * una vez.
+     *
+     * @param  int|null  $limiteBytes  null = sin limite (`memory_limit = -1`)
+     */
+    public static function topeParaMemoria(?int $limiteBytes): float
+    {
+        if ($limiteBytes === null) {
+            return self::MEGAPIXELES_TOPE;
+        }
+
+        $disponible = $limiteBytes - self::RESERVA_MB * 1024 * 1024;
+
+        return max(1.0, min(
+            self::MEGAPIXELES_TOPE,
+            round($disponible / self::BYTES_POR_MEGAPIXEL, 1)
+        ));
+    }
+
+    /**
+     * El `memory_limit` en bytes, o null si no hay limite.
+     *
+     * `ini_get` lo devuelve tal como esta escrito —«128M», «2G», «-1»— y no en
+     * bytes, que es la trampa: comparar esa cadena con un numero da 128 bytes.
+     */
+    public static function limiteDeMemoria(): ?int
+    {
+        $crudo = trim((string) ini_get('memory_limit'));
+
+        if ($crudo === '' || $crudo === '-1') {
+            return null;
+        }
+
+        $numero = (int) $crudo;
+
+        return match (strtoupper(substr($crudo, -1))) {
+            'G' => $numero * 1024 * 1024 * 1024,
+            'M' => $numero * 1024 * 1024,
+            'K' => $numero * 1024,
+            default => $numero,
+        };
+    }
+
+    /**
+     * Los dos lados de una imagen SIN DESCOMPRIMIRLA.
+     *
+     * Es la mitad importante del tope: `getimagesizefromstring` lee la cabecera
+     * y ya, unos pocos bytes. Preguntarselo a `imagecreatefromstring` seria
+     * reservar los 800 MB para poder decir que son demasiados.
+     *
+     * @return array{0: int, 1: int}|null null si no es una imagen reconocible
+     */
+    public static function medidas(string $binario): ?array
+    {
+        $tamano = @getimagesizefromstring($binario);
+
+        if ($tamano === false || $tamano[0] < 1 || $tamano[1] < 1) {
+            return null;
+        }
+
+        return [$tamano[0], $tamano[1]];
+    }
+
+    /**
+     * ¿Cabe esta imagen en la memoria de esta maquina?
+     *
+     * Lo que NO es imagen devuelve true: un PDF no pasa por aqui y no es
+     * asunto de este tope.
+     */
+    public static function cabeEnMemoria(string $binario): bool
+    {
+        $medidas = self::medidas($binario);
+
+        if ($medidas === null) {
+            return true;
+        }
+
+        return self::megapixelesMaximos() >= $medidas[0] * $medidas[1] / 1000000;
+    }
+
     /** Margen de la hoja, en puntos. Un cuarto de pulgada. */
     private const MARGEN = 18.0;
 
@@ -80,22 +223,26 @@ class Documento
     private const HOJA_LARGA = 792.0;
 
     /**
-     * ¿Es esto una imagen que GD sepa abrir?
+     * ¿Es esto una imagen?
      *
      * Se pregunta por el CONTENIDO y no por la extension ni por el tipo que
      * declara el navegador: los dos los pone quien sube el archivo.
+     *
+     * SE MIRA LA CABECERA Y NO SE DESCOMPRIME, desde el 06/09/2026. Antes esto
+     * abria la imagen entera solo para decir que si, o sea que reservaba cuatro
+     * bytes por pixel en la funcion cuyo trabajo es decidir si vale la pena
+     * mirarla. Con una imagen enorme —o con una pequena que declare 200
+     * megapixeles— eso agotaba la memoria aqui dentro.
+     *
+     * El cambio no altera lo que ven los dos que llaman. Antes, un formato que
+     * la cabecera reconoce pero GD no sabe decodificar devolvia false y el
+     * archivo se guardaba tal cual; ahora devuelve true, `aPdf` lanza y los dos
+     * llamadores ya guardan el original cuando la conversion falla. Mismo
+     * destino, y ademas el comando lo cuenta en vez de saltarselo callando.
      */
     public static function esImagen(string $binario): bool
     {
-        $lienzo = @imagecreatefromstring($binario);
-
-        if ($lienzo === false) {
-            return false;
-        }
-
-        imagedestroy($lienzo);
-
-        return true;
+        return self::medidas($binario) !== null;
     }
 
     /**
@@ -110,6 +257,19 @@ class Documento
      */
     public static function aPdf(string $binario, ?string $rutaOriginal = null): string
     {
+        // El tope, ANTES de descomprimir nada. Aqui es un ultimo seguro: por el
+        // formulario no llega nada que no lo haya pasado ya en la validacion
+        // —ahi el rechazo se le explica a quien sube—, pero el comando de
+        // aligerar los ya subidos entra por esta puerta sin pasar por aquella.
+        if (! self::cabeEnMemoria($binario)) {
+            $medidas = self::medidas($binario) ?? [0, 0];
+
+            throw new RuntimeException(sprintf(
+                'La imagen mide %dx%d y no cabe en la memoria de esta maquina (tope: %s megapixeles).',
+                $medidas[0], $medidas[1], self::megapixelesMaximos()
+            ));
+        }
+
         [$jpeg, $ancho, $alto] = self::aJpeg($binario, $rutaOriginal);
 
         return self::envolverEnPdf($jpeg, $ancho, $alto);
