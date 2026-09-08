@@ -9,6 +9,7 @@ use App\Models\Perfil;
 use App\Models\SesionActividad;
 use App\Support\PaseDeLista;
 use App\Support\Permisos;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -281,8 +282,8 @@ class PanelActividadController extends Controller
         }
 
         $datos = $request->validate(
-            ['nombre_completo' => ['required', 'string', 'max:90']],
-            [],
+            ['nombre_completo' => Reglas::nombreDePersona(90)],
+            Reglas::mensajes(),
             ['nombre_completo' => 'nombre']
         );
 

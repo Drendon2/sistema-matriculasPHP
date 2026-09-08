@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gestion;
 
 use App\Models\Area;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -66,7 +67,7 @@ class AreaController extends RecursoController
     protected function reglas(Request $request, ?Model $objeto): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:60', Rule::unique('areas', 'nombre')->ignore($objeto?->id)],
+            'nombre' => [...Reglas::texto(60), Rule::unique('areas', 'nombre')->ignore($objeto?->id)],
         ];
     }
 }

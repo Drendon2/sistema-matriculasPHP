@@ -6,6 +6,7 @@ use App\Models\EncuestaSatisfaccion;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\Reglas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -159,8 +160,11 @@ class MisMatriculasController extends Controller
             'calificacion_profesor' => ['required', 'integer', 'between:1,5'],
             'horario_funciono' => ['required', 'boolean'],
             'recomendaria' => ['required', 'boolean'],
-            'comentario' => ['nullable', 'string'],
-        ]);
+            // Mil caracteres, que es un comentario largo de verdad. La columna
+            // es TEXT y hasta hoy este campo no tenia NINGUN tope: cualquiera
+            // con sesion podia escribir megabytes en la base de una peticion.
+            'comentario' => Reglas::texto(1000, obligatorio: false),
+        ], Reglas::mensajes());
 
         EncuestaSatisfaccion::firstOrCreate(
             [

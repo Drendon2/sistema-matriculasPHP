@@ -8,6 +8,7 @@ use App\Models\Promotoria;
 use App\Support\ErrorDeBaseDeDatos;
 use App\Support\HorarioDeGrupo;
 use App\Support\Permisos;
+use App\Support\Reglas;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -144,7 +145,7 @@ class PanelGrupoController extends Controller
             // comprueba aqui ademas de en el indice unico para que el mensaje
             // llegue al campo y no como un error del motor.
             'nombre' => [
-                'required', 'string', 'max:60',
+                ...Reglas::texto(60),
                 Rule::unique('grupos', 'nombre')
                     ->where('promotoria_id', $promotoria->id)
                     ->ignore($grupo?->id),
@@ -152,7 +153,7 @@ class PanelGrupoController extends Controller
             // El nivel SI se repite: una promotoria con mucha gente tiene varios
             // grupos de Basico, y eso es lo normal, no un error.
             'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
-            'salon' => ['required', 'string', 'max:40'],
+            'salon' => Reglas::texto(40),
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ], [
             'nombre.unique' => "{$promotoria->nombre} ya tiene un grupo con ese nombre, aunque sea "

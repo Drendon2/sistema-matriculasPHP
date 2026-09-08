@@ -57,7 +57,7 @@
 
       <label for="nombre_completo">Nombre completo</label>
       <input type="text" name="nombre_completo" id="nombre_completo"
-             value="{{ old('nombre_completo') }}" maxlength="90" required>
+             value="{{ old('nombre_completo') }}" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números" required>
       @error('nombre_completo')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
       <label for="fecha_nacimiento">Fecha de nacimiento</label>
@@ -67,7 +67,7 @@
 
       <label for="telefono">Teléfono</label>
       <input type="text" name="telefono" id="telefono" value="{{ old('telefono') }}"
-             maxlength="15" inputmode="tel" required>
+             maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones" required>
       @error('telefono')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
     </fieldset>
 
@@ -76,7 +76,7 @@
 
       <label for="documento_identidad">Documento de identidad</label>
       <input type="text" name="documento_identidad" id="documento_identidad"
-             value="{{ old('documento_identidad') }}" maxlength="15" required>
+             value="{{ old('documento_identidad') }}" maxlength="12" inputmode="numeric" pattern="[0-9]{6,12}" title="Solo números, entre 6 y 12 dígitos" required>
       @error('documento_identidad')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
       <p class="aviso">
@@ -96,14 +96,14 @@
         Nombre del acudiente <span class="campo-requerido" id="acudiente-nombre-requerido" hidden>*</span>
       </label>
       <input type="text" name="acudiente_nombre" id="acudiente_nombre"
-             value="{{ old('acudiente_nombre') }}" maxlength="90">
+             value="{{ old('acudiente_nombre') }}" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números">
       @error('acudiente_nombre')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
       <label for="acudiente_telefono">
         Teléfono del acudiente <span class="campo-requerido" id="acudiente-telefono-requerido" hidden>*</span>
       </label>
       <input type="text" name="acudiente_telefono" id="acudiente_telefono"
-             value="{{ old('acudiente_telefono') }}" maxlength="15" inputmode="tel">
+             value="{{ old('acudiente_telefono') }}" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones">
       @error('acudiente_telefono')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
     </fieldset>
 

@@ -9,6 +9,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\Reglas;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -279,16 +280,21 @@ class RenovarController extends Controller
     private function validarEncuestas(Request $request, $porValorar): array
     {
         $reglas = [];
+        // Los campos llevan el id pegado al nombre, asi que el mensaje del
+        // rechazo tambien tiene que llevarlo: una clave `comentario.regex` no
+        // casa nunca con un campo que se llama `comentario_41`.
+        $mensajes = [];
 
         foreach ($porValorar as $matricula) {
             $reglas["satisfaccion_general_{$matricula->id}"] = ['required', 'integer', 'between:1,5'];
             $reglas["calificacion_profesor_{$matricula->id}"] = ['required', 'integer', 'between:1,5'];
             $reglas["horario_funciono_{$matricula->id}"] = ['required', 'boolean'];
             $reglas["recomendaria_{$matricula->id}"] = ['required', 'boolean'];
-            $reglas["comentario_{$matricula->id}"] = ['nullable', 'string'];
+            $reglas["comentario_{$matricula->id}"] = Reglas::texto(1000, obligatorio: false);
+            $mensajes["comentario_{$matricula->id}.regex"] = Reglas::mensajes()['comentario.regex'];
         }
 
-        $datos = $request->validate($reglas);
+        $datos = $request->validate($reglas, $mensajes);
         $respuestas = [];
 
         foreach ($porValorar as $matricula) {

@@ -604,8 +604,8 @@ class ActividadTest extends TestCase
     {
         $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
 
-        $this->inscribirse($taller, ['documento' => '111']);
-        $this->inscribirse($taller, ['documento' => '222'])->assertSessionHas('error');
+        $this->inscribirse($taller, ['documento' => '111111']);
+        $this->inscribirse($taller, ['documento' => '222222'])->assertSessionHas('error');
 
         $this->assertSame(1, $taller->inscritos()->count());
     }
@@ -613,7 +613,7 @@ class ActividadTest extends TestCase
     public function test_el_formulario_desaparece_cuando_esta_lleno(): void
     {
         $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
-        $this->inscribirse($taller, ['documento' => '111']);
+        $this->inscribirse($taller, ['documento' => '111111']);
 
         $this->get(route('actividad-inscribirse', $taller->token))
             ->assertOk()
@@ -879,7 +879,7 @@ class ActividadTest extends TestCase
         foreach (range(1, $cuantosInscritos) as $n) {
             $taller->inscritos()->create([
                 'nombre_completo' => "Inscrito {$n}",
-                'documento' => "100{$n}",
+                'documento' => "10000{$n}",
                 'origen' => InscritoActividad::ENLACE,
             ]);
         }
@@ -1001,7 +1001,7 @@ class ActividadTest extends TestCase
         $otra = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
         $ajeno = $otra->inscritos()->create([
             'nombre_completo' => 'Alguien de la banda',
-            'documento' => '777',
+            'documento' => '777777',
             'origen' => InscritoActividad::ENLACE,
         ]);
 
@@ -1104,7 +1104,7 @@ class ActividadTest extends TestCase
         $taller = $this->crearActividad(Actividad::TALLER, 'Taller de cajón', ['cupo_maximo' => 1]);
         $taller->inscritos()->create([
             'nombre_completo' => 'El único',
-            'documento' => '111',
+            'documento' => '111111',
             'origen' => InscritoActividad::ENLACE,
         ]);
         $sesion = $taller->sesiones()->create([

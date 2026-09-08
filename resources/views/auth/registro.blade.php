@@ -27,7 +27,7 @@
 
     <label for="nombre_completo">Nombre completo</label>
     <input type="text" name="nombre_completo" id="nombre_completo"
-           value="{{ old('nombre_completo') }}" maxlength="90" required>
+           value="{{ old('nombre_completo') }}" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números" required>
     @error('nombre_completo')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     {{-- type="date" espera aaaa-mm-dd; cualquier otro formato lo deja en blanco. --}}
@@ -38,7 +38,7 @@
 
     <label for="telefono">Teléfono</label>
     <input type="text" name="telefono" id="telefono" value="{{ old('telefono') }}"
-           maxlength="15" inputmode="tel" required>
+           maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones" required>
     @error('telefono')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     <p class="campo-info">

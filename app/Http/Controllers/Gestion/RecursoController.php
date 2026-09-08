@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Support\Dependencias;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\Reglas;
 use App\Support\Regreso;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -78,6 +79,12 @@ abstract class RecursoController extends Controller
      * cuando el nombre es lo unico que hay. Deja de servir en cuanto la regla
      * tiene un porque —un grupo choca por nombre aunque el nivel sea otro— y
      * quien la lee necesita saber cual, no solo que.
+     *
+     * Lo que devuelva una subclase se SUMA a `Reglas::mensajes()`, que es donde
+     * viven los de formato, y gana sobre ellos si repite una clave. Se junta en
+     * la base y no en cada subclase a proposito: los seis catalogos comparten
+     * estos campos, y el que se olvidara de sumarlos ensenaria «El formato de
+     * nombre no es válido» sin decir que es lo que sobra.
      *
      * @return array<string, string>
      */
@@ -198,7 +205,7 @@ abstract class RecursoController extends Controller
     public function guardar(Request $request): RedirectResponse
     {
         $modelo = $this->modelo();
-        $datos = $request->validate($this->reglas($request, null), $this->mensajes($request, null));
+        $datos = $request->validate($this->reglas($request, null), $this->mensajes($request, null) + Reglas::mensajes());
         // Todo lo que pueda rechazar el formulario se comprueba ANTES de
         // escribir: si esto lanza, no queda un registro a medias en la base.
         $extra = $this->validarExtra($request, null);
@@ -233,7 +240,7 @@ abstract class RecursoController extends Controller
     public function actualizar(Request $request, string $id): RedirectResponse
     {
         $objeto = $this->buscar($id);
-        $datos = $request->validate($this->reglas($request, $objeto), $this->mensajes($request, $objeto));
+        $datos = $request->validate($this->reglas($request, $objeto), $this->mensajes($request, $objeto) + Reglas::mensajes());
         $extra = $this->validarExtra($request, $objeto);
 
         $objeto->fill($datos);

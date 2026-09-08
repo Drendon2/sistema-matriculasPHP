@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Perfil;
 use App\Models\User;
+use App\Support\Reglas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,12 +34,12 @@ class RegistroController extends Controller
     public function guardar(Request $request): RedirectResponse
     {
         $datos = $request->validate([
-            'username' => ['required', 'string', 'max:150', Rule::unique('users', 'username')],
+            'username' => Reglas::usuario(Rule::unique('users', 'username')),
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'nombre_completo' => ['required', 'string', 'max:90'],
+            'nombre_completo' => Reglas::nombreDePersona(90),
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
-            'telefono' => ['required', 'string', 'max:15'],
-        ], [
+            'telefono' => Reglas::celular(),
+        ], Reglas::mensajes() + [
             'username.unique' => 'Ya existe una cuenta con ese nombre de usuario.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ], [

@@ -8,6 +8,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
 use App\Support\HorarioDeGrupo;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -309,13 +310,13 @@ class GrupoController extends RecursoController
             // promotoria. El nivel si se repite: una promotoria con mucha gente
             // tiene varios grupos de Basico, y eso es lo normal.
             'nombre' => [
-                'required', 'string', 'max:60',
+                ...Reglas::texto(60),
                 Rule::unique('grupos', 'nombre')
                     ->where('promotoria_id', $request->input('promotoria_id'))
                     ->ignore($objeto?->id),
             ],
             'nivel' => ['required', Rule::in(array_keys(Grupo::NIVELES))],
-            'salon' => ['required', 'string', 'max:40'],
+            'salon' => Reglas::texto(40),
             'cupo_maximo' => ['required', 'integer', 'min:0'],
         ];
     }

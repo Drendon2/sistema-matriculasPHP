@@ -47,12 +47,12 @@
 
     <label for="nombre_completo">Nombre completo</label>
     <input type="text" name="nombre_completo" id="nombre_completo"
-           value="{{ old('nombre_completo') }}" maxlength="90" autocomplete="name" required>
+           value="{{ old('nombre_completo') }}" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números" autocomplete="name" required>
     @error('nombre_completo')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     <label for="documento">Documento de identidad</label>
     <input type="text" name="documento" id="documento"
-           value="{{ old('documento') }}" maxlength="15" required>
+           value="{{ old('documento') }}" maxlength="12" inputmode="numeric" pattern="[0-9]{6,12}" title="Solo números, entre 6 y 12 dígitos" required>
     @error('documento')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     <label for="fecha_nacimiento">Fecha de nacimiento</label>
@@ -62,12 +62,12 @@
 
     <label for="telefono">Teléfono</label>
     <input type="text" name="telefono" id="telefono"
-           value="{{ old('telefono') }}" maxlength="15" autocomplete="tel" required>
+           value="{{ old('telefono') }}" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones" autocomplete="tel" required>
     @error('telefono')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     <label for="correo">Correo electrónico <span class="promo-opcional">(opcional)</span></label>
     <input type="email" name="correo" id="correo"
-           value="{{ old('correo') }}" maxlength="120" autocomplete="email">
+           value="{{ old('correo') }}" maxlength="120" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" title="Un correo completo, con arroba y dominio. Ejemplo: nombre@correo.com" autocomplete="email">
     @error('correo')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
 
     <button type="submit">Inscribirme</button>

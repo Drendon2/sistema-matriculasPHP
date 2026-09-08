@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Models\Area;
 use App\Models\Perfil;
 use App\Models\Promotoria;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -128,7 +129,7 @@ class PromotoriaController extends RecursoController
     protected function reglas(Request $request, ?Model $objeto): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:60'],
+            'nombre' => Reglas::texto(60),
             'area_id' => ['required', 'exists:areas,id'],
             'profesor_id' => [
                 'nullable',

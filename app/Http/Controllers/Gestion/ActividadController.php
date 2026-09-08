@@ -6,6 +6,7 @@ use App\Models\Actividad;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Support\Auditoria;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -150,7 +151,7 @@ abstract class ActividadController extends RecursoController
     protected function reglas(Request $request, ?Model $objeto): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:80'],
+            'nombre' => Reglas::texto(80),
             'responsable_id' => [
                 'required',
                 Rule::exists('perfiles', 'id')->whereIn('rol', Perfil::ROLES_PERSONAL),

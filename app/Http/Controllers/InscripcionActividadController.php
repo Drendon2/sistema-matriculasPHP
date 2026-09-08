@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Actividad;
 use App\Models\InscritoActividad;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\Reglas;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,15 +53,15 @@ class InscripcionActividadController extends Controller
         }
 
         $datos = $request->validate([
-            'nombre_completo' => ['required', 'string', 'max:90'],
-            'documento' => ['required', 'string', 'max:15'],
-            'telefono' => ['required', 'string', 'max:15'],
+            'nombre_completo' => Reglas::nombreDePersona(90),
+            'documento' => Reglas::documento(),
+            'telefono' => Reglas::celular(),
             // El correo NO es obligatorio: a un taller de ninos se apunta gente
             // que no tiene uno, y bloquear la inscripcion por eso es perder a la
             // persona, no ganar el dato.
-            'correo' => ['nullable', 'email', 'max:120'],
+            'correo' => Reglas::correoSegunLaInstitucion(120),
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
-        ], [], [
+        ], Reglas::mensajes(), [
             'nombre_completo' => 'nombre completo',
             'fecha_nacimiento' => 'fecha de nacimiento',
         ]);

@@ -11,6 +11,7 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
 use App\Support\ErrorDeBaseDeDatos;
+use App\Support\Reglas;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -126,17 +127,17 @@ class InscripcionController extends Controller
     private function validar(Request $request, int $limite): array
     {
         $reglas = [
-            'username' => ['required', 'string', 'max:150', Rule::unique('users', 'username')],
+            'username' => Reglas::usuario(Rule::unique('users', 'username')),
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
-            'nombre_completo' => ['required', 'string', 'max:90'],
+            'nombre_completo' => Reglas::nombreDePersona(90),
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
-            'telefono' => ['required', 'string', 'max:15'],
+            'telefono' => Reglas::celular(),
             'documento_identidad' => [
-                'required', 'string', 'max:15',
+                ...Reglas::documento(),
                 Rule::unique('datos_estudiante', 'documento_identidad'),
             ],
-            'acudiente_nombre' => ['nullable', 'string', 'max:90'],
-            'acudiente_telefono' => ['nullable', 'string', 'max:15'],
+            'acudiente_nombre' => Reglas::nombreDePersona(90, obligatorio: false),
+            'acudiente_telefono' => Reglas::celularDeAcudiente(),
             'promotoria' => ['required', Rule::exists('promotorias', 'id')],
         ];
 
@@ -146,7 +147,7 @@ class InscripcionController extends Controller
             $reglas["promotoria_{$n}"] = ['nullable', Rule::exists('promotorias', 'id')];
         }
 
-        $validador = validator($request->all(), $reglas, [
+        $validador = validator($request->all(), $reglas, Reglas::mensajes() + [
             'username.unique' => 'Ya existe una cuenta con ese nombre de usuario.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
             'documento_identidad.unique' => 'Ya existe un estudiante registrado con ese documento de identidad.',
@@ -204,7 +205,13 @@ class InscripcionController extends Controller
         // cancelacion, al hacer seguimiento de una mala experiencia, o si pasa
         // algo en clase. Un acudiente sin telefono no sirve para ninguna de las
         // tres.
-        if (! $request->filled('acudiente_telefono')) {
+        //
+        // SOLO cuando el nombre viene vacio, y esa condicion no sobra: desde el
+        // 07/09 la regla `required_with` de `Reglas::celularDeAcudiente()` ya
+        // exige el telefono en cuanto hay un nombre escrito. Sin este corte, un
+        // menor que escribe el nombre y olvida el telefono recibe DOS avisos
+        // del mismo campo diciendo lo mismo.
+        if (! $request->filled('acudiente_telefono') && ! $request->filled('acudiente_nombre')) {
             $validador->errors()->add(
                 'acudiente_telefono',
                 'Falta el teléfono de tu acudiente: es el número al que llamaría la institución.'
