@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\ConfiguracionInstitucion;
+use App\Support\ConexionQueReintenta;
 use App\Support\Recurso;
 use App\Support\Tema;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -20,7 +21,20 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        /**
+         * La conexion a MariaDB vuelve a intentarlo si el motor la rechaza por
+         * saturacion. El porque y la trampa estan en la propia clase.
+         *
+         * Va en `register()` y no en `boot()` porque la primera consulta puede
+         * ocurrir antes de arrancar: la sesion se lee en el middleware, o sea
+         * antes de que ningun `boot()` haya corrido.
+         *
+         * Se registran las dos claves aunque este proyecto solo use `mariadb`:
+         * `mysql` esta en `config/database.php` y el dia que alguien cambie el
+         * `DB_CONNECTION` de un `.env` no perderia el reintento sin enterarse.
+         */
+        $this->app->bind('db.connector.mariadb', ConexionQueReintenta::class);
+        $this->app->bind('db.connector.mysql', ConexionQueReintenta::class);
     }
 
     public function boot(): void

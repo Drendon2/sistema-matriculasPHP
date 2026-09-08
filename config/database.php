@@ -61,7 +61,19 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            ]) + [
+                // CUANTO se espera a que la base conteste al conectar. Sin esto
+                // PDO espera lo que diga el sistema, que en la practica es «para
+                // siempre»: el 08/09/2026 una peticion se quedo colgada y quien
+                // la lanzo vio el 504 en blanco del CDN a los 60 segundos, sin
+                // ninguna pista de que habia pasado. Con el tope, una base que
+                // no contesta da un error legible y deja rastro en el registro.
+                //
+                // Va FUERA del `array_filter` a proposito: el filtro se lleva
+                // los valores vacios, y un cero —«sin espera»— es un valor
+                // legitimo que ahi desapareceria sin avisar.
+                PDO::ATTR_TIMEOUT => (int) env('DB_ESPERA_CONEXION', 5),
+            ] : [],
         ],
 
         'mariadb' => [
@@ -81,7 +93,19 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            ]) + [
+                // CUANTO se espera a que la base conteste al conectar. Sin esto
+                // PDO espera lo que diga el sistema, que en la practica es «para
+                // siempre»: el 08/09/2026 una peticion se quedo colgada y quien
+                // la lanzo vio el 504 en blanco del CDN a los 60 segundos, sin
+                // ninguna pista de que habia pasado. Con el tope, una base que
+                // no contesta da un error legible y deja rastro en el registro.
+                //
+                // Va FUERA del `array_filter` a proposito: el filtro se lleva
+                // los valores vacios, y un cero —«sin espera»— es un valor
+                // legitimo que ahi desapareceria sin avisar.
+                PDO::ATTR_TIMEOUT => (int) env('DB_ESPERA_CONEXION', 5),
+            ] : [],
         ],
 
         'pgsql' => [
