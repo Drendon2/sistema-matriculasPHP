@@ -18,6 +18,41 @@
         </include>
     </source>
     <php>
+        <!--
+            LA SUITE NECESITA MAS DE 128M, y el numero se pone aqui para que no
+            dependa del php.ini de cada maquina.
+
+            Medido el 07/09/2026, y conviene leer los tres numeros juntos porque
+            desmontan la conclusion facil:
+
+            - Arrancar Laravel y correr UNA prueba trivial: 54 MB. Ese es el
+              suelo y no se baja.
+            - El archivo mas pesado, `ConsentimientoTest`: 102 MB. Busca por
+              biseccion la hoja minima donde cabe el formato, o sea que genera
+              una decena de PDF seguidos. Es caro a proposito.
+            - Las 901 pruebas juntas: 112 MB.
+
+            Entre una prueba sola y las 901 hay 10 MB de diferencia: NO HAY
+            FUGA. Lo que pasa es que el suelo es alto y el pico de un archivo
+            concreto casi lo alcanza. Por eso subir el limite es el arreglo
+            correcto y no un parche: no hay nada que liberar.
+
+            Va aqui y no en el php.ini de quien lo corre para que la suite se
+            comporte igual en cualquier maquina. Los tres limites de verdad,
+            comprobados y no supuestos: esta maquina tiene 128M en el CLI, que
+            es el valor con el que PHP se instala desde WinGet y donde se cayo;
+            el CI usa `shivammathur/setup-php`, que deja el limite sin tope; y
+            PRODUCCION TIENE 2048M, leido del panel de Hostinger. Puesto aqui,
+            ninguno de los tres importa.
+
+            (Y ojo al escribir aqui: un comentario XML no admite dos guiones
+            seguidos, asi que una bandera de consola no se puede citar tal cual.
+            El archivo entero deja de parsear y PHPUnit no arranca.)
+
+            Si algun dia sube mucho el consumo, lo que hay que mirar es el pico
+            que imprime `vendor/bin/phpunit`, no subir este numero otra vez.
+        -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

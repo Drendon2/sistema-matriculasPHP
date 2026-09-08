@@ -1077,6 +1077,39 @@
   }
   .lote-barra + table { margin-top: 0; }
 
+  /* ---- La puerta a la tercera bandeja de Alertas ------------------------
+     Un boton con su cifra dentro, y debajo el desglose por motivo. Es una
+     PUERTA y no una seccion: la lista son ~810 personas y desplegarlas en la
+     bandeja la convertiria en un muro.
+
+     El desglose son enlaces y no texto: cada motivo entra a la lista ya
+     filtrada por el, que es como se usa —«enseñame los 167 que faltan por
+     aprobar»— y no leyendo la cifra para luego buscar el filtro. */
+  .bandeja-entrada {
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 1.1rem 1.2rem;
+    margin-bottom: 1.8rem;
+  }
+  /* La cifra dentro del boton. Misma pastilla que `.filtros-cuenta` —es el
+     mismo vocabulario, «cuantos hay ahi dentro»— pero en claro sobre el verde
+     del boton en vez de al reves. */
+  .bandeja-cuenta {
+    font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+    color: var(--accent-dark); background: var(--accent-soft);
+    border-radius: 999px; padding: 0.15rem 0.5rem; margin-left: 0.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .bandeja-desglose { margin: 0.75rem 0 0; line-height: 1.7; }
+  .bandeja-desglose a { color: var(--ink-soft); }
+  .bandeja-desglose a:hover { color: var(--accent-dark); }
+
+  /* Lo que le falta a una persona, dentro de su celda. Sin viñeta ni sangria:
+     dentro de una celda son una lista de apuntes, no un indice, y la viñeta
+     roba el ancho que en un telefono hace falta para el texto. */
+  .faltantes { list-style: none; margin: 0; padding: 0; }
+  .faltantes li { margin: 0 0 0.25rem; font-size: 0.88rem; }
+  .faltantes li:last-child { margin-bottom: 0; }
+
   /* El envoltorio de la barra y SU tabla. No pinta nada: existe para acotar
      hasta dónde se pega la barra. `sticky` se suelta al acabar su bloque
      contenedor, y sin esto la barra y la tabla eran hermanas sueltas dentro de

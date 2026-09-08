@@ -9,6 +9,7 @@ use App\Models\OmisionArchivada;
 use App\Models\Periodo;
 use App\Support\Alertas;
 use App\Support\Auditoria;
+use App\Support\FichasIncompletas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -116,7 +117,37 @@ class CancelacionesController extends Controller
                 ? Alertas::posiblesAbandonos($periodo)
                 : collect(),
             'periodo' => $periodo,
+            // La tercera bandeja entra por un BOTON con su cifra, y no como una
+            // seccion mas: son ~810 personas en produccion y desplegarlas aqui
+            // convertiria la pantalla en un muro. Lo que se calcula aqui es solo
+            // el numero; la lista se arma en su propia pantalla.
+            //
+            // La cifra cuenta PERSONAS y no motivos: a quien le faltan tres
+            // cosas es una ficha que atender, no tres. Y el desglose va debajo
+            // del boton porque un «810» a secas no dice si vale la pena entrar.
+            'fichasIncompletas' => $this->resumenDeFichas(),
         ]);
+    }
+
+    /**
+     * Cuantas fichas incompletas hay y por que, para el boton de entrada.
+     *
+     * Se calcula entero aunque aqui solo se usen las cifras, y eso es a
+     * proposito: el desglose sale del MISMO recorrido que la lista, asi que el
+     * numero del boton y lo que se ve al entrar no pueden discrepar. Contar por
+     * separado con ocho consultas sueltas seria mas barato y dejaria dos
+     * verdades que se separan en cuanto alguien toque un motivo.
+     *
+     * @return array{total: int, porMotivo: array<string, int>}
+     */
+    private function resumenDeFichas(): array
+    {
+        $fichas = FichasIncompletas::todas();
+
+        return [
+            'total' => count($fichas),
+            'porMotivo' => FichasIncompletas::porMotivo($fichas),
+        ];
     }
 
     /**

@@ -331,6 +331,10 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     // Cancelaciones
     Route::get('/cancelaciones', [Gestion\CancelacionesController::class, 'index'])
         ->name('gestion-cancelaciones');
+    // La tercera bandeja, en su propia pantalla porque son ~810 personas y
+    // dentro de Alertas serian un muro. Se entra por el boton de alli.
+    Route::get('/cancelaciones/fichas', [Gestion\FichasIncompletasController::class, 'index'])
+        ->name('gestion-fichas-incompletas');
     // El lote va ANTES que la de abajo: con `{matricula}` por delante, la palabra
     // «lote» se leeria como el id de una matricula y el enlace implicito
     // devolveria un 404 en vez de llegar aqui.

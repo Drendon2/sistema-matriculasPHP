@@ -25,6 +25,36 @@
   </p>
 @endif
 
+{{--
+  LA TERCERA BANDEJA, y se entra por un BOTÓN.
+
+  No es una sección desplegable como las dos de abajo, y eso salió de medir: en
+  producción son ~810 personas de 839. Metidas aquí convertirían la pantalla en
+  un muro — es lo que ya pasó con las 596 clases no dictadas.
+
+  El desglose va debajo del botón porque un «810» a secas no dice si vale la pena
+  entrar. Con él se ve de un vistazo que lo grande son dos cosas recién
+  estrenadas que todavía no ha hecho nadie, y que lo accionable de verdad son las
+  matrículas por aprobar y las que están sin grupo.
+--}}
+<div class="bandeja-entrada">
+  <a href="{{ route('gestion-fichas-incompletas') }}" class="btn">
+    Fichas por completar
+    <span class="bandeja-cuenta">{{ $fichasIncompletas['total'] }}</span>
+  </a>
+  @if ($fichasIncompletas['total'])
+    <p class="campo-ayuda bandeja-desglose">
+      @foreach ($fichasIncompletas['porMotivo'] as $clave => $cuantas)
+        @if ($cuantas)
+          <a href="{{ route('gestion-fichas-incompletas', ['motivo' => $clave]) }}">{{ \App\Support\FichasIncompletas::MOTIVOS[$clave] }}: {{ $cuantas }}</a>@if (! $loop->last) · @endif
+        @endif
+      @endforeach
+    </p>
+  @else
+    <p class="campo-ayuda bandeja-desglose">No falta nada por completar.</p>
+  @endif
+</div>
+
 <h3>Cancelaciones por resolver</h3>
 <p class="campo-ayuda" style="margin-bottom:1rem;">
   Mientras una cancelación esté aquí, el estudiante <strong>sigue matriculado</strong> y su
