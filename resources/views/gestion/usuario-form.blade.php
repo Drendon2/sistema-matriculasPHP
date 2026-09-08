@@ -82,7 +82,7 @@
   --}}
   <div class="field">
     <label for="correo">Correo electrónico</label>
-    <input type="email" name="correo" id="correo" maxlength="255"
+    <input type="email" name="correo" id="correo" maxlength="255" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" title="Un correo completo, con arroba y dominio. Ejemplo: nombre@correo.com"
            value="{{ old('correo', $perfil->user?->email) }}">
     <p class="campo-ayuda">Opcional. Puede repetirse: los hermanos suelen compartir el del acudiente.</p>
     @error('correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
@@ -90,7 +90,7 @@
 
   <div class="field">
     <label for="nombre_completo">Nombre completo</label>
-    <input type="text" name="nombre_completo" id="nombre_completo" maxlength="90" required
+    <input type="text" name="nombre_completo" id="nombre_completo" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números" required
            value="{{ old('nombre_completo', $perfil->nombre_completo) }}">
     @error('nombre_completo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
@@ -104,7 +104,7 @@
 
   <div class="field">
     <label for="telefono">Teléfono</label>
-    <input type="text" name="telefono" id="telefono" maxlength="15" required
+    <input type="text" name="telefono" id="telefono" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones" required
            value="{{ old('telefono', $perfil->telefono) }}">
     @error('telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
@@ -132,14 +132,14 @@
 
     <div class="field">
       <label for="documento_identidad">Documento de identidad</label>
-      <input type="text" name="documento_identidad" id="documento_identidad" maxlength="15"
+      <input type="text" name="documento_identidad" id="documento_identidad" maxlength="12" inputmode="numeric" pattern="[0-9]{6,12}" title="Solo números, entre 6 y 12 dígitos"
              value="{{ old('documento_identidad', $datos?->documento_identidad) }}">
       @error('documento_identidad')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
     </div>
 
     <div class="field">
       <label for="acudiente_nombre">Nombre del acudiente</label>
-      <input type="text" name="acudiente_nombre" id="acudiente_nombre" maxlength="90"
+      <input type="text" name="acudiente_nombre" id="acudiente_nombre" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números"
              value="{{ old('acudiente_nombre', $acudiente?->nombre) }}">
       <div class="campo-ayuda">Obligatorio si el estudiante es menor de edad.</div>
       @error('acudiente_nombre')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
@@ -148,7 +148,7 @@
 
     <div class="field">
       <label for="acudiente_telefono">Teléfono del acudiente</label>
-      <input type="text" name="acudiente_telefono" id="acudiente_telefono" maxlength="15"
+      <input type="text" name="acudiente_telefono" id="acudiente_telefono" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones"
              value="{{ old('acudiente_telefono', $acudiente?->telefono) }}">
       @error('acudiente_telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
     </div>

@@ -91,6 +91,7 @@ class ConfiguracionInstitucion extends Model
         'faltas_para_abandono',
         'alertas_desde',
         'recordar_encuesta',
+        'correo_obligatorio',
     ];
 
     /**
@@ -149,6 +150,11 @@ class ConfiguracionInstitucion extends Model
         // devolvia null y el recordatorio nacia apagado sin que nadie lo
         // hubiera apagado.
         'recordar_encuesta' => true,
+        // Y esta TAMBIEN, por lo de siempre: `actual()` crea la fila con
+        // `firstOrCreate` y la instancia no relee el default de la base. Sin
+        // ella, una instalacion recien migrada devuelve null y `correo()` lo
+        // lee como «false» por casualidad, no por decision.
+        'correo_obligatorio' => false,
         // `alertas_desde` NO va aqui, y es deliberado: sus vecinas estan porque
         // tienen un valor que la instancia no leeria de la base, y esa es nula.
         // Declararla no cambiaria nada — se comprobo quitandola y la prueba
@@ -166,6 +172,7 @@ class ConfiguracionInstitucion extends Model
             'faltas_para_abandono' => 'integer',
             'alertas_desde' => 'date',
             'recordar_encuesta' => 'boolean',
+            'correo_obligatorio' => 'boolean',
         ];
     }
 

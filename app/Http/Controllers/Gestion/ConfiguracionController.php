@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DocumentoRequerido;
 use App\Models\Periodo;
+use App\Models\User;
 use App\Rules\ImagenProcesable;
 use App\Support\Imagen;
 use App\Support\PoliticaDatos;
+use App\Support\Reglas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +49,12 @@ class ConfiguracionController extends Controller
             // semestre y apague las alertas sin decirlo. Eso no lo arregla el
             // esquema; lo arregla que la pantalla lo diga.
             'periodoEnCurso' => Periodo::enCurso(),
+            // A cuanta gente le rompe la ficha encender «Exigir el correo».
+            // Se pinta al lado del interruptor porque esa consecuencia no se
+            // deduce de la palabra «obligatorio»: alcanza a quien ya esta, no
+            // solo a quien se inscriba manana, y en produccion son 853 de 885.
+            // Una consulta de conteo, no una lista.
+            'sinCorreo' => User::whereNull('email')->orWhere('email', '')->count(),
             // Los desactivados tambien se listan: son los que dejaron de pedirse
             // pero conservan lo entregado, y esconderlos haria creer que se
             // perdieron.
@@ -62,29 +70,38 @@ class ConfiguracionController extends Controller
         $configuracion = ConfiguracionInstitucion::actual();
 
         $datos = $request->validate([
-            'nombre_institucion' => ['required', 'string', 'max:80'],
+            'nombre_institucion' => Reglas::texto(80),
             // Los cuatro datos de la entidad son OPCIONALES, y no por descuido:
             // se anadieron el 06/09/2026 a una instalacion que ya estaba
             // corriendo, y exigirlos habria dejado esta pantalla imposible de
             // guardar —para cambiar el color de acento, por ejemplo— hasta que
             // alguien los rellenara. La pagina publica se lee igual sin ellos:
             // esconde el renglon que falta.
-            'entidad_nit' => ['nullable', 'string', 'max:40'],
-            'entidad_direccion' => ['nullable', 'string', 'max:160'],
-            'entidad_correo' => ['nullable', 'email', 'max:120'],
-            'entidad_telefono' => ['nullable', 'string', 'max:40'],
-            // Sin tope de largo: es un texto legal y el de fabrica ya ocupa
-            // varias pantallas. La columna es TEXT.
-            'politica_datos' => ['nullable', 'string'],
-            // Las dos finalidades SI llevan tope: son una frase que se incrusta
-            // dentro de otra, en la politica y en el papel que se firma. Un
-            // parrafo entero ahi rompe las dos.
-            'finalidad_datos' => ['nullable', 'string', 'max:255'],
-            'finalidad_imagen' => ['nullable', 'string', 'max:255'],
+            'entidad_nit' => Reglas::texto(40, obligatorio: false),
+            'entidad_direccion' => Reglas::texto(160, obligatorio: false),
+            'entidad_correo' => Reglas::correo(120),
+            // El telefono de la ENTIDAD no lleva la regla de los diez digitos
+            // que llevan las personas, y el porque esta en `Reglas`: aqui va un
+            // fijo con extension o dos numeros, no un celular.
+            'entidad_telefono' => Reglas::telefonoDeEntidad(),
+            // El tope es enorme a proposito. La linea que habia aqui decia «sin
+            // tope de largo: es un texto legal», y eso sigue siendo verdad —lo
+            // que no puede seguir siendo verdad es que un campo acepte lo que
+            // le echen: sin ningun maximo esto es una via de escribir megabytes
+            // en la base por peticion. Veinte mil caracteres son unas diez
+            // paginas, muchisimo mas de lo que ocupa el texto de fabrica, y
+            // caben de sobra en la columna TEXT (65.535 BYTES, que con tildes
+            // no son 65.535 caracteres).
+            'politica_datos' => Reglas::texto(20000, obligatorio: false),
+            // Las dos finalidades SI llevan tope corto: son una frase que se
+            // incrusta dentro de otra, en la politica y en el papel que se
+            // firma. Un parrafo entero ahi rompe las dos.
+            'finalidad_datos' => Reglas::texto(255, obligatorio: false),
+            'finalidad_imagen' => Reglas::texto(255, obligatorio: false),
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
-            'firmante_nombre' => ['nullable', 'string', 'max:120'],
-            'firmante_cargo' => ['nullable', 'string', 'max:80'],
+            'firmante_nombre' => Reglas::texto(120, obligatorio: false),
+            'firmante_cargo' => Reglas::texto(80, obligatorio: false),
             'color_acento' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'limite_promotorias_por_periodo' => [
                 'required', 'integer', 'min:1', 'max:'.ConfiguracionInstitucion::RANURA_MAXIMA_ABSOLUTA,
@@ -93,11 +110,12 @@ class ConfiguracionController extends Controller
             'alerta_clase_no_dictada' => ['nullable', 'boolean'],
             'alerta_abandono' => ['nullable', 'boolean'],
             'recordar_encuesta' => ['nullable', 'boolean'],
+            'correo_obligatorio' => ['nullable', 'boolean'],
             // El maximo no es capricho: una racha mas larga que el periodo no
             // se alcanza nunca y la alerta quedaria apagada sin decirlo.
             'faltas_para_abandono' => ['required', 'integer', 'min:2', 'max:20'],
             'alertas_desde' => ['nullable', 'date'],
-        ], [
+        ], Reglas::mensajes() + [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
         ], [
             'firma' => 'firma',
@@ -183,6 +201,7 @@ class ConfiguracionController extends Controller
         $configuracion->alerta_clase_no_dictada = $request->boolean('alerta_clase_no_dictada');
         $configuracion->alerta_abandono = $request->boolean('alerta_abandono');
         $configuracion->recordar_encuesta = $request->boolean('recordar_encuesta');
+        $configuracion->correo_obligatorio = $request->boolean('correo_obligatorio');
         $configuracion->faltas_para_abandono = (int) $request->input('faltas_para_abandono');
         // Vacia se guarda como NULL: es lo que significa «desde el inicio del
         // periodo». Quien lo consigue de verdad es el middleware
@@ -216,11 +235,11 @@ class ConfiguracionController extends Controller
     public function documentoNuevo(Request $request): RedirectResponse
     {
         $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:60'],
-            'descripcion' => ['nullable', 'string', 'max:120'],
+            'nombre' => Reglas::texto(60),
+            'descripcion' => Reglas::texto(120, obligatorio: false),
             'obligatorio' => ['nullable', 'boolean'],
             'orden' => ['required', 'integer', 'min:0'],
-        ]);
+        ], Reglas::mensajes());
 
         // `activo` no se pide: un documento se crea pidiendose. Dejar de pedirlo
         // es una accion aparte en la lista, y no una casilla que se pueda

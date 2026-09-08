@@ -75,8 +75,18 @@
       <label for="f-buscar">Buscar</label>
       <input type="search" name="buscar" id="f-buscar"
              value="{{ $seleccion['buscar'] }}"
-             placeholder="Nombre o usuario"
+             placeholder="Nombre, usuario o documento"
              autocomplete="off">
+      {{--
+        El documento se busca ENTERO y el nombre por partes, y eso hay que
+        decirlo: si no, quien teclea «1017» y no encuentra nada concluye que la
+        persona no está. El porqué de la asimetría está en el controlador —una
+        búsqueda por partes dejaría confirmar la cédula de un menor probando
+        cifras—.
+      --}}
+      <p class="campo-ayuda">
+        El nombre y el usuario se buscan por partes. El documento, entero.
+      </p>
     </div>
   </div>
 

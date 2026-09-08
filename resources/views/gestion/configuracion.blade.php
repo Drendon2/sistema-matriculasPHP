@@ -206,7 +206,7 @@
 
     <div class="config-campo">
       <label class="config-etiqueta" for="entidad_correo">Correo de contacto</label>
-      <input type="email" name="entidad_correo" id="entidad_correo" maxlength="120"
+      <input type="email" name="entidad_correo" id="entidad_correo" maxlength="120" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" title="Un correo completo, con arroba y dominio. Ejemplo: nombre@correo.com"
              value="{{ old('entidad_correo', $institucion->entidad_correo) }}">
       @error('entidad_correo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
       <p class="config-ayuda">
@@ -218,7 +218,7 @@
 
     <div class="config-campo">
       <label class="config-etiqueta" for="entidad_telefono">Teléfono</label>
-      <input type="text" name="entidad_telefono" id="entidad_telefono" maxlength="40"
+      <input type="text" name="entidad_telefono" id="entidad_telefono" maxlength="40" inputmode="tel" pattern="[0-9+(][0-9 ()+.-]*( ?([eE][xX][tT])[.]? ?[0-9]{1,6})?" title="Números, y si hace falta espacios, paréntesis o una extensión. Ejemplo: 604 555 1234 ext. 102"
              autocomplete="tel"
              value="{{ old('entidad_telefono', $institucion->entidad_telefono) }}">
       @error('entidad_telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
@@ -387,6 +387,34 @@
           número de preguntas que le quedan y un botón para terminarla.
           <strong>No obliga ni bloquea nada</strong>, y quien ya la contestó no
           ve nada. Apágalo si prefieres no pedirlo.
+        </p>
+      </div>
+
+      {{--
+        EL CORREO, obligatorio o no. Va junto a la encuesta porque es la misma
+        pregunta —qué le exige el sistema a la persona— y no junto a los datos
+        de contacto de la entidad, que son un dato y no una regla.
+
+        Nace apagado, y el aviso de abajo dice por qué importa: encenderlo no
+        afecta solo a quien se inscriba mañana, sino a la ficha de todos los que
+        ya están sin correo. Ese número se pinta con el dato real delante para
+        que la decisión se tome sabiéndolo, y no se descubra al primer rechazo.
+      --}}
+      <div class="config-campo">
+        <label class="config-interruptor">
+          <input type="checkbox" name="correo_obligatorio" value="1"
+                 @checked(old('correo_obligatorio', $institucion->correo_obligatorio))>
+          <span class="config-etiqueta">Exigir el correo electrónico</span>
+        </label>
+        <p class="config-ayuda">
+          Apagado, el correo es opcional en todos los formularios. Es lo normal
+          aquí: buena parte de quien se inscribe son menores sin correo propio.
+          @if ($sinCorreo > 0)
+            <br><strong>Ojo si lo enciendes:</strong> hoy hay
+            <strong>{{ $sinCorreo }}</strong> {{ $sinCorreo == 1 ? 'persona' : 'personas' }}
+            sin correo guardado. Su ficha no se podrá guardar hasta ponérselo,
+            y eso incluye a quien solo venga a cambiarle el rol.
+          @endif
         </p>
       </div>
 

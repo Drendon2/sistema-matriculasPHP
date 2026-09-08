@@ -132,13 +132,30 @@
       nombre.required = false;
       nombre.setAttribute("aria-required", "false");
       marcaRequerido.hidden = true;
-      telefono.required = false;
-      telefono.setAttribute("aria-required", "false");
-      marcaTelefono.hidden = true;
+      // El TELÉFONO no vuelve a ser opcional del todo: para un mayor de edad el
+      // acudiente entero se puede dejar en blanco, pero en cuanto escribe un
+      // nombre ahí, el teléfono pasa a ser obligatorio. Es la misma regla que
+      // el servidor aplica con `required_with`, y existe porque en producción
+      // aparecieron 14 acudientes sin número, todos colgando de un estudiante.
+      exigirTelefonoSiHayNombre();
     }
+  }
+
+  /** Espeja `required_with:acudiente_nombre` del servidor. */
+  function exigirTelefonoSiHayNombre() {
+    var hayNombre = nombre.value.trim() !== "";
+    telefono.required = hayNombre;
+    telefono.setAttribute("aria-required", hayNombre ? "true" : "false");
+    marcaTelefono.hidden = !hayNombre;
   }
 
   fecha.addEventListener("change", actualizar);
   fecha.addEventListener("input", actualizar);
+  // Escribir el nombre del acudiente enciende su teléfono en el acto, sin
+  // esperar al envío. Solo cuando la persona NO es menor: si lo es, el teléfono
+  // ya está marcado y `actualizar()` manda.
+  nombre.addEventListener("input", function () {
+    if (!esMenorDeEdad(fecha.value)) { exigirTelefonoSiHayNombre(); }
+  });
   actualizar();
 })();

@@ -17,6 +17,7 @@ use App\Rules\ImagenProcesable;
 use App\Support\Dependencias;
 use App\Support\Imagen;
 use App\Support\Permisos;
+use App\Support\Reglas;
 use App\Support\Regreso;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,22 +112,45 @@ class UsuarioController extends Controller
             // justo el dia en que nadie estaria mirando.
             ->orderBy('id');
 
-        // Buscador por texto: nombre o usuario, que son las dos columnas por las
-        // que alguien identifica a una persona en esta lista. NO busca por
-        // documento ni por telefono a proposito — son datos de visibilidad
-        // restringida (ver PRODUCT.md), y un buscador que los aceptara dejaria
-        // que un director confirmara el documento de alguien probando cifras.
+        // Buscador por texto: nombre, usuario y —desde el 07/09/2026— DOCUMENTO.
+        //
+        // El documento ENTRA A MEDIAS, y la mitad que se queda fuera es la que
+        // importa. Hasta ese dia no se buscaba por el a proposito: es un dato de
+        // visibilidad restringida (ver PRODUCT.md) y un buscador por partes
+        // dejaria que un director confirmara la cedula de un menor probando
+        // cifras —teclear «1017» y ver quien sale es exactamente eso—.
+        //
+        // Se abrio porque hacia falta el caso contrario: tener la cedula
+        // delante, en un papel, y encontrar a la persona. Para eso basta con
+        // COINCIDENCIA EXACTA, y con ella el sondeo no funciona: «1017» no
+        // devuelve a nadie, hay que acertar el numero entero, que es lo que solo
+        // puede hacer quien ya lo tiene. Decision del usuario ese dia, con la
+        // objecion delante.
+        //
+        // El TELEFONO sigue fuera, y esa parte no se toco.
         //
         // El cotejo de la base es utf8mb4_unicode_ci, o sea que ignora
         // mayusculas Y tildes: «gomez» encuentra «Gómez» sin normalizar nada
         // aqui. Si alguna vez se cambia el cotejo de estas dos columnas, esta
         // busqueda deja de encontrar los nombres con tilde en silencio.
         if ($seleccion['buscar'] !== '') {
-            $termino = '%'.$this->escaparLike($seleccion['buscar']).'%';
+            $buscado = $seleccion['buscar'];
+            $termino = '%'.$this->escaparLike($buscado).'%';
 
-            $consulta->where(function ($q) use ($termino) {
+            $consulta->where(function ($q) use ($termino, $buscado) {
                 $q->where('nombre_completo', 'like', $termino)
-                    ->orWhereHas('user', fn ($u) => $u->where('username', 'like', $termino));
+                    ->orWhereHas('user', fn ($u) => $u->where('username', 'like', $termino))
+                    // `where` y no `like`: es la coincidencia exacta de arriba.
+                    // Solo se pregunta si lo tecleado TIENE forma de documento;
+                    // sin esa condicion, buscar «ana» lanzaria ademas una
+                    // subconsulta que no puede encontrar nada.
+                    ->when(
+                        preg_match(Reglas::DOCUMENTO, $buscado) === 1,
+                        fn ($q) => $q->orWhereHas(
+                            'datosEstudiante',
+                            fn ($d) => $d->where('documento_identidad', $buscado)
+                        )
+                    );
             });
         }
 
@@ -570,10 +594,9 @@ class UsuarioController extends Controller
         $esEstudiante = $request->input('rol') === 'estudiante';
 
         return $request->validate([
-            'username' => [
-                'required', 'string', 'max:150',
+            'username' => Reglas::usuario(
                 Rule::unique('users', 'username')->ignore($perfil?->user_id),
-            ],
+            ),
             // Al crear es obligatoria; al editar, en blanco quiere decir
             // "dejala como esta".
             //
@@ -594,23 +617,23 @@ class UsuarioController extends Controller
             // siga puesta si algun dia alguien anade un camino nuevo a este
             // formulario y se olvida de la primera.
             'rol' => ['required', Rule::in($this->rolesQuePuedeRepartir($request))],
-            'nombre_completo' => ['required', 'string', 'max:90'],
+            'nombre_completo' => Reglas::nombreDePersona(90),
             'fecha_nacimiento' => ['required', 'date', 'before:today'],
-            'telefono' => ['required', 'string', 'max:15'],
+            'telefono' => Reglas::celular(),
             // Opcional y NO unico, igual que en el esquema: buena parte de los
             // matriculados son menores sin correo propio, y dos hermanos
             // comparten el de su acudiente. Un indice unico convertiria ese caso
             // corriente en un error que la familia no sabria resolver.
-            'correo' => ['nullable', 'email', 'max:255'],
+            'correo' => Reglas::correoSegunLaInstitucion(),
             'foto_perfil' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:8192', new ImagenProcesable],
             'documento_identidad' => [
-                $esEstudiante ? 'required' : 'nullable', 'string', 'max:15',
+                ...Reglas::documento(obligatorio: $esEstudiante),
                 Rule::unique('datos_estudiante', 'documento_identidad')
                     ->ignore($perfil?->datosEstudiante?->id),
             ],
-            'acudiente_nombre' => ['nullable', 'string', 'max:90'],
-            'acudiente_telefono' => ['nullable', 'string', 'max:15'],
-        ], [
+            'acudiente_nombre' => Reglas::nombreDePersona(90, obligatorio: false),
+            'acudiente_telefono' => Reglas::celularDeAcudiente(),
+        ], Reglas::mensajes() + [
             'username.unique' => 'Ya existe una cuenta con ese nombre de usuario.',
             'documento_identidad.unique' => 'Ya hay un estudiante registrado con ese documento.',
         ]);

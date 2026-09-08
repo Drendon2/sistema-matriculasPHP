@@ -92,7 +92,7 @@
   <form method="post" action="{{ route('panel-actividad-anadir', $sesion) }}" class="cupo-form" style="margin-left:0;">
     @csrf
     <label class="sr-solo" for="nombre_completo">Nombre completo</label>
-    <input type="text" name="nombre_completo" id="nombre_completo" maxlength="90"
+    <input type="text" name="nombre_completo" id="nombre_completo" maxlength="90" pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números"
            placeholder="Nombre completo" style="width:18rem;margin:0;" required>
     <button type="submit" class="btn btn-sm">Añadir a la lista</button>
   </form>

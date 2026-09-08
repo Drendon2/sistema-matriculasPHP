@@ -97,7 +97,7 @@ class GestionTest extends TestCase
 
         DatosEstudiante::create([
             'perfil_id' => $perfil->id,
-            'documento_identidad' => '1'.$perfil->id,
+            'documento_identidad' => str_pad((string) $perfil->id, 8, '0', STR_PAD_LEFT),
         ]);
 
         return $perfil;
@@ -641,14 +641,14 @@ class GestionTest extends TestCase
                 'nombre_completo' => 'Nuevo Estudiante',
                 'fecha_nacimiento' => Carbon::today()->subYears(20)->toDateString(),
                 'telefono' => '3001112233',
-                'documento_identidad' => '99999',
+                'documento_identidad' => '99999999',
             ])
             ->assertRedirect(route('usuario-lista'));
 
         $perfil = Perfil::where('nombre_completo', 'Nuevo Estudiante')->first();
 
         $this->assertNotNull($perfil);
-        $this->assertSame('99999', $perfil->datosEstudiante->documento_identidad);
+        $this->assertSame('99999999', $perfil->datosEstudiante->documento_identidad);
     }
 
     /** La regla vive en el modelo porque la minoria de edad esta en otra tabla. */
@@ -662,7 +662,7 @@ class GestionTest extends TestCase
                 'nombre_completo' => 'Nino Pequeno',
                 'fecha_nacimiento' => Carbon::today()->subYears(9)->toDateString(),
                 'telefono' => '3001112233',
-                'documento_identidad' => '88888',
+                'documento_identidad' => '88888888',
             ])
             ->assertSessionHasErrors('acudiente');
 
