@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Perfil;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
@@ -44,6 +46,61 @@ class AutenticacionTest extends TestCase
 
         $respuesta->assertRedirect(route('post-login'));
         $this->assertAuthenticated();
+    }
+
+    /**
+     * Una contrasena guardada en un formato ilegible NO tumba la pantalla.
+     *
+     * El comprobador de bcrypt LANZA cuando lo que hay guardado no es un hash
+     * suyo, y esa excepcion salia sin capturar hasta el navegador: la pantalla
+     * mas publica del sistema respondia un 500 a esa persona, que ni siquiera
+     * llegaba a leer «usuario o contraseña incorrectos».
+     *
+     * Se escribe con `DB::table()->update()` a proposito: pasando por el modelo,
+     * el cast `hashed` lo hashearia y no habria forma de reproducir la fila
+     * rota. Asi es como llegan de verdad — por SQL o por una importacion.
+     *
+     * En produccion no hay ninguna fila asi (885 de 885 con bcrypt, comprobado
+     * el 07/09/2026); esta prueba cierra la puerta al dia que alguien importe
+     * usuarios de otro sistema.
+     */
+    public function test_una_contrasena_guardada_en_mal_formato_no_tumba_la_pantalla(): void
+    {
+        $user = $this->crearCuenta('estudiante');
+
+        DB::table('users')->where('id', $user->id)->update(['password' => 'x']);
+
+        $respuesta = $this->post(route('login.entrar'), [
+            'username' => 'ana',
+            'password' => 'secreto123',
+        ]);
+
+        // Login fallido y NO un 500: un hash ilegible no autentica a nadie.
+        $respuesta->assertSessionHasErrors('username');
+        $this->assertGuest();
+    }
+
+    /**
+     * Y queda en el registro, que es la mitad que de verdad importa.
+     *
+     * Un hash roto y una contrasena equivocada no son lo mismo: el primero no lo
+     * arregla la persona reintentando. Sin esta linea se quedaria escondido
+     * detras de un mensaje que le echa la culpa a ella.
+     */
+    public function test_una_contrasena_en_mal_formato_queda_registrada(): void
+    {
+        $user = $this->crearCuenta('estudiante');
+
+        DB::table('users')->where('id', $user->id)->update(['password' => 'x']);
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->withArgs(fn (string $mensaje, array $contexto) => $contexto['username'] === 'ana');
+
+        $this->post(route('login.entrar'), [
+            'username' => 'ana',
+            'password' => 'secreto123',
+        ])->assertSessionHasErrors('username');
     }
 
     public function test_una_contrasena_mala_no_entra(): void

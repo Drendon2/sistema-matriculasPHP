@@ -43,7 +43,7 @@
   <form method="post" action="{{ route('mi-perfil.guardar') }}" class="perfil-contacto-form perfil-tel-form">
     @csrf
     <input type="hidden" name="accion" value="contacto">
-    <input type="text" name="telefono" maxlength="15" value="{{ old('telefono', $perfil->telefono) }}">
+    <input type="text" name="telefono" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones" value="{{ old('telefono', $perfil->telefono) }}">
     <button type="submit" class="perfil-editar-btn" aria-label="Guardar teléfono">
       <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
     </button>
@@ -75,7 +75,7 @@
   <form method="post" action="{{ route('mi-perfil.guardar') }}" class="perfil-contacto-form perfil-tel-form">
     @csrf
     <input type="hidden" name="accion" value="correo">
-    <input type="email" name="correo" maxlength="255" placeholder="tu@correo.com"
+    <input type="email" name="correo" maxlength="255" pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" title="Un correo completo, con arroba y dominio. Ejemplo: nombre@correo.com" placeholder="tu@correo.com"
            value="{{ old('correo', $perfil->user->email) }}">
     <button type="submit" class="perfil-editar-btn" aria-label="Guardar correo">
       <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -142,6 +142,115 @@
     });
   })();
 </script>
+
+{{--
+  MIS DATOS. Nace el 07/09/2026: hasta ese día el nombre y la fecha se escribían
+  una vez al inscribirse y después solo los tocaba un administrador. Se abrió
+  porque hacía falta —la regla del nombre que entró esa misma tarde dejó a
+  cuatro personas con un nombre que el sistema ya no acepta, y ninguna podía
+  arreglarlo sola— y porque son SUS datos.
+
+  Va en un `<details>` cerrado y arriba del todo de las secciones: se toca poco,
+  pero cuando se toca es lo primero que se viene a buscar.
+
+  SE ABRE SOLA SI SU FORMULARIO FUE RECHAZADO, acotado a SUS campos y no con
+  `$errors->any()`: con eso se abriría porque falló la encuesta, que no tiene
+  nada que ver. Es la misma regla que el bloque de la contraseña, y existe por
+  el mismo fallo — un aviso que manda a buscar algo rojo dentro de un plegado.
+--}}
+{{--
+  EN UNA SOLA LÍNEA, y no por gusto: la forma en línea de la directiva PHP no
+  cruza saltos de línea. Partida en tres, Blade no la compila, `$erroresDeDatos`
+  nunca se asigna y el `<details>` de abajo se queda cerrado sobre su propio
+  error — sin fallar y sin avisar. Y la de bloque no se puede usar aquí: este
+  archivo ya usa la de una línea, y mezclarlas se traga todo lo que quede en
+  medio (está escrito en CLAUDE.md).
+--}}
+@php($erroresDeDatos = $errors->hasAny(['nombre_completo', 'fecha_nacimiento', 'documento_identidad', 'acudiente_nombre', 'acudiente_telefono', 'acudiente']))
+<details class="perfil-seccion" id="bloque-datos" @if ($erroresDeDatos) open @endif>
+  <summary class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">Mis datos</h3>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  <p class="campo-ayuda">
+    Corrige aquí tu información si algo quedó mal escrito al inscribirte.
+    El usuario con el que entras no se cambia desde aquí.
+  </p>
+
+  <form method="post" action="{{ route('mi-perfil.guardar') }}">
+    @csrf
+    <input type="hidden" name="accion" value="datos">
+
+    <div class="field">
+      <label for="mis-nombre">Nombre completo</label>
+      <input type="text" name="nombre_completo" id="mis-nombre" maxlength="90" required
+             pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números"
+             value="{{ old('nombre_completo', $perfil->nombre_completo) }}">
+      @error('nombre_completo')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="field">
+      <label for="mis-nacimiento">Fecha de nacimiento</label>
+      <input type="date" name="fecha_nacimiento" id="mis-nacimiento" required
+             value="{{ old('fecha_nacimiento', $perfil->fecha_nacimiento?->toDateString()) }}">
+      {{--
+        Dice lo que arrastra, porque no se deduce del campo: de la fecha sale si
+        eres menor, y de ahí que se te pida acudiente y qué versión del
+        consentimiento se imprime.
+      --}}
+      <p class="campo-ayuda">
+        De esta fecha depende si el sistema te pide acudiente y qué formato de
+        autorización te corresponde firmar.
+      </p>
+      @error('fecha_nacimiento')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    @if ($perfil->rol === 'estudiante')
+    <div class="field">
+      {{--
+        «Número de documento» y no «Documento de identidad», que es como se
+        llama en los demás formularios. Lo destapó una prueba que ya existía: en
+        ESTA pantalla conviven dos cosas distintas con ese nombre —el número que
+        se teclea aquí, y el PAPEL escaneado que la institución puede pedir más
+        abajo—, así que el rótulo repetido las confundía. Fuera de aquí no hay
+        ambigüedad y el nombre largo se queda.
+      --}}
+      <label for="mis-documento">Número de documento</label>
+      <input type="text" name="documento_identidad" id="mis-documento" required
+             maxlength="12" inputmode="numeric" pattern="[0-9]{6,12}" title="Solo números, entre 6 y 12 dígitos"
+             value="{{ old('documento_identidad', $datos?->documento_identidad) }}">
+      @error('documento_identidad')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="field">
+      <label for="mis-acudiente">Nombre del acudiente</label>
+      <input type="text" name="acudiente_nombre" id="mis-acudiente" maxlength="90"
+             pattern="[\p{L}\p{M}][\p{L}\p{M} .'-]*" title="Solo letras, espacios, apóstrofo y guion. Sin números"
+             value="{{ old('acudiente_nombre', $datos?->acudiente?->nombre) }}">
+      <p class="campo-ayuda">Obligatorio si eres menor de edad.</p>
+      @error('acudiente_nombre')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      @error('acudiente')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="field">
+      <label for="mis-acudiente-tel">Teléfono del acudiente</label>
+      <input type="text" name="acudiente_telefono" id="mis-acudiente-tel"
+             maxlength="10" inputmode="numeric" pattern="[0-9]{10}" title="10 dígitos, sin espacios ni guiones"
+             value="{{ old('acudiente_telefono', $datos?->acudiente?->telefono) }}">
+      @error('acudiente_telefono')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+    </div>
+    @endif
+
+    <button type="submit" class="btn">Guardar mis datos</button>
+  </form>
+</details>
 
 {{--
   El certificado de matrícula. Solo para quien tiene algo que certificar ahora

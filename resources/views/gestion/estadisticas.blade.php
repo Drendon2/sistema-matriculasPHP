@@ -42,26 +42,74 @@
 </p>
 @endif
 
-<div class="card" style="margin-bottom: 2.2rem;">
-  <div class="dash-resumen">
-    <div>
-      <span class="dash-stat-num">{{ $totalEstudiantesActivos }}</span>
-      <span class="dash-stat-label">Estudiantes activos</span>
-    </div>
-    <div>
-      <span class="dash-stat-num">{{ $totalPromotorias }}</span>
-      <span class="dash-stat-label">Promotorías</span>
-    </div>
-    <div>
-      <span class="dash-stat-num">{{ $totalGrupos }}</span>
-      <span class="dash-stat-label">Grupos</span>
-    </div>
-    <div>
-      <span class="dash-stat-num">{{ $totalEncuestas }}/{{ $totalConRol }}</span>
-      <span class="dash-stat-label">Encuestas completadas</span>
-    </div>
+{{--
+  LA MISMA CINTA QUE LA PORTADA DE GESTIÓN, desde el 07/09/2026.
+
+  Antes era `.card` + `.dash-resumen`, que es otro tratamiento del mismo dato:
+  las dos pantallas se abren una detrás de otra —Estadísticas se entra desde
+  Gestión— y la cifra cambiaba de forma por el camino.
+
+  SE CAMBIA EL MARCADO Y NO EL CSS, y esa es la parte que importa: la clase
+  `.dash-resumen` la comparten otras CINCO pantallas —satisfacción, dos
+  historiales y la trayectoria— y restilarla para que se pareciera a la cinta se
+  las habría llevado a todas por delante sin que nadie las mirara. Lo dice el
+  comentario de la portada de Gestión, que ya avisó de lo mismo al revés.
+
+  `.cifras-banda` trae su propia tarjeta —fondo, borde, sombra y margen— así que
+  el `.card` que envolvía esto sobra: dejarlo pondría una tarjeta dentro de otra.
+--}}
+<div class="cifras-banda">
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $totalEstudiantesActivos }}</span>
+    <span class="cifras-label">Estudiantes activos</span>
+  </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $totalPromotorias }}</span>
+    <span class="cifras-label">{{ $totalPromotorias == 1 ? 'Promotoría' : 'Promotorías' }}</span>
+  </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $totalGrupos }}</span>
+    <span class="cifras-label">{{ $totalGrupos == 1 ? 'Grupo' : 'Grupos' }}</span>
+  </div>
+  {{--
+    Cursos, proyección y cupos entran aquí el 07/09/2026: la portada de Gestión
+    ya los pintaba y esta pantalla no, así que la misma cinta decía dos cosas
+    distintas según por dónde se entrara. Las cifras salen de
+    `ResumenInstitucion`, la misma fuente que la otra.
+  --}}
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['cursosYTalleres'] }}</span>
+    <span class="cifras-label">Cursos y talleres</span>
+  </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['proyeccion'] }}</span>
+    <span class="cifras-label">Grupos de proyección</span>
+  </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['cuposDisponibles'] }}</span>
+    <span class="cifras-label">Cupos disponibles</span>
+  </div>
+  {{--
+    LA CIFRA DE ENCUESTAS ES UN PORCENTAJE, y el par exacto vive en el rótulo.
+
+    Elegido en vivo por el usuario el 07/09/2026 entre tres variantes. El
+    problema no era el color ni el peso: era la MASA. «227/308» son siete glifos
+    a 1.75rem contra los dos o tres de sus seis vecinas, así que esa celda
+    gritaba dentro de una fila que está pensada para que todas pesen igual. Un
+    solo número la devuelve al mismo tamaño óptico que las demás y no se pierde
+    ningún dato — los dos siguen abajo.
+
+    El guardia del cero no sobra: `$totalConRol` es la gente CON rol, y en una
+    instalación recién montada son cero hasta que el instalador crea al primer
+    administrador. Sin él, esta pantalla dividiría por cero el día del estreno.
+  --}}
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $totalConRol > 0 ? round($totalEncuestas * 100 / $totalConRol) : 0 }}%</span>
+    <span class="cifras-label">{{ $totalEncuestas }} de {{ $totalConRol }} encuestas</span>
   </div>
 </div>
+
+@include('gestion.partials.aviso-sin-tope', ['sinTope' => $cifras['promotoriasSinTope']])
 
 @php($sufijoPeriodo = $periodoActual ? $periodoActual->nombre : '')
 <h3 style="margin-top: 0.5rem;">

@@ -73,7 +73,13 @@
     <span class="cifras-num">{{ $cifras['proyeccion'] }}</span>
     <span class="cifras-label">Grupos de proyección</span>
   </div>
+  <div class="cifras-celda">
+    <span class="cifras-num">{{ $cifras['cuposDisponibles'] }}</span>
+    <span class="cifras-label">Cupos disponibles</span>
+  </div>
 </div>
+
+@include('gestion.partials.aviso-sin-tope', ['sinTope' => $cifras['promotoriasSinTope']])
 
 {{--
   LAS TRES ÚLTIMAS ALERTAS, y no una lista completa: para eso está su pantalla,

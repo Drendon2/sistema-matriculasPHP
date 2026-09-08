@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Actividad;
+use App\Models\Acudiente;
+use App\Models\DatosEstudiante;
 use App\Models\DocumentoEstudiante;
 use App\Models\DocumentoRequerido;
 use App\Models\EncuestaDemografica;
@@ -18,16 +20,19 @@ use App\Support\Documento;
 use App\Support\GestionAsistida;
 use App\Support\HorarioSemanal;
 use App\Support\Imagen;
+use App\Support\Reglas;
 use App\Support\ResumenAsistencia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
 
@@ -136,6 +141,7 @@ class MiPerfilController extends Controller
 
         return match ($request->input('accion')) {
             'foto' => $this->guardarFoto($request, $perfil),
+            'datos' => $this->guardarDatos($request, $perfil),
             'contacto' => $this->guardarContacto($request, $perfil),
             'correo' => $this->guardarCorreo($request, $perfil),
             'papel' => $this->guardarPapel($request, $perfil),
@@ -290,11 +296,145 @@ class MiPerfilController extends Controller
         );
     }
 
+    /**
+     * Cada quien corrige SUS datos: nombre, fecha, documento y acudiente.
+     *
+     * Hasta el 07/09/2026 no se podia. El nombre y la fecha se escribian una vez
+     * al inscribirse y despues solo los tocaba un administrador desde Gestion →
+     * Usuarios. Lo abrio el usuario ese dia, y hacia falta: la regla del nombre
+     * que entro esa misma tarde dejo a cuatro personas de produccion con un
+     * nombre que el sistema ya no acepta, y ninguna podia arreglarlo sola.
+     *
+     * ─── LO QUE ESTO ARRASTRA, que no se ve mirando el formulario ───────────
+     *
+     * De `fecha_nacimiento` sale `es_menor`, y de ahi cuelgan tres cosas: que se
+     * exija acudiente, quien firma el consentimiento, y cual de las dos
+     * versiones del formato se imprime. O sea que cambiar la fecha puede dejar
+     * una ficha en un estado que el sistema no admite —menor sin acudiente— y
+     * por eso NO basta con validar los campos: se llama a
+     * `DatosEstudiante::validar()`, que es la regla de verdad y la misma que
+     * usan la inscripcion publica y Gestion. Sin esa llamada, un menor se
+     * quitaria el acudiente cambiandose el año de nacimiento.
+     *
+     * ─── QUEDA EN LA AUDITORIA, y esa es la contrapartida ───────────────────
+     *
+     * Nombre, documento y fecha son datos de IDENTIDAD: salen en el certificado
+     * y en el papel que se firma. Que cada quien pueda corregirlos es lo que se
+     * pidio; que nadie pueda hacerlo sin dejar rastro es lo que lo hace
+     * sostenible. Se registra QUE cambio, no los valores.
+     */
+    private function guardarDatos(Request $request, Perfil $perfil): RedirectResponse
+    {
+        $esEstudiante = $perfil->rol === 'estudiante';
+        $datos = $perfil->datosEstudiante;
+
+        $reglas = [
+            'nombre_completo' => Reglas::nombreDePersona(90),
+            'fecha_nacimiento' => ['required', 'date', 'before:today'],
+        ];
+
+        // El documento y el acudiente solo existen para un estudiante: el
+        // personal no tiene fila en `datos_estudiante`.
+        if ($esEstudiante) {
+            $reglas['documento_identidad'] = [
+                ...Reglas::documento(),
+                Rule::unique('datos_estudiante', 'documento_identidad')->ignore($datos?->id),
+            ];
+            $reglas['acudiente_nombre'] = Reglas::nombreDePersona(90, obligatorio: false);
+            $reglas['acudiente_telefono'] = Reglas::celularDeAcudiente();
+        }
+
+        $valores = $request->validate($reglas, Reglas::mensajes() + [
+            'documento_identidad.unique' => 'Ya hay un estudiante registrado con ese documento.',
+        ], [
+            'nombre_completo' => 'nombre completo',
+            'fecha_nacimiento' => 'fecha de nacimiento',
+            'documento_identidad' => 'documento de identidad',
+        ]);
+
+        $cambios = $this->queCambia($perfil, $datos, $valores);
+
+        try {
+            DB::transaction(function () use ($perfil, $datos, $valores, $esEstudiante) {
+                $perfil->nombre_completo = $valores['nombre_completo'];
+                $perfil->fecha_nacimiento = $valores['fecha_nacimiento'];
+                $perfil->save();
+
+                if (! $esEstudiante) {
+                    return;
+                }
+
+                $acudiente = $datos?->acudiente;
+
+                if (! empty($valores['acudiente_nombre'])) {
+                    $acudiente ??= new Acudiente;
+                    $acudiente->nombre = $valores['acudiente_nombre'];
+                    $acudiente->telefono = $valores['acudiente_telefono'] ?? '';
+                    $acudiente->save();
+                }
+
+                $ficha = $datos ?? new DatosEstudiante(['perfil_id' => $perfil->id]);
+                $ficha->perfil_id = $perfil->id;
+                $ficha->documento_identidad = $valores['documento_identidad'];
+                $ficha->acudiente_id = $acudiente?->id;
+                // `setRelation` y no dejar que lo cargue solo: `validar()` mira
+                // el perfil para saber si es menor, y el que acaba de guardarse
+                // en memoria es el que trae la fecha NUEVA. Sin esto validaria
+                // contra la vieja y dejaria pasar justo el caso que importa.
+                $ficha->setRelation('perfil', $perfil);
+                $ficha->validar();
+                $ficha->save();
+            });
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->validator->errors());
+        }
+
+        if ($cambios !== []) {
+            Auditoria::registrar('perfil.datos_cambiados', ['campos' => $cambios], $perfil);
+        }
+
+        return redirect()->route('mi-perfil')->with('success', 'Tus datos quedaron actualizados.');
+    }
+
+    /**
+     * Que campos de identidad cambian, por su nombre y sin los valores.
+     *
+     * Sin valores a proposito: el registro de auditoria dice que alguien se
+     * cambio el documento, no cual era ni cual es. Para saber eso esta la ficha;
+     * duplicarlo aqui seria repartir el dato de identidad de un menor por los
+     * archivos de registro.
+     *
+     * @param  array<string, mixed>  $valores
+     * @return list<string>
+     */
+    private function queCambia(Perfil $perfil, ?DatosEstudiante $datos, array $valores): array
+    {
+        $cambios = [];
+
+        if ($perfil->nombre_completo !== $valores['nombre_completo']) {
+            $cambios[] = 'nombre';
+        }
+
+        // `getRawOriginal` y no el accesor: el cast devuelve un Carbon y aqui
+        // solo hace falta comparar dos cadenas «YYYY-MM-DD» —la guardada y la
+        // que llega del formulario—, que es lo que son las dos.
+        if ((string) $perfil->getRawOriginal('fecha_nacimiento') !== $valores['fecha_nacimiento']) {
+            $cambios[] = 'fecha_nacimiento';
+        }
+
+        if (isset($valores['documento_identidad'])
+            && $datos?->documento_identidad !== $valores['documento_identidad']) {
+            $cambios[] = 'documento';
+        }
+
+        return $cambios;
+    }
+
     private function guardarContacto(Request $request, Perfil $perfil): RedirectResponse
     {
         $datos = $request->validate([
-            'telefono' => ['required', 'string', 'max:15'],
-        ]);
+            'telefono' => Reglas::celular(),
+        ], Reglas::mensajes());
 
         $perfil->telefono = $datos['telefono'];
         $perfil->save();
@@ -325,8 +465,8 @@ class MiPerfilController extends Controller
     private function guardarCorreo(Request $request, Perfil $perfil): RedirectResponse
     {
         $datos = $request->validate([
-            'correo' => ['nullable', 'email', 'max:255'],
-        ], [], ['correo' => 'correo electrónico']);
+            'correo' => Reglas::correoSegunLaInstitucion(),
+        ], Reglas::mensajes(), ['correo' => 'correo electrónico']);
 
         $user = $perfil->user;
         // Vacio se guarda como null y no como cadena: «sin correo» es la
@@ -460,7 +600,7 @@ class MiPerfilController extends Controller
     {
         $reglas = [
             'genero' => ['required', Rule::in(array_keys(EncuestaDemografica::GENEROS))],
-            'barrio' => ['required', 'string', 'max:60'],
+            'barrio' => Reglas::texto(60),
             'estrato' => ['required', Rule::in(array_keys(EncuestaDemografica::ESTRATOS))],
             'nivel_educativo' => ['required', Rule::in(array_keys(EncuestaDemografica::NIVELES_EDUCATIVOS))],
             'ocupacion' => ['required', Rule::in(array_keys(EncuestaDemografica::OCUPACIONES))],
@@ -478,7 +618,7 @@ class MiPerfilController extends Controller
             $reglas['autoriza_tratamiento_datos'] = ['nullable', 'boolean'];
         }
 
-        $datos = $request->validate($reglas);
+        $datos = $request->validate($reglas, Reglas::mensajes());
 
         $encuesta = $perfil->encuesta ?? new EncuestaDemografica(['perfil_id' => $perfil->id]);
         $encuesta->fill(array_map(fn ($v) => $v ?? '', $datos));

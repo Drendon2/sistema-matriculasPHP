@@ -139,6 +139,12 @@ class EstadisticasController extends Controller
             'totalEstudiantesActivos' => $cifras['estudiantesActivos'],
             'totalPromotorias' => $cifras['promotorias'],
             'totalGrupos' => $cifras['grupos'],
+            // Y el resto de la cinta entero, que desde el 07/09/2026 lleva
+            // ademas cursos, proyeccion y cupos. Se pasa el array completo en
+            // vez de seguir desgranandolo en variables sueltas: cada cifra
+            // nueva pedia otra linea aqui y otra alla, y la que se olvidara
+            // dejaria la cinta a medias sin que nada fallara.
+            'cifras' => $cifras,
             'totalEncuestas' => $totalEncuestas,
             'encuestasIncompletas' => $this->encuestasIncompletas(),
             'totalConRol' => Perfil::where('rol', '!=', '')->count(),
