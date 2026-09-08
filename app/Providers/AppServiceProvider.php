@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\ConfiguracionInstitucion;
 use App\Support\Recurso;
+use App\Support\Tema;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
@@ -45,6 +46,23 @@ class AppServiceProvider extends ServiceProvider
          */
         View::composer('*', function ($view) {
             $view->with('configuracion', ConfiguracionInstitucion::actual());
+        });
+
+        /**
+         * El tema del aparato, para que los dos envoltorios puedan estampar
+         * `data-tema` en el `<html>`.
+         *
+         * Va por compositor y no por middleware porque lo unico que hace falta
+         * es una CADENA en la plantilla, no tocar la peticion ni la respuesta.
+         * Es cadena vacia cuando no hay preferencia guardada, que significa
+         * «sigue al sistema» — y entonces el atributo ni siquiera se pinta.
+         *
+         * `request()` y no una inyeccion: el compositor corre dentro de la
+         * peticion, y en una consola o una prueba sin peticion HTTP devuelve una
+         * peticion vacia, o sea cadena vacia, que es el valor correcto.
+         */
+        View::composer(['layouts.app', 'layouts.publico'], function ($view) {
+            $view->with('tema', Tema::delAparato(request()));
         });
 
         /**

@@ -7,7 +7,14 @@
   institucion y por eso no se puede cachear.
 --}}
 <!DOCTYPE html>
-<html lang="es">
+{{--
+  `data-tema` lo estampa el SERVIDOR leyendo la galleta, no un guion al
+  cargar: con JavaScript la pagina pinta en claro y salta a oscuro un
+  instante despues, que es un fogonazo blanco en la cara de quien encendio
+  el modo oscuro justo para no tener uno. Vacio significa «sigue al
+  sistema», que es lo que hace el CSS cuando el atributo no esta.
+--}}
+<html lang="es"@if ($tema !== '') data-tema="{{ $tema }}"@endif>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,11 +24,25 @@
   Marca configurable: sobreescribe SOLO el acento y sus dos tonos derivados.
   El resto del sistema de diseño (neutros, estados, colores de Área) no se toca.
 --}}
+@php($oscuro = $configuracion->acento_oscuro_trio)
 <style>
+  /*
+    La marca, en sus DOS versiones. El acento de una institucion no sobrevive a
+    un fondo oscuro —el verde de fabrica da 2,98:1— asi que la version oscura no
+    es la misma con otro nombre: se aclara conservando el tono, y los otros dos
+    invierten su papel. El como esta en `Support\Color`.
+
+    El respaldo de la primera linea de cada par es lo que salva a un navegador
+    que no conoce `light-dark()`: descarta la segunda por invalida y se queda
+    con el color claro, en vez de dejar el token sin valor.
+  */
   :root {
     --accent: {{ $configuracion->color_acento }};
+    --accent: light-dark({{ $configuracion->color_acento }}, {{ $oscuro['claro'] }});
     --accent-dark: {{ $configuracion->color_acento_oscuro }};
+    --accent-dark: light-dark({{ $configuracion->color_acento_oscuro }}, {{ $oscuro['hover'] }});
     --accent-soft: {{ $configuracion->color_acento_suave }};
+    --accent-soft: light-dark({{ $configuracion->color_acento_suave }}, {{ $oscuro['suave'] }});
   }
 </style>
 </head>

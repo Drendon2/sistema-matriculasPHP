@@ -268,6 +268,22 @@ class ConfiguracionInstitucion extends Model
         return Color::acentoSuave($this->color_acento ?? '#0a7a59');
     }
 
+    /**
+     * Los tres tonos del acento para el modo OSCURO.
+     *
+     * Existen porque el acento de marca no sobrevive a un fondo oscuro: el
+     * verde de fabrica da 2,98:1 sobre la superficie oscura, y el de otra
+     * institucion puede ser peor. Se derivan igual que sus gemelos claros, o
+     * sea de UN solo color elegido, para que cambiar de marca siga sin obligar
+     * a nadie a inventarse dos paletas. El como esta en `Support\Color`.
+     *
+     * @return array{claro: string, hover: string, suave: string}
+     */
+    public function getAcentoOscuroTrioAttribute(): array
+    {
+        return Color::acentoParaFondoOscuro($this->color_acento ?? '#0a7a59');
+    }
+
     /** Contraste del texto blanco sobre el acento (los botones primarios). */
     public function getContrasteTextoBotonAttribute(): float
     {

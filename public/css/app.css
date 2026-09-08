@@ -1,19 +1,104 @@
+  /* ═══════════════════════════════════════════════════════════════════════
+     MODO OSCURO — 08/09/2026
+
+     COMO SE ELIGE. Tres estados y no dos: por defecto se sigue al sistema
+     operativo, y quien quiera puede forzar uno de los dos desde Mi perfil. Eso
+     son las tres lineas de `color-scheme` de aqui abajo, y nada mas: el
+     atributo `data-tema` lo estampa el servidor en el `<html>` leyendo una
+     galleta, asi que la pagina llega ya con su tema puesto y NO hay parpadeo
+     blanco antes de que corra ningun guion.
+
+     POR QUE `light-dark()` Y NO DOS BLOQUES. La alternativa era repetir la
+     lista entera de tokens dentro de un `@media` y otra vez dentro de un
+     selector de atributo — dos listas que se separan en cuanto alguien anada un
+     color y solo se acuerde de una. Asi cada token declara sus DOS valores en
+     el mismo renglon, a la vista, y no hay forma de tocar uno sin ver el otro.
+
+     Y EL RESPALDO DE LA LINEA DE ARRIBA NO SOBRA. Un navegador que no conoce
+     `light-dark()` descarta esa declaracion por invalida y se queda con la
+     anterior, que es el valor claro de siempre. Sin ese respaldo el token se
+     quedaria sin valor y la pagina perderia el color ENTERO, que es bastante
+     peor que no tener modo oscuro. Se soporta desde 2024; aqui se entra desde
+     telefonos que pueden ser mas viejos que eso.
+
+     LO QUE `color-scheme` DA GRATIS, y es la razon de usarlo en vez de una
+     clase: el navegador pinta con el tema correcto lo que no dibuja esta hoja
+     —la barra de desplazamiento, el cursor de texto, los desplegables nativos,
+     los selectores de fecha—. Sin el, un formulario oscuro se llena de widgets
+     blancos.
+
+     LOS COLORES DE DATO NO SE INVIERTEN A OJO, y ahi esta casi todo el trabajo:
+     cada valor oscuro esta medido contra la superficie que le toca. Lo que
+     salio de medir, y que nadie adivinaria leyendo la lista clara:
+
+       · El acento de marca NO sobrevive: #0a7a59 sobre la superficie oscura da
+         2,98:1. Se deriva aclarado en `Support\Color`, porque cada institucion
+         elige el suyo y una constante solo serviria para el verde de fabrica.
+       · El texto del boton se INVIERTE. Con el acento claro, el blanco de
+         siempre cae a 1,54:1. Por eso existe `--sobre-acento`.
+       · La rampa del mapa de calor SE DA LA VUELTA. En claro «mas clases» es
+         azul mas oscuro; en oscuro el mas oscuro es el que desaparece, asi que
+         el paso fuerte pasa a ser el mas claro. Son los mismos cuatro azules
+         leidos al reves.
+       · La falta pasa de #b22e22 a un rojo claro: el original daba 2,50:1. Con
+         eso se pierde separacion de LUMINANCIA contra la excusa naranja —de
+         1,98:1 a 1,40— pero esas dos nunca se distinguieron por color: la
+         excusa lleva un hueco al centro. Ver el comentario de `.asis-cel`.
+     ═══════════════════════════════════════════════════════════════════════ */
   :root {
+    /* Sigue al sistema mientras nadie diga lo contrario. */
+    color-scheme: light dark;
+
     --bg: #f2f5f3;
+    --bg: light-dark(#f2f5f3, #121715);
     --surface: #ffffff;
+    --surface: light-dark(#ffffff, #1c2421);
     --surface-alt: #eaf1ec;
+    --surface-alt: light-dark(#eaf1ec, #232d29);
     --border: #dce4df;
+    --border: light-dark(#dce4df, #2e3a35);
     --border-strong: #c3cfc7;
+    --border-strong: light-dark(#c3cfc7, #44534c);
     --ink: #182420;
+    --ink: light-dark(#182420, #e7ede9);
     --ink-soft: #55645c;
+    --ink-soft: light-dark(#55645c, #a9b7b0);
     --ink-faint: #56655d;
+    --ink-faint: light-dark(#56655d, #94a49c);
+    /* Los tres del acento los pisa el `<style>` del envoltorio con el color de
+       la institucion, tambien en sus dos versiones. Estos son los de fabrica. */
     --accent: #0a7a59;
+    --accent: light-dark(#0a7a59, #3e987e);
     --accent-dark: #065a41;
+    --accent-dark: light-dark(#065a41, #51b89a);
     --accent-soft: #dbf2e7;
+    --accent-soft: light-dark(#dbf2e7, #10261f);
+    /* El texto que va ENCIMA del acento. Blanco sobre el verde oscuro de claro;
+       tinta oscura sobre el verde claro de oscuro. */
+    --sobre-acento: #ffffff;
+    --sobre-acento: light-dark(#ffffff, #10201a);
     --activa: #2458d6;
+    --activa: light-dark(#2458d6, #8fb4ff);
     --activa-bg: #e3ebfc;
+    --activa-bg: light-dark(#e3ebfc, #1b2740);
     --danger: #b22e22;
+    --danger: light-dark(#b22e22, #ff9d90);
     --danger-bg: #fbe4e1;
+    --danger-bg: light-dark(#fbe4e1, #3a1f1b);
+    /* Asistencia. El verde y el naranja aguantan los dos fondos; el rojo no. */
+    --asis-asistio: #1baf7a;
+    --asis-falto: #b22e22;
+    --asis-falto: light-dark(#b22e22, #ff8a80);
+    --asis-excusa: #eb6834;
+    /* La rampa del mapa de calor, invertida en oscuro (ver la cabecera). */
+    --cal-n1: #cfe0f6;
+    --cal-n1: light-dark(#cfe0f6, #1d5fb0);
+    --cal-n2: #8fbaea;
+    --cal-n2: light-dark(#8fbaea, #4a8bdb);
+    --cal-n3: #4a8bdb;
+    --cal-n3: light-dark(#4a8bdb, #8fbaea);
+    --cal-n4: #1d5fb0;
+    --cal-n4: light-dark(#1d5fb0, #cfe0f6);
     --radius-lg: 18px;
     --radius: 12px;
     --radius-sm: 8px;
@@ -22,8 +107,26 @@
        calendario. Misma excepción documentada que las barras de estadísticas —
        ver "Excepción intencional — barras de dato" en DESIGN.md. */
     --radius-dato: 3px;
+    /* En oscuro la misma sombra no se ve: el fondo ya es casi negro. Se sube
+       la opacidad en vez de aclararla — una sombra clara es un halo, y este
+       sistema tiene una regla escrita contra los halos sin desplazamiento.
+
+       LO QUE CAMBIA ES LA TINTA Y NO LA SOMBRA ENTERA, y no es una preferencia:
+       `light-dark()` toma DOS argumentos, y una sombra lleva comas dentro. Con
+       la sombra completa dentro de la funcion, el navegador lee cuatro
+       argumentos, la descarta por invalida y la tarjeta se queda plana. */
+    --sombra-cerca: rgba(24,36,32,0.05);
+    --sombra-cerca: light-dark(rgba(24,36,32,0.05), rgba(0,0,0,0.30));
+    --sombra-lejos: rgba(24,36,32,0.08);
+    --sombra-lejos: light-dark(rgba(24,36,32,0.08), rgba(0,0,0,0.45));
+    --sombra-cerca-alta: rgba(24,36,32,0.10);
+    --sombra-cerca-alta: light-dark(rgba(24,36,32,0.10), rgba(0,0,0,0.40));
+    --sombra-lejos-alta: rgba(24,36,32,0.12);
+    --sombra-lejos-alta: light-dark(rgba(24,36,32,0.12), rgba(0,0,0,0.55));
     --shadow: 0 1px 2px rgba(24,36,32,0.05), 0 6px 16px rgba(24,36,32,0.08);
+    --shadow: 0 1px 2px var(--sombra-cerca), 0 6px 16px var(--sombra-lejos);
     --shadow-lift: 0 4px 10px rgba(24,36,32,0.10), 0 12px 28px rgba(24,36,32,0.12);
+    --shadow-lift: 0 4px 10px var(--sombra-cerca-alta), 0 12px 28px var(--sombra-lejos-alta);
     /* Aspa dibujada, para enmascarar la cruz de limpiar del buscador. Va como
        mascara y no como imagen para que el color lo ponga el sistema y no el
        archivo: asi sigue a la tinta y al rojo del hover. */
@@ -33,14 +136,33 @@
     /* Etiquetas de Área: un color estable por id (ver templatetag tag_color) — como
        un marcador de color distinto por disciplina en la cartelera del estudio. */
     --tag-0: #8f5e10; --tag-0-bg: #fbecd3;
+    --tag-0: light-dark(#8f5e10, #ae8647); --tag-0-bg: light-dark(#fbecd3, #2d2210);
     --tag-1: #7c4fce; --tag-1-bg: #ede4fb;
+    --tag-1: light-dark(#7c4fce, #987dca); --tag-1-bg: light-dark(#ede4fb, #281843);
     --tag-2: #c4447b; --tag-2-bg: #fae1ec;
+    --tag-2: light-dark(#c4447b, #c46e93); --tag-2-bg: light-dark(#fae1ec, #341321);
     --tag-3: #12676a; --tag-3-bg: #dcf2f2;
+    --tag-3: light-dark(#12676a, #3e9598); --tag-3-bg: light-dark(#dcf2f2, #0e2525);
     --tag-4: #5b57c9; --tag-4-bg: #e6e5fa;
+    --tag-4: light-dark(#5b57c9, #8684cd); --tag-4-bg: light-dark(#e6e5fa, #201e52);
     --tag-5: #c1571f; --tag-5-bg: #fbe4d2;
+    --tag-5: light-dark(#c1571f, #bb7a58); --tag-5-bg: light-dark(#fbe4d2, #2d1a10);
     --tag-6: #a83cae; --tag-6-bg: #f5e1f6;
+    --tag-6: light-dark(#a83cae, #bf6ec4); --tag-6-bg: light-dark(#f5e1f6, #3a163c);
     --tag-7: #766a19; --tag-7-bg: #f0ecd3;
+    --tag-7: light-dark(#766a19, #988c3e); --tag-7-bg: light-dark(#f0ecd3, #25220e);
   }
+
+  /* LOS TRES ESTADOS. Sin `data-tema` se sigue al sistema; con el puesto manda
+     la persona. Son tres lineas porque `color-scheme` hace todo el trabajo:
+     cambia lo que resuelve `light-dark()` Y el tema de los controles nativos.
+
+     Va en el `<html>` y lo estampa el SERVIDOR leyendo una galleta, no un guion
+     al cargar: hacerlo con JavaScript significa que la pagina pinta primero en
+     claro y salta al oscuro un instante despues — un fogonazo blanco en la cara
+     de quien encendio el modo oscuro justo para no tener uno. */
+  :root[data-tema="claro"] { color-scheme: light; }
+  :root[data-tema="oscuro"] { color-scheme: dark; }
 
   * { box-sizing: border-box; }
 
@@ -104,7 +226,7 @@
     gap: 0.4rem;
     min-height: 44px;
     background: var(--accent);
-    color: #fff;
+    color: var(--sobre-acento);
     border: 1px solid var(--accent);
     padding: 0.65rem 1.2rem;
     border-radius: var(--radius-sm);
@@ -115,7 +237,7 @@
     text-decoration: none;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
   }
-  .btn:hover { background: var(--accent-dark); border-color: var(--accent-dark); color: #fff; }
+  .btn:hover { background: var(--accent-dark); border-color: var(--accent-dark); color: var(--sobre-acento); }
   .btn:active { transform: scale(0.97); }
   .btn-secundario { background: transparent; color: var(--accent); border-color: var(--border-strong); }
   .btn-secundario:hover { background: var(--surface-alt); color: var(--accent-dark); border-color: var(--border-strong); }
@@ -637,7 +759,7 @@
   .perfil-avatar-badge {
     position: absolute; right: -2px; bottom: -2px;
     width: 30px; height: 30px; border-radius: 50%;
-    background: var(--accent); color: #fff;
+    background: var(--accent); color: var(--sobre-acento);
     display: flex; align-items: center; justify-content: center;
     border: 2.5px solid var(--surface);
     box-shadow: var(--shadow);
@@ -653,7 +775,7 @@
   .perfil-editar-btn {
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
     width: 26px; height: 26px; border-radius: 50%;
-    background: var(--accent); color: #fff; border: none; cursor: pointer; padding: 0;
+    background: var(--accent); color: var(--sobre-acento); border: none; cursor: pointer; padding: 0;
     transition: background 0.15s ease;
   }
   .perfil-editar-btn:hover { background: var(--accent-dark); }
@@ -936,12 +1058,12 @@
   /* Estados del estudiante. Los tres tonos están validados como paleta —banda
      de luminosidad, croma, separación bajo daltonismo y suelo de visión
      normal—, no elegidos a ojo. */
-  .asis-cel.cal-asistio { background: #1baf7a; border-color: #1baf7a; }
-  .asis-cel.cal-falto   { background: #b22e22; border-color: #b22e22; }
+  .asis-cel.cal-asistio { background: var(--asis-asistio); border-color: var(--asis-asistio); }
+  .asis-cel.cal-falto   { background: var(--asis-falto); border-color: var(--asis-falto); }
   /* Excusa: relleno naranja con un hueco al centro. La forma es lo que la
      separa de una falta para quien no distingue los dos tonos. */
   .asis-cel.cal-excusa {
-    background: #eb6834; border-color: #eb6834;
+    background: var(--asis-excusa); border-color: var(--asis-excusa);
     box-shadow: inset 0 0 0 3px var(--surface);
   }
   /* Hubo clase y nadie la pasó: contorno punteado sin relleno, la misma
@@ -953,10 +1075,37 @@
      Tres bastan en una ficha —nadie da diez clases en un día— y el cuarto lo
      pide el mapa de toda la institución, donde un día flojo y uno fuerte se
      separan mucho más y con tres pasos el contraste se perdía. */
-  .asis-cel.cal-n1 { background: #cfe0f6; border-color: #cfe0f6; }
-  .asis-cel.cal-n2 { background: #8fbaea; border-color: #8fbaea; }
-  .asis-cel.cal-n3 { background: #4a8bdb; border-color: #4a8bdb; }
-  .asis-cel.cal-n4 { background: #1d5fb0; border-color: #1d5fb0; }
+  .asis-cel.cal-n1 { background: var(--cal-n1); border-color: var(--cal-n1); }
+  .asis-cel.cal-n2 { background: var(--cal-n2); border-color: var(--cal-n2); }
+  .asis-cel.cal-n3 { background: var(--cal-n3); border-color: var(--cal-n3); }
+  .asis-cel.cal-n4 { background: var(--cal-n4); border-color: var(--cal-n4); }
+
+  /* Las tres opciones de apariencia. Cada una es una fila tocable entera y no
+     solo el círculo del radio: en un teléfono un radio nativo mide 13px, y este
+     proyecto ya tiene escrito lo que cuesta un control que se toca bien con el
+     ratón y mal con el pulgar. */
+  .tema-opciones { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; }
+  .tema-opcion {
+    display: flex; align-items: center; gap: 0.6rem;
+    min-height: 44px; padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .tema-opcion:hover { background: var(--surface-alt); }
+  /* EL `width: auto` NO SOBRA, y es lo que este selector vino a arreglar: la
+     regla base de `input` de esta hoja pone `width: 100%` —correcto para un
+     campo de texto— y a un radio le da la fila entera, con el circulo dibujado
+     al principio de su caja y la etiqueta empujada al borde derecho. Se ve
+     abriendo la pagina y no leyendo el CSS del selector, porque la regla que
+     manda esta seiscientas lineas mas arriba.
+
+     `margin-top` tambien: esa misma regla base le pone 0.15rem y descoloca el
+     circulo respecto a su texto. */
+  .tema-opcion input {
+    width: auto; flex: 0 0 auto;
+    margin: 0; padding: 0;
+    accent-color: var(--accent);
+  }
+  .tema-opciones .btn { align-self: flex-start; margin-top: 0.6rem; }
 
   /* La barra de paso entre periodos. Las flechas mantienen su sitio aunque no
      lleven a ninguna parte: si desaparecieran, al llegar al extremo la que queda
@@ -972,7 +1121,7 @@
     width: 2.1rem; height: 2.1rem; border-radius: 50%;
     border: 1px solid var(--border); text-decoration: none;
     font-size: 1.05rem; line-height: 1; color: var(--accent);
-    background: #fff;
+    background: var(--surface);
   }
   .periodo-flecha:hover { background: var(--accent-soft); }
   .periodo-flecha-off { color: var(--ink-faint); opacity: 0.4; cursor: default; }
@@ -1988,6 +2137,12 @@
      como el logo. */
   .config-firma-vista {
     height: 56px; width: auto; max-width: 260px; object-fit: contain;
+    /* BLANCO A MANO Y A PROPOSITO: no es una superficie, es el papel. La firma
+       es un trazo oscuro sobre fondo transparente, asi que sobre una superficie
+       oscura desapareceria. Aqui se mira para comprobar que la firma subida se
+       ve, y se imprime siempre sobre papel blanco. Si alguien lo cambia por
+       `--surface` «para que siga el tema», la firma se vuelve invisible en modo
+       oscuro sin que nada falle. */
     flex: 0 0 auto; background: #fff; border: 1px solid var(--border);
     border-radius: var(--radius-sm); padding: 0.35rem;
   }
@@ -2053,7 +2208,7 @@
   .config-muestra { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
   .config-muestra-chip {
     font-family: var(--font-mono); font-size: 0.66rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.045em; color: #fff;
+    text-transform: uppercase; letter-spacing: 0.045em; color: var(--sobre-acento);
     padding: 0.4rem 0.7rem; border-radius: var(--radius-sm);
   }
   .config-muestra-chip-claro { border: 1px solid var(--border-strong); }
@@ -2755,10 +2910,10 @@
   .dias-selector-actual {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--sobre-acento);
     font-weight: 700;
   }
-  .dias-selector-actual:hover { background: var(--accent-dark); color: #fff; }
+  .dias-selector-actual:hover { background: var(--accent-dark); color: var(--sobre-acento); }
 
   /* EL CAMPO DEL ENLACE, PLEGADO. En la lista de actividades la URL entera se
      repetia en cada fila y era lo que mas pesaba en esa pantalla; el boton de

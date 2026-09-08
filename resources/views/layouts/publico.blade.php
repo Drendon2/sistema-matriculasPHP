@@ -8,17 +8,29 @@
   unico que cambia por institucion.
 --}}
 <!DOCTYPE html>
-<html lang="es">
+{{--
+  `data-tema` lo estampa el SERVIDOR leyendo la galleta, no un guion al
+  cargar: con JavaScript la pagina pinta en claro y salta a oscuro un
+  instante despues, que es un fogonazo blanco en la cara de quien encendio
+  el modo oscuro justo para no tener uno. Vacio significa «sigue al
+  sistema», que es lo que hace el CSS cuando el atributo no esta.
+--}}
+<html lang="es"@if ($tema !== '') data-tema="{{ $tema }}"@endif>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>@yield('title', $configuracion->nombre_institucion)</title>
 <link rel="stylesheet" href="@recurso('css/publico.css')">
+@php($oscuro = $configuracion->acento_oscuro_trio)
 <style>
+  /* La marca en sus dos versiones; el porque esta en `layouts.app`. */
   :root {
     --accent: {{ $configuracion->color_acento }};
+    --accent: light-dark({{ $configuracion->color_acento }}, {{ $oscuro['claro'] }});
     --accent-dark: {{ $configuracion->color_acento_oscuro }};
+    --accent-dark: light-dark({{ $configuracion->color_acento_oscuro }}, {{ $oscuro['hover'] }});
     --accent-soft: {{ $configuracion->color_acento_suave }};
+    --accent-soft: light-dark({{ $configuracion->color_acento_suave }}, {{ $oscuro['suave'] }});
     --caja-ancho: @yield('ancho', '400px');
   }
 </style>

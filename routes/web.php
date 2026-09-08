@@ -23,6 +23,7 @@ use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PanelGrupoController;
 use App\Http\Controllers\PoliticaDatosController;
 use App\Http\Controllers\RenovarController;
+use App\Http\Controllers\TemaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -138,6 +139,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/mi-perfil', [MiPerfilController::class, 'mostrar'])->name('mi-perfil');
     Route::post('/mi-perfil', [MiPerfilController::class, 'guardar'])->name('mi-perfil.guardar');
 });
+
+// El tema es del APARATO y no de la cuenta, asi que su ruta va FUERA de `auth`:
+// la galleta sobrevive al cierre de sesion, y quien eligio oscuro no debe
+// encontrarse la pantalla de entrar en blanco. Ver `Support\Tema`.
+Route::post('/tema', TemaController::class)->name('tema');
 
 // ---------------------------------------------------------------------------
 // Panel: el personal (todos los roles menos estudiante)

@@ -28,6 +28,22 @@ class Color
 
     public const SATURACION_MAXIMA_SUAVE = 0.469;
 
+    /**
+     * Los tres numeros del modo oscuro, medidos el 08/09/2026.
+     *
+     * `SATURACION_MAXIMA_OSCURO` es el techo de croma al aclarar el acento: con
+     * el verde de fabrica sin tope salia `#13ecac`, un menta fluorescente.
+     * `CONTRASTE_MINIMO_ACENTO` es el AA de texto normal, porque el acento se
+     * usa como color de enlace y no solo de adorno. `SALTO_HOVER` es cuanta luz
+     * separa el hover del reposo: menos no se nota al tacto y mas parece otro
+     * color.
+     */
+    public const SATURACION_MAXIMA_OSCURO = 0.42;
+
+    public const CONTRASTE_MINIMO_ACENTO = 4.5;
+
+    public const SALTO_HOVER = 0.10;
+
     /** Tono de hover/activo: el mismo color con la luminosidad bajada. */
     public static function acentoOscuro(string $hex): string
     {
@@ -46,6 +62,111 @@ class Color
             self::LUZ_ACENTO_SUAVE,
             min($s, self::SATURACION_MAXIMA_SUAVE)
         ));
+    }
+
+    /**
+     * Los tres tonos del acento CUANDO EL FONDO ES OSCURO.
+     *
+     * No son los de arriba con otro nombre: sobre un fondo oscuro el acento de
+     * marca deja de servir. Medido el 08/09/2026 con el verde de fabrica,
+     * `#0a7a59` sobre la superficie oscura da 2,98:1 — no llega ni al minimo de
+     * texto grande. La marca no puede pedir prestada su legibilidad al fondo
+     * claro que ya no esta.
+     *
+     * Asi que el acento se ACLARA hasta cumplir, conservando su tono: sigue
+     * siendo el verde de la institucion, o el color que esa institucion haya
+     * elegido, pero a una luminosidad que se lee.
+     *
+     * Y LOS OTROS DOS INVIERTEN SU PAPEL, que es lo que no se ve leyendo los
+     * nombres:
+     *
+     * - `acentoOscuro` es el tono de hover. En claro se oscurece para separarse
+     *   del fondo; en oscuro tiene que ACLARARSE, por lo mismo.
+     * - `acentoSuave` es el fondo de una pastilla con texto de acento encima.
+     *   En claro es un tinte palido; en oscuro tiene que ser un tinte OSCURO, o
+     *   la pastilla se convierte en un parche brillante con texto ilegible.
+     *
+     * Se busca la luminosidad por pasos y no con una constante como sus vecinas
+     * porque el acento lo elige cada institucion: una constante que funciona con
+     * el verde de fabrica deja fuera un azul marino o un amarillo. Se sube de
+     * 0,02 en 0,02 hasta pasar el minimo contra la superficie oscura, con un
+     * tope por si el color es tan saturado que no llega — ahi manda el ultimo
+     * valor probado, que es el mas legible que ese tono admite.
+     *
+     * @return array{claro: string, hover: string, suave: string}
+     */
+    public static function acentoParaFondoOscuro(string $hex, string $superficie = '#1c2421'): array
+    {
+        [$h, , $s] = self::rgbAHls(self::hexARgb($hex));
+
+        // Se DESATURA al aclarar, y no es cosmetico. Subir la luz conservando la
+        // saturacion de un verde de marca da un menta de neon —medido con el de
+        // fabrica: `#13ecac`— que no pertenece a este sistema visual: el mundo
+        // de esta aplicacion es sobrio y una pantalla llena de fluorescente
+        // cansa justo a quien enciende el modo oscuro para descansar la vista.
+        // Es ademas lo que hace cualquier paleta oscura seria: los tonos claros
+        // pierden croma.
+        $sClaro = min($s, self::SATURACION_MAXIMA_OSCURO);
+
+        $luzBase = self::luzQueCumple($h, $sClaro, $superficie, self::CONTRASTE_MINIMO_ACENTO);
+        $claro = self::rgbAHex(self::hlsARgb($h, $luzBase, $sClaro));
+        $sTinte = min($s, self::SATURACION_MAXIMA_SUAVE);
+
+        return [
+            'claro' => $claro,
+            // El hover es un ESCALON FIJO por encima, no otro objetivo de
+            // contraste: buscando un contraste mayor, el primer valor que ya lo
+            // cumplia devolvia el mismo color y el boton se quedaba sin
+            // respuesta al tacto. Se vio midiendo, no mirando.
+            'hover' => self::rgbAHex(self::hlsARgb($h, min(0.92, $luzBase + self::SALTO_HOVER), $sClaro)),
+            // Y el tinte de fondo, en el otro sentido: se OSCURECE hasta que el
+            // acento claro se lee encima. Con una constante (0,16) el par bajaba
+            // a 3,48:1 con el verde de fabrica y a 3,99 con un ocre — por debajo
+            // del AA de texto normal, y ese par ES texto: la pastilla que dice
+            // cuantos filtros hay puestos.
+            'suave' => self::rgbAHex(self::hlsARgb($h, self::luzDeFondoQueCumple($h, $claro, $sTinte), $sTinte)),
+        ];
+    }
+
+    /**
+     * La luz mas ALTA de un tinte que todavia deja leer el acento claro encima.
+     *
+     * El gemelo de `luzQueCumple`, en el otro sentido: aqui lo que se mueve es
+     * el fondo y lo que se queda quieto es el texto. Se empieza claro y se baja
+     * para que el tinte sea lo mas suave posible sin dejar de cumplir — un
+     * fondo mas oscuro de lo necesario convierte la pastilla en un agujero.
+     */
+    private static function luzDeFondoQueCumple(float $h, string $textoHex, float $s): float
+    {
+        for ($l = 0.24; $l >= 0.06; $l -= 0.02) {
+            if (self::contraste($textoHex, self::rgbAHex(self::hlsARgb($h, $l, $s))) >= self::CONTRASTE_MINIMO_ACENTO) {
+                return $l;
+            }
+        }
+
+        return 0.06;
+    }
+
+    /**
+     * La luz minima de ese tono que contrasta lo pedido sobre ese fondo.
+     *
+     * Por pasos y no resolviendo la ecuacion porque la luminancia WCAG no es
+     * lineal con la luminosidad HLS —lleva la correccion gamma dentro— y el
+     * bucle son como mucho cuarenta vueltas de aritmetica.
+     *
+     * Si el tono no llega ni al maximo de luz, devuelve ese maximo: es lo mas
+     * legible que ese color admite, y forzarlo mas seria dejar de ser el color
+     * que la institucion eligio.
+     */
+    private static function luzQueCumple(float $h, float $s, string $fondo, float $minimo): float
+    {
+        for ($l = 0.40; $l <= 0.92; $l += 0.02) {
+            if (self::contraste(self::rgbAHex(self::hlsARgb($h, $l, $s)), $fondo) >= $minimo) {
+                return $l;
+            }
+        }
+
+        return 0.92;
     }
 
     /** Razon de contraste WCAG entre dos colores hex. */

@@ -144,6 +144,53 @@
 </script>
 
 {{--
+  EL TEMA. Tres opciones y no un interruptor de dos, porque «lo que diga mi
+  sistema» es una respuesta distinta de «claro» — y es la que acierta casi
+  siempre en un teléfono, donde la persona ya lo decidió una vez para todas sus
+  aplicaciones.
+
+  Es un formulario de verdad y no un botón de JavaScript: se envía, el servidor
+  guarda la galleta y devuelve la misma página ya pintada del otro color. Con
+  JavaScript se sentiría instantáneo; sin él cuesta una recarga y funciona igual,
+  que es lo que este proyecto sostiene de todas sus pantallas.
+
+  La preferencia se guarda en el APARATO, no en la cuenta: quien tiene el
+  teléfono en oscuro y el computador en claro quiere exactamente eso.
+--}}
+<details class="perfil-seccion" id="bloque-tema">
+  <summary class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">Apariencia</h3>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  <p class="campo-ayuda">
+    Se guarda en este dispositivo, no en tu cuenta: puedes tenerlo oscuro en el
+    celular y claro en el computador.
+  </p>
+
+  <form method="post" action="{{ route('tema') }}" class="tema-opciones">
+    @csrf
+    @foreach ([
+      'sistema' => 'Lo que diga mi dispositivo',
+      'claro' => 'Siempre claro',
+      'oscuro' => 'Siempre oscuro',
+    ] as $valor => $etiqueta)
+      <label class="tema-opcion">
+        <input type="radio" name="tema" value="{{ $valor }}" @checked($temaElegido === $valor)>
+        <span>{{ $etiqueta }}</span>
+      </label>
+    @endforeach
+    <button type="submit" class="btn btn-sm">Aplicar</button>
+  </form>
+</details>
+
+{{--
   MIS DATOS. Nace el 07/09/2026: hasta ese día el nombre y la fecha se escribían
   una vez al inscribirse y después solo los tocaba un administrador. Se abrió
   porque hacía falta —la regla del nombre que entró esa misma tarde dejó a
