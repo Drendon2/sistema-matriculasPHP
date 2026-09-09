@@ -54,7 +54,10 @@ Algunas reglas que no se ven a simple vista:
 - **La clase la verifican los estudiantes, no quien la dictó.** Quien registra la
   clase es parte interesada, así que queda «sin verificar» hasta que varios de
   los que estuvieron den fe, dentro de un plazo de 48 horas. En un grupo de uno o
-  dos basta una confirmación: un requisito inalcanzable no verifica nada.
+  dos basta una confirmación: un requisito inalcanzable no verifica nada. Y da
+  fe **quien consta que estuvo**: si el profesor le marcó asistencia, la clase le
+  sale para confirmar aunque después la hayan movido de grupo o la matrícula se
+  creara ese mismo día, más tarde que la clase.
 - **Privacidad diferenciada por rol**: quién ve nombre, edad, teléfono, acudiente,
   encuesta o documento de identidad está definido de forma estricta (pensado para
   la Ley 1581 de Colombia). Ningún archivo subido se sirve por URL directa.
@@ -67,8 +70,11 @@ Algunas reglas que no se ven a simple vista:
   solo cabe con menores, y existe para dar tiempo a hablar con el acudiente antes
   de que un niño se salga por su cuenta.
 - **Configurable sin tocar código**: nombre, logo, color de acento, cuántas
-  promotorías puede cursar alguien y qué papeles se exigen se editan desde la
-  propia interfaz.
+  promotorías puede cursar alguien, qué papeles se exigen, el texto de la
+  política de tratamiento de datos y **el servidor de correo** se editan desde la
+  propia interfaz. Del formato de autorización que se firma, la entidad puede
+  subir el suyo —una versión para mayores de edad y otra para menores— o dejar
+  que lo imprima el sistema con sus datos dentro.
 
 ## Las tres áreas
 
@@ -261,11 +267,20 @@ pantalla lo dice en prosa encima de las cifras.
 
 Lo que hay puesto, por si alguien tiene que auditarlo o extenderlo:
 
-- **Límite de intentos** en las cuatro puertas que se pueden empujar sin cuenta
-  —entrar, registro, inscripción y el enlace de una actividad—. El del login
-  cuenta por **usuario + IP** y no por IP sola: una escuela entera sale
-  a internet por una sola dirección, y con el contador por IP treinta estudiantes
-  entrando desde la sala de cómputo se bloquearían entre sí.
+- **Límite de intentos** en todas las puertas que se pueden empujar sin cuenta:
+  entrar, registro, inscripción, el enlace de una actividad y la recuperación de
+  contraseña. El del login cuenta por **usuario + IP** y no por IP sola: una
+  escuela entera sale a internet por una sola dirección, y con el contador por IP
+  treinta estudiantes entrando desde la sala de cómputo se bloquearían entre sí.
+  El de recuperación lleva **dos contadores a la vez** —uno por cuenta y otro por
+  IP— porque son dos abusos distintos: llenarle el buzón a una persona concreta,
+  y rociar cuentas distintas.
+- **Recuperar la contraseña por correo**, con enlace de un solo uso que caduca en
+  una hora. La pantalla **contesta lo mismo pase lo que pase** —exista la cuenta
+  o no, tenga correo o no, salga el envío o falle—: distinguir los casos la
+  convertiría en una forma de averiguar quién tiene cuenta. El correo es
+  opcional en este sistema, así que esa pantalla dice también, a todo el mundo,
+  que sin uno registrado hay que pedírselo a la institución.
 - **Ocho caracteres mínimo** en las contraseñas, declarado una sola vez con
   `Password::defaults()`. No es un puerto: el original no valida la contraseña
   por ninguna parte.
