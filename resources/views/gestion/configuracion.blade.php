@@ -168,7 +168,10 @@
       escribiendo aquí.
     --}}
     @php($camposDeDatos = ['entidad_nit', 'entidad_direccion', 'entidad_correo',
-                           'entidad_telefono', 'politica_datos', 'finalidad_datos', 'finalidad_imagen'])
+                           'entidad_telefono', 'politica_datos', 'finalidad_datos', 'finalidad_imagen',
+                           'consentimiento_mayor', 'consentimiento_menor',
+                           'correo_servidor', 'correo_puerto', 'correo_cifrado',
+                           'correo_usuario', 'correo_clave', 'correo_prueba'])
     <details class="perfil-seccion" id="bloque-datos-entidad" style="max-width:none;"
              @if ($errors->hasAny($camposDeDatos)) open @endif>
     <summary class="perfil-seccion-cabecera">
@@ -281,23 +284,187 @@
       </p>
     </div>
 
+    {{-- LAS DOS VERSIONES SE PINTAN CON EL MISMO BUCLE, y eso es lo que hace
+         que no se separen. Son dos ranuras independientes —se puede subir la
+         del menor y dejar que el sistema imprima la del mayor— y escritas dos
+         veces a mano acabarían pidiendo cosas distintas sin que nada fallara.
+
+         El enlace de descarga se pinta siempre y baja LO QUE DE VERDAD RECIBE
+         el estudiante: el formato propio si lo hay y el del sistema si no. Es
+         la única forma de comprobar que lo que se subió es lo que llega. --}}
     <div class="config-campo">
       <span class="config-etiqueta">Formato de autorización</span>
       <p class="config-ayuda" style="margin-top:0.2rem;">
-        Es el papel que el estudiante descarga, firma y sube. Aquí están los dos en blanco,
-        para imprimir y repartir en ventanilla. Llevan el logo y el nombre de la institución.
+        Es el papel que el estudiante descarga, firma y sube. Hay dos versiones y no son
+        el mismo papel con otro título: un menor de edad no otorga esta autorización por
+        sí mismo, la da su acudiente, así que ese formato identifica a dos personas.
       </p>
-      <p class="accion-fila">
-        <a class="btn btn-blanco btn-sm" href="{{ route('consentimiento-formato', 'mayor') }}">
-          Mayor de edad
-        </a>
-        <a class="btn btn-blanco btn-sm" href="{{ route('consentimiento-formato', 'menor') }}">
-          Menor de edad
-        </a>
+      <p class="config-ayuda">
+        <strong>Si no subes nada, el sistema los imprime</strong> con el logo, el nombre
+        y las finalidades de esta entidad, y con los datos de cada estudiante ya escritos.
+        Sube el tuyo solo si tu entidad tiene su propio formato aprobado. El que subas
+        <strong>va en blanco</strong> —el sistema no puede escribir dentro de un archivo
+        ajeno— y de que quepa en una hoja respondes tú: el papel que se firma en la
+        primera pierde la segunda. Se admite PDF o una foto del papel, que se convierte
+        a PDF al guardarla.
       </p>
     </div>
 
+    @foreach (['mayor' => 'Mayor de edad', 'menor' => 'Menor de edad'] as $version => $rotulo)
+      @php($campo = 'consentimiento_'.$version)
+      @php($propio = $institucion->formatoPropio($version))
+      <div class="config-campo">
+        <label class="config-etiqueta" for="{{ $campo }}">Formato de {{ mb_strtolower($rotulo) }}</label>
+        <p class="config-ayuda" style="margin-top:0.2rem;">
+          {{ $propio ? 'Se está entregando el formato que subió la entidad.' : 'Lo imprime el sistema.' }}
+        </p>
+        <p class="accion-fila">
+          <a class="btn btn-blanco btn-sm" href="{{ route('consentimiento-formato', $version) }}">
+            Ver el que se entrega
+          </a>
+        </p>
+        <input class="config-logo-file" type="file" name="{{ $campo }}" id="{{ $campo }}"
+               accept="application/pdf,image/*">
+        <label class="config-logo-boton" for="{{ $campo }}">
+          + {{ $propio ? 'Cambiar el formato' : 'Subir un formato propio' }}
+        </label>
+        <p class="config-logo-nombre" data-nombre-archivo="{{ $campo }}">{{ basename($propio) }}</p>
+        @if ($propio)
+        <label class="config-logo-quitar">
+          <input type="checkbox" name="quitar_{{ $campo }}" value="1">
+          Quitar y volver al que imprime el sistema
+        </label>
+        @endif
+        @error($campo)<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      </div>
+    @endforeach
+
     </details>
+
+    {{--
+      EL SERVIDOR DE CORREO.
+
+      Va en su propia sección y no dentro de «Datos de la entidad» porque no es
+      un dato de la entidad: es la fontanería que hace que funcione una cosa
+      concreta —el enlace de «olvidé mi contraseña»— y quien viene a esto viene
+      a eso, no a cambiar el NIT.
+
+      Y NO va plegada, al contrario que sus vecinas, porque el estado importa
+      más que los campos: lo primero que hay que poder ver de un vistazo es si
+      la recuperación de contraseña funciona o no.
+    --}}
+    <fieldset class="config-seccion">
+    <legend class="config-seccion-titulo">Correo</legend>
+
+    <div class="config-campo">
+      <p class="config-ayuda" style="margin-top:0;">
+        El sistema envía <strong>un solo correo</strong>: el enlace de «Olvidé mi contraseña»
+        de la pantalla de entrar. No manda avisos de matrícula ni notificaciones de ningún tipo.
+      </p>
+      {{--
+        DICE «HAY UN SERVIDOR CONFIGURADO» Y NO «FUNCIONA», y la diferencia no
+        es de matiz: lo único que este renglón puede saber es que los campos
+        están llenos, no que ese servidor conteste ni que la contraseña sea la
+        buena. Decía «está funcionando» y se vio en el navegador diciéndolo
+        justo debajo del aviso de que el envío de prueba acababa de fallar.
+        Lo único que responde esa pregunta es mandarse una prueba, y por eso
+        este renglón la pide.
+      --}}
+      @if ($correoActivo)
+        <p class="config-ayuda">
+          <strong>Hay un servidor de correo configurado</strong>, {{ $correoDeDonde }}.
+          Que conteste de verdad solo lo dice una prueba: mándate una desde el campo de abajo.
+        </p>
+      @else
+        <p class="config-ayuda" style="color:var(--danger);">
+          <strong>La recuperación de contraseña NO funciona.</strong> Sin servidor de correo, quien
+          la pida ve la misma pantalla de siempre y el enlace no le llega a nadie — no avisa de que
+          está apagada. Llena estos campos con los datos del buzón de la institución.
+        </p>
+      @endif
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="correo_servidor">Servidor</label>
+      <input type="text" name="correo_servidor" id="correo_servidor" maxlength="160"
+             inputmode="url" autocapitalize="none" spellcheck="false"
+             placeholder="smtp.hostinger.com"
+             value="{{ old('correo_servidor', $institucion->correo_servidor) }}">
+      @error('correo_servidor')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Solo el nombre, sin <code>https://</code>. Te lo da tu proveedor de correo.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="correo_cifrado">Cifrado y puerto</label>
+      <div class="config-color">
+        <select name="correo_cifrado" id="correo_cifrado" style="width:auto;">
+          <option value="smtps" @selected(old('correo_cifrado', $institucion->correo_cifrado) === 'smtps')>SSL (465)</option>
+          <option value="smtp" @selected(old('correo_cifrado', $institucion->correo_cifrado) === 'smtp')>STARTTLS (587)</option>
+        </select>
+        <input type="number" name="correo_puerto" id="correo_puerto" min="1" max="65535" step="1" required
+               style="width:7rem;" value="{{ old('correo_puerto', $institucion->correo_puerto) }}">
+      </div>
+      @error('correo_cifrado')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      @error('correo_puerto')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Casi siempre SSL con el puerto 465. Si tu proveedor pide STARTTLS, cambia también el
+        puerto a 587.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="correo_usuario">Dirección del buzón</label>
+      <input type="email" name="correo_usuario" id="correo_usuario" maxlength="160"
+             autocapitalize="none" spellcheck="false"
+             placeholder="admin@tu-dominio.com"
+             value="{{ old('correo_usuario', $institucion->correo_usuario) }}">
+      @error('correo_usuario')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Es a la vez el usuario con el que se entra al buzón y el remitente que verá quien reciba
+        el correo. No hay un campo aparte para el remitente a propósito: casi todos los
+        proveedores rechazan uno distinto del buzón, y son dos casillas para escribir lo mismo.
+      </p>
+    </div>
+
+    {{--
+      LA CONTRASEÑA NO SE PINTA NUNCA, ni siquiera con puntos: `value` vacío
+      siempre. Si se pintara, la contraseña del buzón de la institución estaría
+      en el código fuente de una página que abre cualquier administrador — el
+      tipo `password` solo la esconde a la vista.
+
+      Por eso vacío significa «deja la que hay», como el campo de archivo del
+      logo, y para quitarla se vacía el servidor o la dirección (lo hace el
+      controlador).
+    --}}
+    <div class="config-campo">
+      <label class="config-etiqueta" for="correo_clave">Contraseña del buzón</label>
+      <input type="password" name="correo_clave" id="correo_clave" maxlength="255"
+             autocomplete="new-password" value=""
+             placeholder="{{ $institucion->correo_clave ? 'Ya hay una guardada — escribe aquí solo si la vas a cambiar' : '' }}">
+      @error('correo_clave')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Es la contraseña <strong>del buzón</strong>, no la del panel de tu proveedor de hosting.
+        Se guarda cifrada y no se puede volver a leer desde aquí; para reemplazarla, escribe la
+        nueva. Vaciando el servidor o la dirección se borra.
+      </p>
+    </div>
+
+    <div class="config-campo">
+      <label class="config-etiqueta" for="correo_prueba">Enviar una prueba a</label>
+      <input type="email" name="correo_prueba" id="correo_prueba" maxlength="160"
+             autocapitalize="none" spellcheck="false" placeholder="tu-correo-personal@ejemplo.com"
+             value="">
+      @error('correo_prueba')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+      <p class="config-ayuda">
+        Escribe aquí un correo tuyo y al guardar se te manda una prueba con lo que acabas de
+        poner. <strong>Hazlo</strong>: si algo está mal, esta es la única forma de enterarte hoy
+        y no el día que alguien pierda su contraseña. El campo se vacía solo; no se guarda.
+      </p>
+    </div>
+
+    </fieldset>
 
     <fieldset class="config-seccion">
     <legend class="config-seccion-titulo">Reglas de matrícula</legend>

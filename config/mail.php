@@ -45,7 +45,23 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            /*
+             * CUANTO SE ESPERA AL SERVIDOR DE CORREO, en segundos.
+             *
+             * Venia en `null`, que significa «lo que diga PHP» y en la practica
+             * es demasiado. Este proyecto manda un solo correo —el enlace para
+             * recuperar la contrasena— y lo manda SIN COLA, porque en el hosting
+             * no corre ningun trabajador: o sea que quien pulsa el boton espera
+             * a que el SMTP conteste.
+             *
+             * Con un SMTP que no responde, sin tope, esa espera se la come el
+             * CDN de Hostinger, que se cansa a los ~60 s y devuelve su propia
+             * pagina de error de nginx — el mismo 504 que ya costo una manana
+             * de diagnostico el 08/09/2026, y que no dice de que va. Con diez
+             * segundos, la peticion vuelve, el fallo queda en el registro y la
+             * persona ve la pantalla normal.
+             */
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

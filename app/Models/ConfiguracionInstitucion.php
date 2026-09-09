@@ -79,6 +79,13 @@ class ConfiguracionInstitucion extends Model
         'politica_datos',
         'finalidad_datos',
         'finalidad_imagen',
+        'consentimiento_mayor',
+        'consentimiento_menor',
+        'correo_servidor',
+        'correo_puerto',
+        'correo_cifrado',
+        'correo_usuario',
+        'correo_clave',
         'logo',
         'firma',
         'firmante_nombre',
@@ -129,6 +136,21 @@ class ConfiguracionInstitucion extends Model
         // la instancia que crea `firstOrCreate` no lo releeria.
         'finalidad_datos' => '',
         'finalidad_imagen' => '',
+        // Las dos ranuras del formato propio, por la misma razon que sus
+        // vecinas. Su vacio significa «usa el que imprime el sistema», y en la
+        // peticion que estrena la instalacion tienen que llegar '' y no null:
+        // `formatoPropio()` compara con cadena vacia.
+        'consentimiento_mayor' => '',
+        'consentimiento_menor' => '',
+        // Las cuatro del servidor de correo, por la misma razon que sus
+        // vecinas. `correo_clave` NO esta aqui y es deliberado: lleva el cast
+        // `encrypted`, que revienta al descifrar una cadena vacia, asi que «no
+        // hay contrasena» tiene que llegar como NULL. Es el mismo caso de
+        // `politica_datos`, unas lineas mas arriba.
+        'correo_servidor' => '',
+        'correo_puerto' => 465,
+        'correo_cifrado' => 'smtps',
+        'correo_usuario' => '',
         'logo' => '',
         'firma' => '',
         'firmante_nombre' => '',
@@ -173,6 +195,13 @@ class ConfiguracionInstitucion extends Model
             'alertas_desde' => 'date',
             'recordar_encuesta' => 'boolean',
             'correo_obligatorio' => 'boolean',
+            'correo_puerto' => 'integer',
+            // CIFRADA EN LA BASE, con `APP_KEY`. Una copia robada de la base no
+            // entrega la contrasena del buzon de la entidad; hace falta ademas
+            // el `.env` del servidor. Ojo: este cast lanza al leer una cadena
+            // vacia, asi que la columna se escribe null cuando no hay nada —
+            // ver `$attributes` y la migracion.
+            'correo_clave' => 'encrypted',
         ];
     }
 
@@ -256,6 +285,28 @@ class ConfiguracionInstitucion extends Model
     public function finalidadDeImagen(): string
     {
         return trim((string) $this->finalidad_imagen) ?: self::FINALIDAD_IMAGEN;
+    }
+
+    /**
+     * La ruta del formato de autorizacion que subio la entidad, o '' si no
+     * subio ninguno para esa version.
+     *
+     * Existe aqui y no en el controlador porque lo preguntan tres sitios —el
+     * generador del PDF, la pantalla de Institucion y la de Mi perfil— y
+     * escrito a mano en cada uno se separa sin que nada falle.
+     *
+     * `$version` es la misma palabra que viaja por la URL del formato en
+     * blanco: `mayor` o `menor`. Cualquier otra cosa devuelve '', que es lo
+     * correcto — quien pregunte por una version que no existe recibe «no hay»,
+     * no un error.
+     */
+    public function formatoPropio(string $version): string
+    {
+        return match ($version) {
+            'mayor' => (string) $this->consentimiento_mayor,
+            'menor' => (string) $this->consentimiento_menor,
+            default => '',
+        };
     }
 
     public function getColorAcentoOscuroAttribute(): string

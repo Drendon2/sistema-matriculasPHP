@@ -30,6 +30,20 @@ class Imagen
     public const LADO_MAXIMO = 800;
 
     /**
+     * El lado mayor del LOGO cuando se incrusta en un PDF, en pixeles.
+     *
+     * Sale de la aritmetica del papel y no del gusto: el logo se dibuja a 44 pt
+     * en el consentimiento y a 46 en el certificado, o sea 0,61 pulgadas de
+     * ancho. 180 px ahi dentro son unos 295 puntos por pulgada, que es la
+     * resolucion de imprenta de toda la vida — por encima no lo distingue ni el
+     * papel ni el ojo, y cada pixel de mas viaja en la descarga de un celular.
+     *
+     * Medido el 09/09/2026 sobre el consentimiento, ya con la fuente recortada:
+     * a 240 px (el logo tal cual) pesa 77,8 KB; a 180, 59,3.
+     */
+    public const LADO_LOGO_IMPRESO = 180;
+
+    /**
      * Calidad de la compresion WebP.
      *
      * 82 es el punto donde una foto de cara deja de mejorar a simple vista y el
@@ -61,7 +75,7 @@ class Imagen
 
         try {
             $lienzo = self::enderezar($lienzo, $archivo->getRealPath());
-            $lienzo = self::reducir($lienzo, $ladoMaximo);
+            $lienzo = $lienzo;
 
             // El fondo blanco importa: un PNG con transparencia pasado a WebP
             // sin esto sale con los huecos en negro. Una foto de perfil recortada
@@ -103,7 +117,7 @@ class Imagen
 
         try {
             $lienzo = self::enderezar($lienzo, $archivo->getRealPath());
-            $lienzo = self::reducir($lienzo, $ladoMaximo);
+            $lienzo = $lienzo;
 
             // Las dos lineas juntas o ninguna: sin `alphablending(false)` el
             // canal alfa se mezcla al escribir y `savealpha` guarda un alfa ya
@@ -133,8 +147,18 @@ class Imagen
      * Devuelve null cuando no hay nada que incrustar o el archivo no se puede
      * leer: quien llama decide, y en el certificado la decision es seguir sin
      * la imagen antes que negar la descarga.
+     *
+     * `$ladoMaximo` ACOTA LA RESOLUCION antes de incrustar, y quien llama lo
+     * pasa porque el peso del PDF se lo lleva quien no lo mira. El logo se
+     * dibuja a 44-46 pt de ancho —poco mas de un centimetro y medio— y se
+     * guarda a 320 px; incrustado tal cual son unos 51 KB de PNG dentro de un
+     * papel que, con la fuente ya recortada, pesa 27. Es decir: dos tercios del
+     * archivo eran resolucion que ninguna impresora usa.
+     *
+     * Nulo lo deja como esta, que es lo que necesita la FIRMA del certificado:
+     * esa si se dibuja grande —210 pt— y ya viene acotada al guardarse.
      */
-    public static function aDataUriPng(string $binario): ?string
+    public static function aDataUriPng(string $binario, ?int $ladoMaximo = null): ?string
     {
         $lienzo = @imagecreatefromstring($binario);
 
@@ -143,6 +167,10 @@ class Imagen
         }
 
         try {
+            if ($ladoMaximo !== null) {
+                $lienzo = self::reducir($lienzo, $ladoMaximo);
+            }
+
             imagealphablending($lienzo, false);
             imagesavealpha($lienzo, true);
 

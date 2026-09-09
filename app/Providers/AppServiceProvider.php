@@ -143,6 +143,56 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($usuario.'|'.$request->ip());
         });
+
+        /**
+         * Pedir el enlace de «olvide mi contrasena».
+         *
+         * DOS LIMITES A LA VEZ, porque son dos abusos distintos y uno solo no
+         * tapa los dos:
+         *
+         * - Por CUENTA+IP, 3 por minuto: frena a quien pulsa el boton veinte
+         *   veces sobre la cuenta de otro para llenarle el buzon. Es el abuso
+         *   realista, porque el correo lo manda el sistema y lo recibe alguien
+         *   que no lo pidio.
+         *
+         * - Por IP a secas, 20 cada diez minutos: frena a quien rocia cuentas
+         *   distintas, que el limite de arriba no ve.
+         *
+         * Y EL SEGUNDO ES GENEROSO A PROPOSITO, por una razon que no se ve
+         * leyendo esta linea: este proyecto NO configura `TrustProxies`, y en
+         * produccion hay un CDN delante. O sea que `$request->ip()` puede ser
+         * la del borde del CDN y no la de quien pulsa — con lo cual un limite
+         * por IP apretado no limita a una persona, limita a la institucion
+         * entera. Ese reparto lo hace el primer limite, que separa por cuenta.
+         *
+         * En minusculas por lo mismo que el de entrar: `Ana` y `ana` son la
+         * misma cuenta y dos contadores darian el doble de intentos.
+         */
+        RateLimiter::for('clave-olvidada', function (Request $request) {
+            $cuenta = Str::lower(trim((string) $request->input('cuenta')));
+
+            return [
+                Limit::perMinute(3)->by($cuenta.'|'.$request->ip()),
+                Limit::perMinutes(10, 20)->by($request->ip()),
+            ];
+        });
+
+        /**
+         * Guardar la contrasena nueva de un enlace de recuperacion.
+         *
+         * CUENTA POR TOKEN Y NO POR IP, y esa es la diferencia con el de
+         * arriba. Lo unico que se puede adivinar en esa pantalla es el token —
+         * la cuenta no se escribe— asi que el contador tiene que colgar de el;
+         * por IP, quien cambie de red se lleva intentos nuevos sobre el mismo
+         * enlace, y quien comparta una red con otros veinte se queda sin los
+         * suyos por culpa ajena.
+         *
+         * Diez por minuto: de sobra para quien teclea mal la confirmacion dos o
+         * tres veces, y nada para lo otro.
+         */
+        RateLimiter::for('clave-nueva', function (Request $request) {
+            return Limit::perMinute(10)->by((string) $request->route('token'));
+        });
     }
 
     /**

@@ -26,6 +26,18 @@
   </form>
 
   {{--
+    VA DEBAJO DEL BOTÓN Y NO AL LADO DEL CAMPO. Es lo que se busca DESPUÉS de
+    fallar al entrar, no mientras se teclea, y ahí arriba compite con el propio
+    formulario en la pantalla de un teléfono — que es desde donde entra casi
+    todo el mundo, también el personal.
+
+    Y va separado del enlace del estudiante que hay más abajo, con un renglón
+    de por medio: son dos puertas distintas y ponerlas juntas es exactamente lo
+    que ya costó una vez con el enlace de profesor, quitado el 01/09.
+  --}}
+  <p class="enlace-pie"><a href="{{ route('clave-olvidada') }}">Olvidé mi contraseña</a></p>
+
+  {{--
     Aquí abajo solo va el enlace del ESTUDIANTE.
 
     El de profesor estuvo al lado hasta el 01/09 y se quitó porque la gente se

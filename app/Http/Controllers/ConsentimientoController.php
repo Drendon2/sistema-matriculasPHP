@@ -37,6 +37,17 @@ use Symfony\Component\HttpFoundation\Response;
  * imagen— no puede condicionar la matricula, asi que tiene que poder negarse
  * sin negar la otra. Un solo «acepto todo» al pie convertiria la negativa en
  * imposible y la autorizacion en invalida.
+ *
+ * Y DESDE EL 09/09/2026 LA ENTIDAD PUEDE SUBIR EL SUYO, una version por edad,
+ * desde Gestion → Institucion. Si lo hay, se entrega ESE y aqui no se imprime
+ * nada. Es un papel legal y una entidad puede tener el suyo ya aprobado por su
+ * area juridica; con uno solo posible, la unica salida era repartirlo por fuera
+ * del sistema y pedirlo por otra ranura, que es como se pierden los papeles.
+ *
+ * Lo que se pierde al subirlo esta escrito en la pantalla que lo sube, porque
+ * no se deduce: el papel de la entidad va EN BLANCO —el sistema no sabe donde
+ * escribir el nombre dentro de un PDF ajeno— y no lleva la garantia de que
+ * quepa en una hoja, que aqui se mide y alli no se puede.
  */
 class ConsentimientoController extends Controller
 {
@@ -80,6 +91,12 @@ class ConsentimientoController extends Controller
     {
         $institucion = ConfiguracionInstitucion::actual();
 
+        $propio = $this->formatoDeLaEntidad($institucion, $version, $estudiante);
+
+        if ($propio !== null) {
+            return $propio;
+        }
+
         $acudiente = $version === 'menor'
             ? $estudiante?->datosEstudiante?->acudiente
             : null;
@@ -100,6 +117,51 @@ class ConsentimientoController extends Controller
         ])->setPaper('letter');
 
         return $pdf->download($this->nombreDeArchivo($version, $estudiante));
+    }
+
+    /**
+     * El formato que subio la entidad, listo para entregar, o null si no hay.
+     *
+     * TRES COSAS QUE NO SE VEN LEYENDO LA LLAMADA:
+     *
+     * 1. SE COMPRUEBA QUE EL ARCHIVO ESTE EN DISCO, no solo que la columna
+     *    tenga algo escrito. Una fila que apunta a un archivo que no esta —un
+     *    respaldo restaurado a medias, un borrado a mano— dejaria la descarga
+     *    en un 500 justo para el papel que todo el mundo tiene que firmar. Sin
+     *    archivo se cae al que imprime el sistema, que es la respuesta util.
+     *
+     * 2. VA COMO `application/pdf` DECLARADO, y no como lo que diga el disco:
+     *    lo que se guarda ya pasa por la conversion de `Support\Documento`, asi
+     *    que en esa carpeta solo hay PDF. Es la misma garantia que sostiene la
+     *    ranura donde el estudiante lo devuelve.
+     *
+     * 3. EL NOMBRE DEL ARCHIVO ES EL MISMO que el del generado. El papel va en
+     *    blanco, pero quien lo baja sigue siendo una persona concreta y en la
+     *    carpeta de descargas de un celular tres «formato.pdf» seguidos no se
+     *    distinguen — que es justo por lo que ese nombre existe.
+     */
+    private function formatoDeLaEntidad(
+        ConfiguracionInstitucion $institucion,
+        string $version,
+        ?Perfil $estudiante
+    ): ?Response {
+        $ruta = $institucion->formatoPropio($version);
+
+        if ($ruta === '') {
+            return null;
+        }
+
+        $disco = Storage::disk('local');
+
+        if (! $disco->exists($ruta)) {
+            return null;
+        }
+
+        return $disco->download(
+            $ruta,
+            $this->nombreDeArchivo($version, $estudiante),
+            ['Content-Type' => 'application/pdf']
+        );
     }
 
     /**
@@ -129,6 +191,10 @@ class ConsentimientoController extends Controller
      *
      * El del proyecto se lee del disco y no por su URL: dompdf no sale a la red
      * a buscar nada.
+     *
+     * Va ACOTADO a `LADO_LOGO_IMPRESO`, y eso es la mitad de por que este papel
+     * dejo de pesar un megabyte. La otra mitad es el recorte de la fuente, que
+     * vive en `config/dompdf.php`.
      */
     private function logo(ConfiguracionInstitucion $institucion): ?string
     {
@@ -136,7 +202,7 @@ class ConsentimientoController extends Controller
             $disco = Storage::disk('local');
 
             if ($disco->exists($institucion->logo)) {
-                return Imagen::aDataUriPng((string) $disco->get($institucion->logo));
+                return Imagen::aDataUriPng((string) $disco->get($institucion->logo), Imagen::LADO_LOGO_IMPRESO);
             }
         }
 
@@ -148,6 +214,6 @@ class ConsentimientoController extends Controller
 
         // WebP: lo lee GD y lo convierte. dompdf por su cuenta no lo entiende y
         // lo dejaria como un hueco.
-        return Imagen::aDataUriPng((string) file_get_contents($porDefecto));
+        return Imagen::aDataUriPng((string) file_get_contents($porDefecto), Imagen::LADO_LOGO_IMPRESO);
     }
 }

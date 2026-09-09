@@ -6,6 +6,7 @@ use App\Models\ConfiguracionInstitucion;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\User;
+use App\Support\RestablecerClave;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -124,6 +125,33 @@ class VerLaClaveTest extends TestCase
                 "{$url} ya no tiene campo de contrasena."
             );
         }
+    }
+
+    /**
+     * Y LA SEXTA, que nacio el 09/09/2026: la de escribir la clave nueva tras
+     * pedir el enlace por correo.
+     *
+     * Va aparte del proveedor de datos porque su URL no es fija —lleva dentro un
+     * token de un solo uso— y con una direccion escrita a mano esta prueba
+     * comprobaria el aviso de «ese enlace ya no sirve», que no tiene ningun
+     * campo de clave. O sea que pasaria por la barrera equivocada.
+     *
+     * Es ademas la pantalla donde el ojo mas falta hace: se teclea una
+     * contrasena nueva DOS veces, a ciegas, y quien llega aqui es justamente
+     * quien acaba de demostrar que no se acordaba de la anterior.
+     */
+    public function test_la_pantalla_de_la_clave_nueva_lleva_ojo(): void
+    {
+        $quien = $this->perfilSuelto('ana', 'estudiante');
+        $quien->user->update(['email' => 'ana@example.com']);
+
+        $token = RestablecerClave::crear($quien->user);
+
+        $html = $this->get(route('clave-nueva', ['token' => $token]))->assertOk()->getContent();
+
+        $this->assertStringContainsString('js/ver-clave.js', $html);
+        $this->assertStringContainsString('class="caja"', $html);
+        $this->assertMatchesRegularExpression('/<input[^>]*type="password"/', $html);
     }
 
     private function perfilSuelto(string $username, string $rol = 'profesor'): Perfil

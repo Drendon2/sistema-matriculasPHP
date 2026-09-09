@@ -193,7 +193,7 @@ class CertificadoController extends Controller
 
         // WebP: lo lee GD y lo convierte, que es justo lo que hace falta —dompdf
         // por su cuenta no entiende WebP y lo dejaria como un hueco.
-        return Imagen::aDataUriPng((string) file_get_contents($porDefecto));
+        return Imagen::aDataUriPng((string) file_get_contents($porDefecto), Imagen::LADO_LOGO_IMPRESO);
     }
 
     /**

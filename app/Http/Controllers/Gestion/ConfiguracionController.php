@@ -3,18 +3,25 @@
 namespace App\Http\Controllers\Gestion;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CorreoDePrueba;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\DocumentoRequerido;
 use App\Models\Periodo;
 use App\Models\User;
 use App\Rules\ImagenProcesable;
+use App\Rules\PdfOImagen;
+use App\Support\CorreoDeLaInstitucion;
+use App\Support\Documento;
 use App\Support\Imagen;
 use App\Support\PoliticaDatos;
 use App\Support\Reglas;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * Ajustes de la institucion: la marca, el limite de promotorias y que papeles se
@@ -55,6 +62,14 @@ class ConfiguracionController extends Controller
             // solo a quien se inscriba manana, y en produccion son 853 de 885.
             // Una consulta de conteo, no una lista.
             'sinCorreo' => User::whereNull('email')->orWhere('email', '')->count(),
+            // Si la recuperacion de contrasena funciona de verdad, y por donde.
+            // Se pinta arriba del todo de la seccion porque es lo unico que hay
+            // que ver de un vistazo: apagada no falla, no avisa y no se nota
+            // hasta que alguien pierde su clave.
+            'correoActivo' => CorreoDeLaInstitucion::hayPorDondeMandar(),
+            'correoDeDonde' => CorreoDeLaInstitucion::configuradoEnLaPantalla()
+                ? 'con lo que hay configurado en esta pantalla'
+                : 'con lo que hay configurado en el archivo del servidor',
             // Los desactivados tambien se listan: son los que dejaron de pedirse
             // pero conservan lo entregado, y esconderlos haria creer que se
             // perdieron.
@@ -98,6 +113,50 @@ class ConfiguracionController extends Controller
             // firma. Un parrafo entero ahi rompe las dos.
             'finalidad_datos' => Reglas::texto(255, obligatorio: false),
             'finalidad_imagen' => Reglas::texto(255, obligatorio: false),
+            // Los dos formatos de autorizacion que puede subir la entidad.
+            //
+            // Se admite PDF Y TAMBIEN imagen, y no es una comodidad: hay
+            // entidades cuyo formato aprobado existe solo en papel, y lo que
+            // tienen es la foto del escaneo. Lo que llega como imagen se
+            // convierte a PDF antes de guardarse, igual que los papeles que
+            // sube el estudiante, asi que en disco solo hay PDF y quien lo baje
+            // lo abre igual.
+            //
+            // El tope de 8 MB es el mismo que el de los papeles del estudiante
+            // y por lo mismo: es una foto de celular lo que puede llegar.
+            //
+            // `PdfOImagen` mira el CONTENIDO y no la extension. `mimes:` haria
+            // lo mismo en produccion y NO en las pruebas —ahi `UploadedFile`
+            // se cree el tipo que declara el nombre del archivo—, asi que una
+            // prueba de rechazo por ese camino pasaria en verde con la regla
+            // quitada. El porque entero esta en la regla.
+            'consentimiento_mayor' => ['nullable', 'file', 'max:8192', new PdfOImagen, new ImagenProcesable(puedeNoSerImagen: true)],
+            'consentimiento_menor' => ['nullable', 'file', 'max:8192', new PdfOImagen, new ImagenProcesable(puedeNoSerImagen: true)],
+            // El servidor de correo de la entidad. Los cinco son OPCIONALES: sin
+            // ellos manda lo del `.env`, que es como funcionaba antes.
+            //
+            // El servidor va con lista blanca de nombre de maquina —letras,
+            // digitos, puntos y guiones— y no como texto libre. Dos razones: un
+            // «https://smtp...» pegado del panel del proveedor no es un nombre
+            // de maquina y fallaria luego sin decir por que, y esto acaba
+            // siendo una conexion de salida que abre el servidor, asi que
+            // cuanto menos quepa ahi, mejor.
+            'correo_servidor' => ['nullable', 'string', 'max:160', 'regex:/^[A-Za-z0-9]([A-Za-z0-9.\-]*[A-Za-z0-9])?$/'],
+            // Estos dos son OPCIONALES aunque el formulario los mande siempre, y
+            // no es dejadez: `required` aqui obliga a que TODO guardado de esta
+            // pantalla los traiga, y lo primero que rompe es cualquier
+            // guardado que no venga de este formulario. Ausentes significa
+            // «deja lo que hay», que es lo unico que puede significar.
+            'correo_puerto' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'correo_cifrado' => ['nullable', Rule::in(['smtps', 'smtp'])],
+            // El usuario ES la direccion del buzon, y ademas es el «De:» de lo
+            // que salga. Por eso se valida como correo y no como texto.
+            'correo_usuario' => Reglas::correo(160),
+            'correo_clave' => ['nullable', 'string', 'max:255'],
+            // A donde se manda la prueba. Solo se mira si se pulso el boton de
+            // probar, pero la regla va siempre: un campo que se valida a veces
+            // es un campo que un dia se guarda sin validar.
+            'correo_prueba' => ['nullable', 'email', 'max:160'],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firma' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096', new ImagenProcesable],
             'firmante_nombre' => Reglas::texto(120, obligatorio: false),
@@ -117,8 +176,20 @@ class ConfiguracionController extends Controller
             'alertas_desde' => ['nullable', 'date'],
         ], Reglas::mensajes() + [
             'color_acento.regex' => 'El color de acento debe ir en formato #rrggbb.',
+            // El de Laravel para `regex` es «El formato de servidor de correo no
+            // es válido», que no le dice a nadie que sobra el «https://».
+            'correo_servidor.regex' => 'Escribe solo el nombre del servidor, como smtp.hostinger.com — '
+                .'sin «https://», sin barras y sin el puerto.',
         ], [
             'firma' => 'firma',
+            'consentimiento_mayor' => 'formato de mayor de edad',
+            'consentimiento_menor' => 'formato de menor de edad',
+            'correo_servidor' => 'servidor de correo',
+            'correo_puerto' => 'puerto',
+            'correo_cifrado' => 'cifrado',
+            'correo_usuario' => 'usuario del correo',
+            'correo_clave' => 'contraseña del correo',
+            'correo_prueba' => 'correo de prueba',
             'firmante_nombre' => 'nombre de quien firma',
             'firmante_cargo' => 'cargo de quien firma',
             'entidad_nit' => 'NIT',
@@ -170,6 +241,21 @@ class ConfiguracionController extends Controller
 
             $configuracion->firma = $ruta;
         }
+
+        // Los dos formatos de autorizacion, con la misma pareja de
+        // casilla-y-archivo que el logo y la firma, y por la misma razon: dejar
+        // el campo de archivo en blanco significa conservar el que hay, que es
+        // lo que uno espera al venir solo a cambiar otra cosa de esta pantalla.
+        //
+        // VAN POR SEPARADO A PROPOSITO. Se puede subir la del menor y dejar que
+        // el sistema imprima la del mayor: no son el mismo papel con otro
+        // titulo —un menor no otorga esta autorizacion por si mismo— y atarlas
+        // obligaria a tener los dos antes de poder usar ninguno.
+        foreach (['mayor', 'menor'] as $version) {
+            $this->guardarFormato($request, $configuracion, $version);
+        }
+
+        $this->guardarCorreo($request, $datos, $configuracion);
 
         $configuracion->nombre_institucion = $datos['nombre_institucion'];
         // Los dos textos del firmante se guardan recortados y admiten quedarse
@@ -228,7 +314,176 @@ class ConfiguracionController extends Controller
             );
         }
 
+        // La prueba de envio va DESPUES de guardar y en la misma peticion, no
+        // en un boton aparte. Es a proposito: separadas, se prueba lo que hay
+        // guardado y no lo que se acaba de escribir, y el orden —guardar
+        // primero, probar despues— hay que acordarselo. Aqui no hay orden que
+        // recordar, y lo que se prueba es siempre lo que se acaba de guardar.
+        if ($request->filled('correo_prueba')) {
+            $this->probarElCorreo($request->string('correo_prueba')->toString(), $respuesta);
+        }
+
         return $respuesta;
+    }
+
+    /**
+     * Las credenciales del servidor de correo de la entidad.
+     *
+     * TRES COSAS QUE NO SE DEDUCEN DEL FORMULARIO:
+     *
+     * 1. LA CONTRASENA NO SE PUEDE LEER, solo escribir. El campo llega VACIO
+     *    siempre —la plantilla no la pinta nunca— y vacio significa «deja la
+     *    que hay», igual que el campo de archivo del logo. Sin esa regla, la
+     *    contrasena del buzon de la entidad estaria en el codigo fuente de una
+     *    pagina que abre cualquier administrador.
+     *
+     * 2. QUITAR EL SERVIDOR O EL USUARIO SE LLEVA LA CONTRASENA. Si no, queda
+     *    una clave cifrada de un buzon que ya nadie usa, y el dia que alguien
+     *    vuelva a escribir un servidor el sistema intentaria autenticarse con
+     *    la contrasena vieja sin que nada lo dijera.
+     *
+     * 3. VACIA SE GUARDA COMO NULL Y NO COMO ''. El cast `encrypted` del modelo
+     *    LANZA al intentar descifrar una cadena vacia, asi que un '' aqui no es
+     *    «no hay contrasena»: es una pantalla de Institucion que revienta al
+     *    abrirse. Por eso tampoco esta en el `$attributes` del modelo.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function guardarCorreo(Request $request, array $datos, ConfiguracionInstitucion $configuracion): void
+    {
+        $configuracion->correo_servidor = trim((string) ($datos['correo_servidor'] ?? ''));
+        $configuracion->correo_usuario = trim((string) ($datos['correo_usuario'] ?? ''));
+
+        // El puerto y el cifrado solo se pisan si vienen. Ver la validacion:
+        // ausentes significa «deja lo que hay», y su valor por defecto lo pone
+        // el `$attributes` del modelo.
+        if (($datos['correo_puerto'] ?? null) !== null) {
+            $configuracion->correo_puerto = (int) $datos['correo_puerto'];
+        }
+
+        if (($datos['correo_cifrado'] ?? null) !== null) {
+            $configuracion->correo_cifrado = (string) $datos['correo_cifrado'];
+        }
+
+        $clave = (string) ($datos['correo_clave'] ?? '');
+
+        if ($clave !== '') {
+            $configuracion->correo_clave = $clave;
+        }
+
+        if ($configuracion->correo_servidor === '' || $configuracion->correo_usuario === '') {
+            $configuracion->correo_clave = null;
+        }
+    }
+
+    /**
+     * Manda un correo de prueba y CUENTA QUE PASO.
+     *
+     * Es la mitad que hace util a la otra. Sin esto, un administrador escribe
+     * cinco campos, guarda, ve «configuración actualizada» y se va — y si algo
+     * estaba mal no se entera nadie hasta que una persona pierda su contrasena
+     * y el enlace no le llegue, que es semanas despues y en otra pantalla.
+     *
+     * SE ENSENA EL MENSAJE DEL FALLO TAL CUAL, y es deliberado aunque suene a
+     * fuga de entranas: «Authentication failed» y «Connection refused» son
+     * cosas distintas que se arreglan distinto, y un «no se pudo enviar» a
+     * secas deja a la persona probando al azar. Quien lo lee es un
+     * administrador de la propia entidad, mirando su propia configuracion.
+     */
+    private function probarElCorreo(string $destino, RedirectResponse $respuesta): void
+    {
+        $institucion = ConfiguracionInstitucion::actual();
+
+        // El caso que mas confunde y el unico que NO lanza: con el `.env` en
+        // `log` y sin credenciales en la pantalla, el envio «funciona» y el
+        // correo se queda escrito en un archivo. Sin este corte, la prueba
+        // diria que salio bien y no habria salido de la maquina.
+        if (! CorreoDeLaInstitucion::hayPorDondeMandar($institucion)) {
+            $respuesta->with(
+                'error',
+                'No se envió nada: no hay servidor de correo configurado ni aquí ni en el '
+                .'archivo del servidor, así que los correos solo se escriben en el registro. '
+                .'Llena los campos de arriba para que la recuperación de contraseña funcione.'
+            );
+
+            return;
+        }
+
+        try {
+            // Un Mailable y no un `Mail::raw()`, y el porque esta en la propia
+            // clase: `MailFake::raw()` esta VACIO, asi que una prueba de este
+            // boton escrita sobre `raw()` no puede afirmar que se mando nada.
+            CorreoDeLaInstitucion::remitenteQueEnvia($institucion)
+                ->to($destino)
+                ->send(new CorreoDePrueba);
+
+            $respuesta->with('success', "Se envió un correo de prueba a {$destino}. Si no llega en unos "
+                .'minutos, mira también la carpeta de correo no deseado.');
+        } catch (Throwable $e) {
+            $respuesta->with(
+                'error',
+                'No se pudo enviar el correo de prueba. El servidor contestó: '.$e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * Guarda —o quita— el formato de autorizacion propio de una version.
+     *
+     * SE CONVIERTE A PDF LO QUE LLEGA COMO IMAGEN, y manda el CONTENIDO y no la
+     * extension: es la misma regla que ya rige los papeles del estudiante, y
+     * las dos las escribe quien sube el archivo. Un «.pdf» que en realidad es
+     * una foto se convierte, y ahi es donde importa — sin esto se guardaria un
+     * JPEG con nombre de PDF y la descarga lo entregaria declarado como
+     * `application/pdf`, que en un celular no abre y no dice por que.
+     *
+     * SI LA CONVERSION FALLA NO SE GUARDA NADA, y aqui va al reves que en los
+     * papeles del estudiante —donde un papel raro vale mas entregado que
+     * perdido—. Este archivo no es evidencia de nadie: es la plantilla que va a
+     * bajarse todo el mundo, la sube un administrador que esta mirando la
+     * pantalla, y guardarla rota deja a la entidad entera sin formato. Mejor
+     * que se entere ahora.
+     */
+    private function guardarFormato(Request $request, ConfiguracionInstitucion $configuracion, string $version): void
+    {
+        $campo = 'consentimiento_'.$version;
+        $actual = (string) $configuracion->{$campo};
+
+        if ($request->boolean('quitar_'.$campo) && $actual !== '') {
+            Storage::disk('local')->delete($actual);
+            $configuracion->{$campo} = '';
+
+            return;
+        }
+
+        if (! $request->hasFile($campo)) {
+            return;
+        }
+
+        $archivo = $request->file($campo);
+        $binario = (string) file_get_contents($archivo->getRealPath());
+
+        if (Documento::esImagen($binario)) {
+            try {
+                // La ruta original y no solo los bytes: ahi vive el EXIF con la
+                // orientacion, y sin aplicarla un formato fotografiado en
+                // vertical se guarda tumbado, sin fallar y sin avisar.
+                $binario = Documento::aPdf($binario, $archivo->getRealPath());
+            } catch (Throwable) {
+                throw ValidationException::withMessages([
+                    $campo => 'No se pudo convertir esa imagen a PDF. Intenta con el archivo en PDF.',
+                ]);
+            }
+        }
+
+        $ruta = 'institucion/consentimiento-'.$version.'-'.uniqid().'.pdf';
+        Storage::disk('local')->put($ruta, $binario);
+
+        if ($actual !== '') {
+            Storage::disk('local')->delete($actual);
+        }
+
+        $configuracion->{$campo} = $ruta;
     }
 
     /** Agrega un papel a la lista de los que se piden. */

@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\InscripcionController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PostLoginController;
 use App\Http\Controllers\Auth\RegistroController;
+use App\Http\Controllers\Auth\RestablecerClaveController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\ClaseController;
@@ -77,6 +78,45 @@ Route::middleware('guest')->group(function () {
     Route::post('/entrar', [LoginController::class, 'entrar'])
         ->middleware('throttle:entrar')
         ->name('login.entrar');
+
+    // ---------------------------------------------------------------------
+    // «Olvide mi contrasena»
+    // ---------------------------------------------------------------------
+    //
+    // Va dentro de `guest` como sus vecinas: quien ya entro no necesita
+    // recuperar nada, y para cambiar su clave tiene «Mi perfil», que ademas le
+    // pide la actual.
+    //
+    // LOS DOS POST VAN LIMITADOS, y no por el mismo motivo:
+    //
+    // - El de pedir el enlace va por el limitador con nombre `clave-olvidada`,
+    //   que lleva DOS limites: por cuenta+IP y por IP. Sin freno, cualquiera
+    //   puede usarlo para inundar el buzon de otra persona, y de paso agotar la
+    //   cuota diaria del servidor de correo —que en el plan de hoy existe— y
+    //   dejar sin enlace a quien lo necesite. Por que son dos y por que el de
+    //   IP es generoso esta escrito en `AppServiceProvider`: hay un CDN delante
+    //   y este proyecto no configura `TrustProxies`.
+    //
+    // - El de guardar la contrasena va por el limitador con NOMBRE
+    //   `clave-nueva`, que cuenta por TOKEN: es lo unico que se puede adivinar
+    //   aqui, y un contador por IP le regalaria intentos a quien cambie de red.
+    //   Adivinar 64 caracteres al azar no es un ataque realista, pero el freno
+    //   cuesta una linea.
+    Route::get('/clave/olvidada', [RestablecerClaveController::class, 'pedir'])
+        ->name('clave-olvidada');
+    Route::post('/clave/olvidada', [RestablecerClaveController::class, 'enviar'])
+        ->middleware('throttle:clave-olvidada')
+        ->name('clave-olvidada.enviar');
+
+    // El token va en la URL y NO se le pone restriccion de formato: uno mal
+    // escrito tiene que llegar al controlador para que conteste «ese enlace ya
+    // no sirve, pide otro», que es lo util. Con un `where` encima seria un 404,
+    // o sea «esta pagina no existe» para quien abrio su correo tarde.
+    Route::get('/clave/nueva/{token}', [RestablecerClaveController::class, 'formulario'])
+        ->name('clave-nueva');
+    Route::post('/clave/nueva/{token}', [RestablecerClaveController::class, 'guardar'])
+        ->middleware('throttle:clave-nueva')
+        ->name('clave-nueva.guardar');
 
     Route::get('/registro', [RegistroController::class, 'mostrar'])->name('registro');
     Route::post('/registro', [RegistroController::class, 'guardar'])

@@ -530,8 +530,31 @@ DB_DATABASE=u123456_matriculas
 DB_USERNAME=u123456_matriculas
 DB_PASSWORD=la-contraseña-que-anotaste
 
-MAIL_FROM_ADDRESS="no-responder@tu-dominio.com"
+MAIL_USERNAME=admin@tu-dominio.com
+MAIL_PASSWORD=la-contraseña-del-buzón
+MAIL_FROM_ADDRESS="admin@tu-dominio.com"
 ```
+
+> **Esto también se puede hacer sin tocar el `.env`.** Desde el 09/09/2026 las
+> credenciales del correo se escriben en Gestión → Institución → Correo, con un
+> botón para mandarse una prueba. Es el camino recomendado para una entidad
+> nueva: no necesita consola y dice si funciona. Lo de abajo sigue valiendo, y
+> lo que se escriba en la pantalla manda sobre el archivo.
+>
+> **El correo hace falta para una sola cosa, y sin él esa cosa no avisa de que
+> no funciona.** El sistema manda un único correo: el enlace de «Olvidé mi
+> contraseña». Con `MAIL_MAILER=log` el enlace se escribe en `storage/logs` en
+> vez de enviarse, y la persona ve exactamente la misma pantalla —esa pantalla
+> contesta lo mismo pase lo que pase, para no delatar quién tiene cuenta—. O
+> sea: parece que funciona y no funciona.
+>
+> El buzón se crea en el panel de Hostinger (Correos → Cuentas de correo). La
+> contraseña que va aquí es **la del buzón**, no la del panel. Si el buzón está
+> en Hostinger, el resto de líneas (`MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`) ya
+> vienen bien en la plantilla.
+>
+> Para comprobar que sale de verdad, después del despliegue:
+> `php artisan tinker --execute="Mail::raw('prueba', fn(\$m) => \$m->to('tu-correo-personal@example.com')->subject('prueba'));"`
 
 Y **verifica** que estas cuatro líneas están tal cual. La plantilla ya las trae,
 pero es lo que hay que mirar dos veces:
