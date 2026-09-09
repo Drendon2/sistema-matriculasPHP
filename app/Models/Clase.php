@@ -229,9 +229,28 @@ class Clase extends Model
      * requeridas, verificada, abierta, vencida y limite; de la mas reciente a la
      * mas antigua.
      *
-     * Solo entran las clases POSTERIORES a su matricula: quien acaba de entrar
-     * al grupo no estuvo en las clases de antes y no puede dar fe de ellas. Es
-     * la misma idea que sostiene todo esto — se confirma lo que uno vio.
+     * LA REGLA ES «SE CONFIRMA LO QUE UNO VIO», y se resuelve en este orden:
+     *
+     * 1. SI CONSTA SU ASISTENCIA A ESA CLASE, entra. Es prueba directa de que
+     *    estuvo, la puso quien dicto la clase, y manda sobre todo lo demas.
+     * 2. SI NO, entran las clases de su grupo de hoy posteriores a su
+     *    matricula: quien acaba de entrar al grupo no estuvo en las de antes.
+     *
+     * EL PUNTO 1 FALTABA HASTA EL 09/09/2026 y costo caro, porque esta lista se
+     * deducia solo de la matricula tal como esta HOY. Dos situaciones
+     * corrientes la dejaban sin ver una clase a la que si fue:
+     *
+     * - LA MOVIERON DE GRUPO despues de la clase. Su matricula apunta al grupo
+     *   nuevo y las clases del anterior desaparecen de su lista.
+     * - LA MATRICULARON EL MISMO DIA, despues de la hora a la que empezo la
+     *   clase. `matriculas.fecha` guarda la hora exacta, asi que una clase de
+     *   las 9 queda «antes» de una matricula de las 13.
+     *
+     * En los dos casos el profesor SI la ve —`matriculasAPasar()` no filtra por
+     * fecha ni por historia— y le marca asistencia; o sea que el sistema tenia
+     * escrito que estuvo y aun asi le escondia la clase. Medido en produccion
+     * ese dia: de 578 asistencias de un mes, 34 estaban ocultas a su propio
+     * estudiante y 13 seguian dentro del plazo. Lo vigila `MisClasesTest`.
      *
      * Se listan tambien las que ya confirmo, las que alcanzaron el numero
      * requerido y las que se les vencio el plazo, en vez de esconderlas: el
@@ -250,18 +269,37 @@ class Clase extends Model
         $matriculas = Matricula::query()
             ->where('estudiante_id', $perfil->id)
             ->where('periodo_id', $periodo->id)
-            ->whereNotNull('grupo_id')
             ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
             ->get()
-            ->keyBy('grupo_id');
+            ->keyBy('id');
 
         if ($matriculas->isEmpty()) {
             return [];
         }
 
+        // Las matriculas que HOY tienen grupo, para las clases de ese grupo.
+        $porGrupo = $matriculas->filter(fn (Matricula $m) => $m->grupo_id !== null)->keyBy('grupo_id');
+
+        /*
+         * LAS CLASES EN LAS QUE CONSTA QUE ESTUVO, que es prueba directa y
+         * manda sobre todo lo demas. Sin esta consulta, esta lista se deducia
+         * SOLO de la matricula tal como esta HOY —su grupo actual y su fecha— y
+         * la asistencia es un hecho ya registrado del pasado. Cuando las dos
+         * cosas no coinciden, la que sabe es la asistencia.
+         *
+         * Clave por clase y valor la matricula, que es justo lo que hace falta
+         * despues: la fila de una clase cuelga de la matricula por la que se
+         * asistio, no de la que hoy apunte a ese grupo.
+         */
+        $asistidas = Asistencia::query()
+            ->whereIn('matricula_id', $matriculas->keys())
+            ->pluck('matricula_id', 'clase_id');
+
         $clases = static::query()
             ->where('periodo_id', $periodo->id)
-            ->whereIn('grupo_id', $matriculas->keys())
+            ->where(fn (Builder $q) => $q
+                ->whereIn('grupo_id', $porGrupo->keys())
+                ->orWhereIn('id', $asistidas->keys()))
             ->with(['grupo.promotoria.area', 'grupo.sesiones'])
             ->withCount('confirmaciones')
             ->orderByDesc('fecha_hora')
@@ -269,7 +307,7 @@ class Clase extends Model
 
         $mias = ConfirmacionClase::query()
             ->whereIn('clase_id', $clases->pluck('id'))
-            ->whereIn('matricula_id', $matriculas->pluck('id'))
+            ->whereIn('matricula_id', $matriculas->keys())
             ->pluck('clase_id')
             ->all();
 
@@ -280,9 +318,23 @@ class Clase extends Model
         $filas = [];
 
         foreach ($clases as $clase) {
-            $matricula = $matriculas[$clase->grupo_id];
+            $asistio = $asistidas->has($clase->id);
 
-            if ($clase->fecha_hora->lt($matricula->fecha)) {
+            // La matricula de la fila. Si consta asistencia, la de ESA
+            // asistencia: puede ser una que ya no apunte a este grupo, que es
+            // exactamente el caso de quien fue movida despues de la clase.
+            $matricula = $asistio
+                ? $matriculas[$asistidas[$clase->id]]
+                : ($porGrupo[$clase->grupo_id] ?? null);
+
+            if ($matricula === null) {
+                continue;
+            }
+
+            // La fecha de la matricula solo decide cuando NO consta que
+            // estuviera. Es un sustituto de «se confirma lo que uno vio», y
+            // deja de hacer falta en cuanto hay algo mejor que suponer.
+            if (! $asistio && $clase->fecha_hora->lt($matricula->fecha)) {
                 continue;
             }
 
