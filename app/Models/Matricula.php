@@ -182,6 +182,98 @@ class Matricula extends Model
                 'desde' => $matricula->getOriginal('estado'),
             ], auth()->user()?->perfil);
         });
+
+        /*
+         * La escritura doble mientras la columna y la tabla convivan. El porque
+         * esta en `copiarElGrupo()` y en `moverElGrupo()`.
+         *
+         * SON DOS GANCHOS Y NO UNO EN `saved`, y esto costo un rato: en un
+         * `saved` habria que distinguir el alta de la modificacion, y la forma
+         * evidente de hacerlo NO FUNCIONA. `wasRecentlyCreated` se pone a true
+         * al insertar y NO SE APAGA: sigue valiendo true en todos los guardados
+         * posteriores de esa misma instancia. Con el como discriminante, cada
+         * cambio de grupo tomaba la rama del alta —anadia el nuevo y no soltaba
+         * nunca el anterior—, asi que la persona acababa en los dos grupos. Lo
+         * vieron dos pruebas; leyendo el gancho no se ve.
+         *
+         * Separados, cada uno tiene un significado que no admite duda.
+         */
+        static::created(function (self $matricula) {
+            $matricula->copiarElGrupo();
+        });
+
+        static::updated(function (self $matricula) {
+            $matricula->moverElGrupo();
+        });
+    }
+
+    /**
+     * ESCRITURA DOBLE, TEMPORAL: lo que se guarda en `grupo_id` se copia a
+     * `asignaciones_grupo`.
+     *
+     * ─── POR QUE EXISTE ────────────────────────────────────────────────────
+     *
+     * El trabajo de que una matricula pueda ir a varios grupos va en cuatro
+     * pasos: la tabla (hecha), esta escritura doble, mover los lectores uno a
+     * uno, y borrar la columna. Este paso es el que hace posible el siguiente:
+     * sin el, el primer lector que se mueva a la tabla se queda leyendo una
+     * copia que ya nadie actualiza, y el fallo no lo ve nadie porque la
+     * pantalla sigue pintando algo — solo que lo de antes.
+     *
+     * Mientras esto exista, LA COLUMNA MANDA y la tabla la sigue. Se borra
+     * junto con la columna, en el ultimo paso, y no antes.
+     *
+     * ─── LA TRAMPA: NO ES UN `sync()` ──────────────────────────────────────
+     *
+     * Lo obvio seria `$this->grupos()->sync([$this->grupo_id])`, y se lleva por
+     * delante exactamente aquello para lo que se esta haciendo todo esto: a
+     * quien este en dos grupos, guardar su matricula por cualquier motivo
+     * —confirmarla, retirarla, cambiarle el estado— le borraria el segundo. Sin
+     * fallar y sin avisar, porque la columna solo sabe de uno.
+     *
+     * Por eso se quita el ANTERIOR por su id y se anade el nuevo sin tocar el
+     * resto. Lo vigila una prueba que pone dos grupos, guarda, y vuelve a
+     * mirar.
+     *
+     * ─── POR QUE UN GANCHO Y NO CADA CONTROLADOR ───────────────────────────
+     *
+     * Son ocho sitios los que escriben `grupo_id`, en seis archivos, y todos
+     * pasan por el modelo: comprobado, los dos unicos `update()` masivos de
+     * `matriculas` tocan solo `fecha`. Repartido por los ocho, el que se olvide
+     * deja una asignacion sin copiar y nada falla hasta el paso siguiente.
+     *
+     * `saved` y no `saving`: hace falta el id de la fila, y al crear todavia no
+     * existe. Aqui `getOriginal()` sigue devolviendo lo de ANTES —Laravel
+     * dispara este evento antes de `syncOriginal()`— que es de lo que depende
+     * saber que grupo hay que soltar.
+     */
+    private function copiarElGrupo(): void
+    {
+        if ($this->grupo_id !== null) {
+            $this->grupos()->syncWithoutDetaching($this->grupo_id);
+        }
+    }
+
+    /**
+     * Suelta el grupo anterior y toma el nuevo, sin tocar los demas.
+     *
+     * `getOriginal()` sigue devolviendo lo de ANTES aqui: Laravel dispara
+     * `updated` antes de `syncOriginal()`. Es lo mismo de lo que ya depende el
+     * rastro de auditoria de mas arriba.
+     */
+    private function moverElGrupo(): void
+    {
+        if (! $this->wasChanged('grupo_id')) {
+            return;
+        }
+
+        $anterior = $this->getOriginal('grupo_id');
+
+        if ($anterior !== null) {
+            $this->grupos()->detach($anterior);
+        }
+
+        $this->copiarElGrupo();
     }
 
     /**

@@ -146,6 +146,143 @@ class VariosGruposPorMatriculaTest extends TestCase
     }
 
     // --------------------------------------------------------------------
+    // La escritura doble (paso 2)
+    // --------------------------------------------------------------------
+
+    /*
+     * Mientras la columna y la tabla convivan, LA COLUMNA MANDA y la tabla la
+     * sigue. Sin esto, el primer lector que se mueva a la tabla se queda
+     * leyendo una copia que ya nadie actualiza — y no lo ve nadie, porque la
+     * pantalla sigue pintando algo, solo que lo de antes.
+     */
+
+    /** Nacer con grupo deja ya su fila en la puente. */
+    public function test_crear_con_grupo_escribe_en_la_puente(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $nueva = Matricula::create([
+            'estudiante_id' => $matricula->estudiante_id,
+            'promotoria_id' => $this->otraPromotoria()->id,
+            'periodo_id' => $this->periodo->id,
+            'grupo_id' => $this->grupoDeLaOtra()->id,
+            'fecha' => Carbon::now(),
+            'estado' => Matricula::ACTIVA,
+        ]);
+
+        $this->assertSame([$this->grupoDeLaOtra()->id], $nueva->grupos()->pluck('grupos.id')->all());
+    }
+
+    /** Asignar grupo por la columna escribe en la puente. */
+    public function test_asignar_grupo_escribe_en_la_puente(): void
+    {
+        $matricula = $this->matricula('ana');
+
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $this->assertSame([$this->lunes->id], $matricula->grupos()->pluck('grupos.id')->all());
+    }
+
+    /** Cambiar de grupo MUEVE la fila: no deja la vieja detrás. */
+    public function test_cambiar_de_grupo_suelta_el_anterior(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $matricula->grupo_id = $this->miercoles->id;
+        $matricula->save();
+
+        $this->assertSame([$this->miercoles->id], $matricula->grupos()->pluck('grupos.id')->all());
+    }
+
+    /** Y quitarle el grupo la borra: es lo que hacen retirar y cancelar. */
+    public function test_quitar_el_grupo_borra_la_fila(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $matricula->grupo_id = null;
+        $matricula->save();
+
+        $this->assertSame(0, $matricula->grupos()->count());
+    }
+
+    /**
+     * CAMBIAR EL GRUPO DE LA COLUMNA NO SE LLEVA LOS DEMAS.
+     *
+     * Es la prueba que sostiene todo el paso 2. Lo obvio en el gancho seria un
+     * `sync([$this->grupo_id])`, y eso borraria exactamente aquello para lo que
+     * se esta haciendo todo esto: a quien esta en dos grupos, moverle el de la
+     * columna le dejaria SOLO ese. Sin fallar y sin avisar, porque la columna
+     * solo sabe de uno.
+     *
+     * OJO CON COMO SE ESCRIBE, que la primera version no probaba nada: hay que
+     * CAMBIAR `grupo_id`, no guardar cualquier otra cosa. Un guardado que no
+     * toca el grupo sale por el `wasChanged` de arriba y no llega nunca al
+     * `sync`, asi que la prueba pasaba en verde con el fallo puesto —
+     * comprobado. El caso que importa es el reparto: mover a alguien de
+     * horario.
+     */
+    public function test_cambiar_el_grupo_de_la_columna_no_borra_los_demas(): void
+    {
+        $viernes = $this->grupo('Viernes tarde');
+
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        // El segundo grupo solo existe en la puente: la columna no puede con el.
+        $matricula->grupos()->syncWithoutDetaching($this->miercoles->id);
+
+        // La mueven del lunes al viernes. El miercoles no se toca.
+        $matricula->grupo_id = $viernes->id;
+        $matricula->save();
+
+        $this->assertSame(
+            [$this->miercoles->id, $viernes->id],
+            $matricula->grupos()->pluck('grupos.id')->sort()->values()->all(),
+            'mover el grupo de la columna se llevo por delante el otro.'
+        );
+    }
+
+    /** Y guardar sin tocar el grupo tampoco, que es el otro camino. */
+    public function test_guardar_sin_tocar_el_grupo_no_borra_los_demas(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $matricula->grupos()->syncWithoutDetaching($this->miercoles->id);
+
+        $matricula->estado = Matricula::CANCELACION_SOLICITADA;
+        $matricula->save();
+
+        $this->assertSame(2, $matricula->grupos()->count());
+    }
+
+    /** Un guardado que no toca el grupo no reescribe nada. */
+    public function test_guardar_sin_tocar_el_grupo_deja_la_puente_igual(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupo_id = $this->lunes->id;
+        $matricula->save();
+
+        $antes = DB::table('asignaciones_grupo')->where('matricula_id', $matricula->id)->first();
+
+        $matricula->estado = Matricula::CANCELACION_SOLICITADA;
+        $matricula->save();
+
+        $despues = DB::table('asignaciones_grupo')->where('matricula_id', $matricula->id)->first();
+
+        $this->assertSame($antes->id, $despues->id, 'reescribio la fila sin necesidad.');
+    }
+
+    // --------------------------------------------------------------------
     // El volcado
     // --------------------------------------------------------------------
 
@@ -231,6 +368,22 @@ class VariosGruposPorMatriculaTest extends TestCase
     }
 
     // --------------------------------------------------------------------
+
+    private function otraPromotoria(): Promotoria
+    {
+        return Promotoria::firstOrCreate(
+            ['nombre' => 'Piano'],
+            ['area_id' => $this->violin->area_id]
+        );
+    }
+
+    private function grupoDeLaOtra(): Grupo
+    {
+        return Grupo::firstOrCreate(
+            ['promotoria_id' => $this->otraPromotoria()->id, 'nombre' => 'Jueves'],
+            ['nivel' => 'basico', 'salon' => 'B2', 'cupo_maximo' => 10]
+        );
+    }
 
     private function grupo(string $nombre): Grupo
     {
