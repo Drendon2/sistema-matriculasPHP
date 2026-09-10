@@ -248,11 +248,18 @@ class MisDatosTest extends TestCase
     // --------------------------------------------------------------------
 
     /**
-     * El nombre de USUARIO no se cambia desde aqui, ni colandolo en el formulario.
+     * El nombre de USUARIO no se cambia desde AQUI, ni colandolo en el formulario.
      *
      * Es la credencial con la que se entra, y cambiarla es otra cosa que
      * corregir un dato mal escrito. El formulario no lo pinta; esta prueba
      * comprueba que tampoco lo acepta si alguien lo manda a mano.
+     *
+     * OJO CON LEER ESTO COMO «no se puede cambiar»: desde el 10/09/2026 SI se
+     * puede, en su propia seccion de «Mi perfil» y pidiendo la contrasena
+     * actual (`CambioDeUsuarioTest`). Lo que esta prueba sostiene es que el
+     * camino sea ESE y no este: aqui no se pide contrasena, asi que si el
+     * campo colase, una sesion abierta en un celular prestado bastaria para
+     * dejar a alguien sin saber con que entra.
      */
     public function test_el_usuario_no_se_cambia_desde_mis_datos(): void
     {

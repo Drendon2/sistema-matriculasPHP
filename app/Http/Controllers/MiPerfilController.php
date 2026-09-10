@@ -151,6 +151,7 @@ class MiPerfilController extends Controller
             'papel' => $this->guardarPapel($request, $perfil),
             'encuesta' => $this->guardarEncuesta($request, $perfil),
             'clave' => $this->guardarClave($request, $perfil),
+            'usuario' => $this->guardarUsuario($request, $perfil),
             default => redirect()->route('mi-perfil'),
         };
     }
@@ -297,6 +298,132 @@ class MiPerfilController extends Controller
             'success',
             'Tu contraseña quedó cambiada. Si habías entrado en otro dispositivo, '
             .'ahí tendrás que volver a iniciar sesión.'
+        );
+    }
+
+    /**
+     * CAMBIARSE EL PROPIO NOMBRE DE USUARIO.
+     *
+     * Lo pidio el usuario el 10/09/2026, y esto INVIERTE a medias lo que decia
+     * «Mis datos» desde el 07/09 —«el usuario con el que entras no se cambia
+     * desde aqui»—. Se invierte por la misma razon que abrio aquel formulario:
+     * quien tiene algo mal escrito no podia arreglarlo solo, y aqui muerde mas
+     * de lo que parece porque en este sistema el `username` NO es un apodo
+     * tecnico. Medido en produccion: 179 personas usan su correo y 239 su
+     * nombre con espacios («Ainhoa Davila»). O sea que un nombre mal tecleado
+     * el dia de inscribirse se queda tambien en la credencial, y hasta hoy solo
+     * un administrador podia corregirlo.
+     *
+     * LO QUE NO CAMBIA: sigue sin poderse desde el formulario de «Mis datos»,
+     * ni colandolo alli a mano. Son dos formularios porque son dos cosas: aquel
+     * corrige datos, este cambia una CREDENCIAL y por eso pide la contrasena.
+     * La prueba que vigila aquella puerta sigue en `MisDatosTest` y sigue
+     * valiendo.
+     *
+     * ─── SE PIDE LA CONTRASENA ACTUAL, y es la mitad que sostiene el resto ──
+     *
+     * Es el mismo razonamiento que ya sostiene `guardarClave()`, y aqui el dano
+     * es distinto pero no menor: cambiar el usuario de otro NO le quita la
+     * cuenta, le quita la forma de ENTRAR en ella. Una sesion abierta en un
+     * celular prestado basta para llegar hasta aqui, y como en este sistema
+     * nada le avisa a nadie de nada, el dueno se entera la proxima vez que
+     * intente entrar y no le va a caber en la cabeza por que. Recuperarse solo
+     * exige tener correo registrado, y lo tienen 32 de 885 personas.
+     *
+     * EL CAMPO SE LLAMA `clave_usuario` Y NO `clave_actual`, que es lo que
+     * pediria el parecido. No se puede: la pantalla decide que `<details>`
+     * abrir mirando SUS campos en `$errors`, asi que con el mismo nombre un
+     * fallo aqui abriria tambien el bloque de la contrasena —y al reves—, y
+     * quien baje a buscar lo rojo lo encontrara en el plegado equivocado. Es la
+     * trampa del proyecto, escrita en CLAUDE.md.
+     *
+     * ─── DESDE UNA GESTION ASISTIDA SI SE PUEDE, y es deliberado ────────────
+     *
+     * Aqui NO va el corte de `GestionAsistida` que si tienen la contrasena, la
+     * escritura de asistencia y la confirmacion de una clase. Decision del
+     * usuario el 10/09/2026, tomada con la objecion delante: la barrera de esta
+     * pantalla es saberse la contrasena de la persona, que el administrador no
+     * sabe, asi que un corte aparte no anadiria nada. Si algun dia se quita el
+     * requisito de la contrasena, ESTE parrafo deja de valer y hay que poner el
+     * corte: sin los dos, un administrador podria cambiarle a alguien el nombre
+     * con el que entra desde dentro de su propia cuenta.
+     *
+     * ─── CAMBIAR EL USUARIO NO TE EXPULSA ──────────────────────────────────
+     *
+     * No hay que tocar la sesion. `AuthenticateSession` compara HASHES DE
+     * CONTRASENA, no nombres, asi que la sesion abierta sigue valiendo y el
+     * nombre nuevo es el de la proxima vez que se entre. Se guarda igualmente
+     * en la instancia de `Auth` y no en `$perfil->user` por lo mismo que la
+     * clave: son dos objetos distintos de la misma fila y ya hay una escritura
+     * que costo una hora por hacerlo en la otra.
+     *
+     * ─── EN LA AUDITORIA VA EL HECHO Y NO EL NOMBRE ────────────────────────
+     *
+     * Sin el valor viejo, igual que `clave.cambiada`. La tentacion es guardarlo
+     * —sin el, el rastro no dice de que a que— y no se puede: la regla de
+     * `Auditoria` es «identificadores, nunca nombres», y aqui el valor seria
+     * justamente un correo o un nombre y apellido en 418 de las 841 cuentas.
+     * Quien lo tenia se sabe por el id, que si va.
+     */
+    private function guardarUsuario(Request $request, Perfil $perfil): RedirectResponse
+    {
+        // La instancia de `Auth` y no `$perfil->user`: es contra la que hay que
+        // comprobar el hash, y es la que el middleware mira.
+        $usuario = $request->user();
+
+        $datos = $request->validate([
+            'username' => Reglas::usuario(
+                Rule::unique('users', 'username')->ignore($usuario->id),
+            ),
+            'clave_usuario' => ['required', 'string'],
+        ], Reglas::mensajes() + [
+            'username.unique' => 'Ya existe una cuenta con ese nombre de usuario.',
+        ], [
+            'username' => 'nombre de usuario',
+            'clave_usuario' => 'contraseña actual',
+        ]);
+
+        // Se comprueba DESPUES de validar el formato, por lo mismo que en la
+        // contrasena: los dos mensajes salen juntos y no de a uno por intento.
+        if (! Hash::check($datos['clave_usuario'], $usuario->password)) {
+            // CON LA ENTRADA, Y SIN LA CLAVE DENTRO. Las dos mitades importan y
+            // ninguna se ve leyendo la linea:
+            //
+            // 1. Sin `withInput()` se pierde el nombre que la persona acababa de
+            //    teclear y el campo vuelve al que hay en la base. Ademas dejaba
+            //    DOS rechazos distintos: el de formato o repetido lo conserva
+            //    solo —`validate()` reenvia la entrada— y este lo borraba. Se
+            //    vio en el navegador; ninguna prueba lo miraba.
+            // 2. Y NO el `withInput()` pelado, que flashea todo lo que llego:
+            //    la lista de campos que Laravel excluye trae `password` y
+            //    `current_password`, y este se llama `clave_usuario`, asi que la
+            //    contrasena en claro acabaria guardada en la sesion — que en
+            //    produccion es una tabla de la base.
+            return back()
+                ->withInput($request->except('clave_usuario'))
+                ->withErrors([
+                    'clave_usuario' => 'Esa no es tu contraseña actual.',
+                ]);
+        }
+
+        // Guardar el mismo que ya tenias no es un cambio: ni se escribe la fila
+        // ni se deja una linea en la auditoria diciendo que algo paso.
+        if ($datos['username'] === $usuario->username) {
+            return redirect()->route('mi-perfil')->with(
+                'success',
+                'Tu nombre de usuario no cambió: ya era ese.'
+            );
+        }
+
+        $usuario->username = $datos['username'];
+        $usuario->save();
+
+        Auditoria::registrar('usuario.cambiado', [], $perfil);
+
+        return redirect()->route('mi-perfil')->with(
+            'success',
+            'Ahora entras con «'.$datos['username'].'». No tienes que volver a '
+            .'iniciar sesión ahora; úsalo la próxima vez.'
         );
     }
 

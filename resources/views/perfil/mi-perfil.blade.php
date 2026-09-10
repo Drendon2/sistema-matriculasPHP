@@ -228,7 +228,7 @@
 
   <p class="campo-ayuda">
     Corrige aquí tu información si algo quedó mal escrito al inscribirte.
-    El usuario con el que entras no se cambia desde aquí.
+    El usuario con el que entras se cambia más abajo, en «Nombre de usuario».
   </p>
 
   <form method="post" action="{{ route('mi-perfil.guardar') }}">
@@ -501,6 +501,73 @@
     @endif
 
     <button type="submit" class="btn">Guardar encuesta</button>
+  </form>
+</details>
+
+{{--
+  EL NOMBRE DE USUARIO. Pedido el 10/09/2026, y hasta ese día no se cambiaba por
+  ningún camino que no fuera un administrador: «Mis datos» decía literalmente
+  «el usuario con el que entras no se cambia desde aquí».
+
+  ES SU PROPIA SECCIÓN Y NO UN CAMPO MÁS DE «Mis datos», y esa es la decisión:
+  pide la contraseña actual, y metido allí obligaría a teclearla para corregir
+  una tilde del nombre. Va aquí abajo, junto a la contraseña, porque las dos son
+  la CREDENCIAL con la que se entra y no un dato de la persona.
+
+  SE PINTA EL QUE HAY. No se puede cambiar lo que no se ve, y esta pantalla no
+  lo enseñaba en ninguna parte.
+
+  SE ABRE SOLA SI SU FORMULARIO FUE RECHAZADO, acotado a SUS dos campos. Y por
+  eso su campo de clave se llama `clave_usuario` y no `clave_actual`: con el
+  mismo nombre que el de abajo, un fallo aquí abriría los dos plegados y quien
+  bajase a buscar lo rojo lo encontraría en el equivocado.
+
+  El ojo del campo de clave lo pone `ver-clave.js` solo; aquí no hay que hacer
+  nada.
+--}}
+<details class="perfil-seccion" id="bloque-usuario"
+         @if ($errors->has('username') || $errors->has('clave_usuario')) open @endif>
+  <summary class="perfil-seccion-cabecera">
+    <span class="perfil-seccion-icono icono-documento" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </span>
+    <h3 style="margin:0;">Nombre de usuario</h3>
+    <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </summary>
+
+  <form method="post" action="{{ route('mi-perfil.guardar') }}" class="form-card">
+    @csrf
+    <input type="hidden" name="accion" value="usuario">
+
+    <label for="mi-username">Entras con</label>
+    <input type="text" name="username" id="mi-username" maxlength="150" required
+           autocomplete="username" autocapitalize="none" spellcheck="false"
+           value="{{ old('username', $perfil->user->username) }}">
+    @error('username')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
+
+    <label for="clave_usuario">Contraseña actual</label>
+    <input type="password" name="clave_usuario" id="clave_usuario"
+           autocomplete="current-password" required>
+    {{--
+      Dice POR QUÉ se pide, porque no se deduce del campo: cambiarle el usuario
+      a alguien no le quita la cuenta, le quita la forma de entrar en ella, y
+      aquí se llega con una sesión abierta en un celular prestado.
+    --}}
+    <p class="campo-ayuda">
+      Se pide para que nadie pueda cambiarte el usuario con el que entras
+      aprovechando que dejaste la sesión abierta.
+    </p>
+    @error('clave_usuario')<ul class="errorlist"><li>{{ $message }}</li></ul>@enderror
+
+    <p class="campo-ayuda">
+      No tendrás que volver a iniciar sesión ahora: el usuario nuevo es el de la
+      próxima vez que entres.
+    </p>
+
+    <button type="submit" class="btn">Cambiar el nombre de usuario</button>
   </form>
 </details>
 
