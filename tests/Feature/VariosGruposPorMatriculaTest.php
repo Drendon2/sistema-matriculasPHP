@@ -12,6 +12,7 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\SesionGrupo;
 use App\Models\User;
+use App\Support\Companeros;
 use App\Support\Dependencias;
 use App\Support\HorarioSemanal;
 use Illuminate\Database\QueryException;
@@ -569,6 +570,77 @@ class VariosGruposPorMatriculaTest extends TestCase
         ]);
 
         return $clase;
+    }
+
+    /**
+     * CADA HORARIO TIENE SUS PROPIOS COMPAÑEROS.
+     *
+     * «Mis compañeros» empareja por GRUPO y no por promotoria desde el 27/08, y
+     * su propia pantalla lo explica: quien va los martes no se cruza con quien
+     * va los jueves. Con una matricula en dos grupos eso deja de ser una frase y
+     * pasa a ser el caso: la misma persona tiene DOS corros distintos, y por eso
+     * la clave de `Companeros::porMatricula()` es (matricula, grupo) y no la
+     * matricula.
+     */
+    public function test_cada_horario_tiene_sus_propios_companeros(): void
+    {
+        $ana = $this->matricula('ana');
+        $ana->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $soloLunes = $this->matricula('beto');
+        $soloLunes->grupos()->attach($this->lunes->id);
+
+        $soloMiercoles = $this->matricula('caro');
+        $soloMiercoles->grupos()->attach($this->miercoles->id);
+
+        $html = $this->actingAs($ana->estudiante->user)
+            ->get(route('mis-companeros'))->assertOk()->getContent();
+
+        // Dos secciones, una por horario, y cada una con SU gente.
+        $secciones = $this->actingAs($ana->estudiante->user)
+            ->get(route('mis-companeros'))->viewData('clases');
+
+        $porGrupo = collect($secciones)->mapWithKeys(fn ($s) => [
+            $s['grupo']->id => collect($s['companeros'])->pluck('id')->all(),
+        ]);
+
+        $this->assertCount(2, $secciones, 'no salen sus dos horarios.');
+        $this->assertSame([$soloLunes->estudiante_id], $porGrupo[$this->lunes->id]);
+        $this->assertSame([$soloMiercoles->estudiante_id], $porGrupo[$this->miercoles->id]);
+        $this->assertStringContainsString('Lunes tarde', $html);
+    }
+
+    /**
+     * Y quien comparte los DOS horarios sale en los dos corros.
+     *
+     * Es una persona, no dos, pero aparece en cada uno de sus dos sitios — que
+     * es lo que la pantalla ensena. El contador de «Compañeros» de Mi perfil
+     * cuenta lo otro: personas distintas, y ahi es UNA.
+     */
+    public function test_quien_comparte_los_dos_horarios_sale_en_los_dos(): void
+    {
+        $ana = $this->matricula('ana');
+        $ana->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $tambienLosDos = $this->matricula('beto');
+        $tambienLosDos->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $secciones = $this->actingAs($ana->estudiante->user)
+            ->get(route('mis-companeros'))->assertOk()->viewData('clases');
+
+        foreach ($secciones as $seccion) {
+            $this->assertSame(
+                [$tambienLosDos->estudiante_id],
+                collect($seccion['companeros'])->pluck('id')->all(),
+                'falta en el corro de '.$seccion['grupo']->nombre
+            );
+        }
+
+        $this->assertSame(
+            1,
+            Companeros::cuantos($ana->estudiante, collect([$ana->fresh()->load('grupos')])),
+            'lo conto dos veces: son dos horarios de la misma persona.'
+        );
     }
 
     /**

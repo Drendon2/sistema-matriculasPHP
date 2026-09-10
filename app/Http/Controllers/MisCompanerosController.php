@@ -6,6 +6,7 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Support\Companeros;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -32,7 +33,10 @@ class MisCompanerosController extends Controller
             // Con las sesiones: el rotulo del grupo deriva el horario de
             // ellas, y sin traerlas aqui la pantalla pregunta una vez por
             // matricula justo despues de haberse ahorrado ese bucle.
-            ->with(['promotoria.area', 'periodo', 'grupo.sesiones'])
+            // `grupos` en plural: desde el 10/09/2026 una matricula puede estar
+            // en varios de la misma promotoria, y `Companeros` empareja por el
+            // par (grupo, periodo) de cada uno.
+            ->with(['promotoria.area', 'periodo', 'grupos.sesiones'])
             ->get();
 
         // El bucle recorre MIS matriculas para conservar su orden en la
@@ -42,12 +46,38 @@ class MisCompanerosController extends Controller
 
         $clases = [];
 
+        /*
+         * UNA SECCION POR GRUPO Y NO POR MATRICULA. Los companeros son distintos
+         * en cada uno, y desde el 10/09/2026 una matricula puede estar en dos
+         * grupos de la misma promotoria: quien va los martes no se cruza con
+         * quien va los jueves, que es lo que esta pantalla lleva diciendo desde
+         * el 27/08.
+         *
+         * La matricula SIN grupo sigue dando una seccion, con el grupo en nulo:
+         * es lo que la vista usa para decir «todavia no tienes grupo», que es un
+         * mensaje distinto de «no tienes companeros». Recorriendo solo los
+         * grupos, esa persona se quedaria sin pantalla.
+         */
         foreach ($mias as $matricula) {
-            $clases[] = [
-                'promotoria' => $matricula->promotoria,
-                'grupo' => $matricula->grupo,
-                'companeros' => $companerosDe[$matricula->id],
-            ];
+            if ($matricula->grupos->isEmpty()) {
+                $clases[] = [
+                    'promotoria' => $matricula->promotoria,
+                    'grupo' => null,
+                    'companeros' => new Collection,
+                ];
+
+                continue;
+            }
+
+            foreach ($matricula->grupos as $grupo) {
+                $clave = $matricula->id.'-'.$grupo->id.'-'.$matricula->periodo_id;
+
+                $clases[] = [
+                    'promotoria' => $matricula->promotoria,
+                    'grupo' => $grupo,
+                    'companeros' => $companerosDe[$clave] ?? new Collection,
+                ];
+            }
         }
 
         return view('estudiante.mis-companeros', ['clases' => $clases]);

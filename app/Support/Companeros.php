@@ -2,10 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use Closure;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Quien es companero de quien, en un solo sitio y en un numero fijo de
@@ -85,15 +87,23 @@ class Companeros
      * persona lo busca; `sortBy` de PHP lo mandaria detras de «Zulma».
      *
      * @param  Collection<int, Matricula>  $mias  las matriculas activas de $perfil
-     * @return array<int, Collection<int, Perfil>> con MI matricula como clave
+     *                                            LA CLAVE ES (MATRICULA, GRUPO) Y NO LA MATRICULA, desde el 10/09/2026,
+     *                                            porque los companeros son distintos en cada grupo: desde que una matricula
+     *                                            puede estar en dos de la misma promotoria, una sola matricula tiene DOS
+     *                                            corros. Es lo que esta pantalla lleva diciendo desde el 27/08 en su propio
+     *                                            comentario —quien va los martes no se cruza con quien va los jueves—; con
+     *                                            la clave anterior, el segundo horario no tenia donde ponerse.
+     * @return array<string, Collection<int, Perfil>> con "matriculaId-grupoId-periodoId" como clave
      */
     public static function porMatricula(Perfil $perfil, Collection $mias): array
     {
-        /** @var array<int, Collection<int, Perfil>> $porMatricula */
+        /** @var array<string, Collection<int, Perfil>> $porMatricula */
         $porMatricula = [];
 
         foreach ($mias as $mia) {
-            $porMatricula[$mia->id] = new Collection;
+            foreach (self::claves($mia) as $clave) {
+                $porMatricula[$mia->id.'-'.$clave] = new Collection;
+            }
         }
 
         $condicion = self::activasEnLosMismos($mias);
@@ -105,7 +115,11 @@ class Companeros
         $companeros = Perfil::query()
             ->where('id', '!=', $perfil->id)
             ->whereHas('matriculas', $condicion)
-            ->with(['matriculas' => $condicion])
+            // `matriculas.grupos` ademas de la condicion: el bucle de abajo
+            // pregunta por los grupos de cada matricula ajena, y sin traerlos
+            // aqui es una consulta por fila. Lo caza la prueba que mide que
+            // esta pantalla cueste lo mismo con una promotoria que con cuatro.
+            ->with(['matriculas' => $condicion, 'matriculas.grupos'])
             ->orderBy('nombre_completo')
             ->get();
 
@@ -125,19 +139,15 @@ class Companeros
             // es una decision aparte y no de este cambio.
             /** @var Matricula $suya */
             foreach ($companero->matriculas as $suya) {
-                $clave = self::clave($suya);
-
-                if ($clave !== null) {
+                foreach (self::claves($suya) as $clave) {
                     $porPar[$clave][] = $companero;
                 }
             }
         }
 
         foreach ($mias as $mia) {
-            $clave = self::clave($mia);
-
-            if ($clave !== null) {
-                $porMatricula[$mia->id] = new Collection($porPar[$clave] ?? []);
+            foreach (self::claves($mia) as $clave) {
+                $porMatricula[$mia->id.'-'.$clave] = new Collection($porPar[$clave] ?? []);
             }
         }
 
@@ -201,30 +211,36 @@ class Companeros
      */
     private static function paresDe(Perfil $perfil): array
     {
-        return Matricula::where('estudiante_id', $perfil->id)
-            ->where('estado', Matricula::ACTIVA)
-            ->whereNotNull('grupo_id')
-            ->get(['grupo_id', 'periodo_id'])
-            ->map(fn (Matricula $m) => "{$m->grupo_id}:{$m->periodo_id}")
-            ->unique()
-            ->values()
+        return DB::table('asignaciones_grupo')
+            ->join('matriculas', 'matriculas.id', '=', 'asignaciones_grupo.matricula_id')
+            ->where('matriculas.estudiante_id', $perfil->id)
+            ->where('matriculas.estado', Matricula::ACTIVA)
+            ->distinct()
+            ->get(['asignaciones_grupo.grupo_id', 'matriculas.periodo_id'])
+            ->map(fn ($fila) => "{$fila->grupo_id}:{$fila->periodo_id}")
             ->all();
     }
 
     /**
-     * El par (grupo, periodo), que es lo que de verdad define una clase.
+     * Los pares (grupo, periodo) de una matricula, que es lo que de verdad
+     * define una clase.
      *
-     * `null` cuando la matricula no tiene grupo: sin el no hay con quien
-     * emparejarla, y una clave a medias --con un hueco donde va el grupo--
-     * juntaria entre si a todos los que estan sin repartir.
+     * EN PLURAL DESDE EL 10/09/2026, y ese es todo el cambio de este archivo:
+     * una matricula puede estar repartida en varios grupos de la misma
+     * promotoria —el lunes y el miercoles—, y entonces da varias clases y
+     * varios corros de companeros distintos.
+     *
+     * Lista VACIA cuando no tiene grupo: sin el no hay con quien emparejarla, y
+     * una clave a medias --con un hueco donde va el grupo-- juntaria entre si a
+     * todos los que estan sin repartir.
+     *
+     * @return list<string>
      */
-    private static function clave(Matricula $matricula): ?string
+    private static function claves(Matricula $matricula): array
     {
-        if ($matricula->grupo_id === null) {
-            return null;
-        }
-
-        return $matricula->grupo_id.'-'.$matricula->periodo_id;
+        return $matricula->grupos
+            ->map(fn (Grupo $grupo) => $grupo->id.'-'.$matricula->periodo_id)
+            ->all();
     }
 
     /**
@@ -247,27 +263,42 @@ class Companeros
      */
     private static function activasEnLosMismos(Collection $mias): ?Closure
     {
-        $pares = $mias
-            ->filter(fn (Matricula $matricula) => $matricula->grupo_id !== null)
-            ->map(fn (Matricula $matricula) => [$matricula->grupo_id, $matricula->periodo_id])
-            ->unique(fn (array $par) => implode('-', $par))
-            ->values()
-            ->all();
+        /*
+         * Mis grupos AGRUPADOS POR PERIODO, y no una lista plana de pares.
+         *
+         * Con una matricula por grupo daba igual; desde que una puede estar en
+         * varios, una lista plana de pares gasta una subconsulta por cada uno.
+         * Agrupados por periodo son una subconsulta por SEMESTRE, que en la
+         * practica es una.
+         *
+         * Lo que NO se puede es soltar los dos `whereIn` por separado —grupos
+         * por un lado, periodos por otro—: eso casa tambien las combinaciones
+         * cruzadas, mi grupo de este periodo con el periodo pasado, y
+         * devolveria como companeros a gente de otro semestre. Es el error
+         * facil de aqui y por eso el periodo va DENTRO de cada rama del OR.
+         */
+        $porPeriodo = [];
 
-        if ($pares === []) {
+        foreach ($mias as $matricula) {
+            foreach ($matricula->grupos as $grupo) {
+                $porPeriodo[$matricula->periodo_id][$grupo->id] = $grupo->id;
+            }
+        }
+
+        if ($porPeriodo === []) {
             return null;
         }
 
         // Sin tipos declarados a proposito: la misma condicion la reciben
         // `whereHas`, que pasa un Builder, y `with`, que pasa la relacion.
-        return function ($consulta) use ($pares) {
+        return function ($consulta) use ($porPeriodo) {
             $consulta
-                ->where('estado', Matricula::ACTIVA)
-                ->where(function ($grupo) use ($pares) {
-                    foreach ($pares as [$grupoId, $periodoId]) {
-                        $grupo->orWhere(fn ($par) => $par
-                            ->where('grupo_id', $grupoId)
-                            ->where('periodo_id', $periodoId));
+                ->where('matriculas.estado', Matricula::ACTIVA)
+                ->where(function ($rama) use ($porPeriodo) {
+                    foreach ($porPeriodo as $periodoId => $grupos) {
+                        $rama->orWhere(fn ($par) => $par
+                            ->where('matriculas.periodo_id', $periodoId)
+                            ->whereHas('grupos', fn ($g) => $g->whereIn('grupos.id', $grupos)));
                     }
                 });
         };

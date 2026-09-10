@@ -852,9 +852,14 @@ class MiPerfilController extends Controller
             // que nada se queje. Con ella fuera, la cifra sale 0 para todo el
             // mundo --que es un numero creible, y por eso el descuido se
             // quedaria puesto.
+            // El `id` no sobra en la seleccion y `grupos` tampoco: `Companeros`
+            // empareja por los grupos de cada matricula, y una fila traida sin
+            // su id no puede cargar ninguna relacion. Sin las dos cosas esto
+            // devolveria cero companeros sin fallar.
             $activas = Matricula::where('estudiante_id', $perfil->id)
                 ->where('estado', Matricula::ACTIVA)
-                ->get(['grupo_id', 'periodo_id']);
+                ->with('grupos')
+                ->get(['id', 'grupo_id', 'periodo_id']);
 
             // "Companero" = mismo GRUPO y periodo, con matricula activa. La
             // regla vive en `Companeros` y no aqui: la escribian este metodo y
