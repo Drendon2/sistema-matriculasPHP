@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Asistencia;
 use App\Models\Clase;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -464,6 +465,110 @@ class VariosGruposPorMatriculaTest extends TestCase
             collect($cuerpo['sin_grupo'])->pluck('matricula.id')->all(),
             'la lista de sin grupo no dice quien esta de verdad sin grupo.'
         );
+    }
+
+    /**
+     * CONFIRMAR UNA CLASE NO CONFIRMA LA OTRA.
+     *
+     * ES EL RIESGO QUE INTRODUCE TODO ESTO, y por eso esta prueba existe: hasta
+     * ahora, dos clases pendientes de la misma persona colgaban siempre de dos
+     * matriculas distintas —una por promotoria—. Desde que puede ir a dos
+     * grupos de la MISMA promotoria, las dos cuelgan de la MISMA matricula. Si
+     * la confirmacion se identificara por matricula, aprobar una aprobaria las
+     * dos: el estudiante daria fe de una clase a la que no fue con un solo
+     * toque, y eso destruye lo unico que sostiene el registro de asistencia.
+     *
+     * Lo que lo impide es que `confirmaciones_clase` es unica por
+     * `(clase_id, matricula_id)` y que la ruta recibe UNA clase. Se prueba por
+     * HTTP y no llamando al modelo: el camino que hay que vigilar es el boton.
+     */
+    public function test_confirmar_una_clase_no_confirma_la_otra(): void
+    {
+        [$matricula, $delLunes, $delMiercoles] = $this->dosClasesPendientes();
+
+        $this->actingAs($matricula->estudiante->user)
+            ->post(route('confirmar-clase', $delLunes))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('confirmaciones_clase', [
+            'clase_id' => $delLunes->id,
+            'matricula_id' => $matricula->id,
+        ]);
+        $this->assertDatabaseMissing('confirmaciones_clase', [
+            'clase_id' => $delMiercoles->id,
+            'matricula_id' => $matricula->id,
+        ]);
+        $this->assertSame(1, DB::table('confirmaciones_clase')->count(), 'confirmo mas de una.');
+    }
+
+    /** Y la que queda sigue saliendole como pendiente, no como verificada. */
+    public function test_la_otra_clase_sigue_pendiente_en_su_pantalla(): void
+    {
+        [$matricula, $delLunes, $delMiercoles] = $this->dosClasesPendientes();
+
+        $this->actingAs($matricula->estudiante->user)
+            ->post(route('confirmar-clase', $delLunes));
+
+        $suyas = collect(Clase::porConfirmar($matricula->estudiante->fresh(), $this->periodo))
+            ->keyBy(fn ($f) => $f['clase']->id);
+
+        $this->assertTrue($suyas[$delLunes->id]['confirmada_por_mi'], 'la que confirmo no consta.');
+        $this->assertFalse(
+            $suyas[$delMiercoles->id]['confirmada_por_mi'],
+            'la otra salio confirmada sin que nadie la tocara.'
+        );
+        $this->assertSame(0, $suyas[$delMiercoles->id]['confirmaciones'], 'le contaron una confirmacion ajena.');
+    }
+
+    /** Deshacer una tampoco toca la otra. */
+    public function test_deshacer_una_confirmacion_no_toca_la_otra(): void
+    {
+        [$matricula, $delLunes, $delMiercoles] = $this->dosClasesPendientes();
+
+        $this->actingAs($matricula->estudiante->user)->post(route('confirmar-clase', $delLunes));
+        $this->actingAs($matricula->estudiante->user)->post(route('confirmar-clase', $delMiercoles));
+        $this->assertSame(2, DB::table('confirmaciones_clase')->count());
+
+        $this->actingAs($matricula->estudiante->user)->post(route('retirar-confirmacion-clase', $delLunes));
+
+        $this->assertDatabaseMissing('confirmaciones_clase', ['clase_id' => $delLunes->id]);
+        $this->assertDatabaseHas('confirmaciones_clase', ['clase_id' => $delMiercoles->id]);
+    }
+
+    /**
+     * Una persona, una matricula, dos grupos, y una clase reciente en cada uno
+     * con su asistencia marcada. Las dos dentro del plazo de confirmacion.
+     *
+     * @return array{0: Matricula, 1: Clase, 2: Clase}
+     */
+    private function dosClasesPendientes(): array
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $delLunes = $this->claseCon($matricula, $this->lunes, hace: 2);
+        $delMiercoles = $this->claseCon($matricula, $this->miercoles, hace: 1);
+
+        return [$matricula, $delLunes, $delMiercoles];
+    }
+
+    private function claseCon(Matricula $matricula, Grupo $grupo, int $hace): Clase
+    {
+        $clase = Clase::create([
+            'grupo_id' => $grupo->id,
+            'periodo_id' => $this->periodo->id,
+            'fecha_hora' => Carbon::now()->subHours($hace),
+            'registrada_por_id' => $this->profesorDeViolin()->id,
+            'confirmaciones_requeridas' => 1,
+        ]);
+
+        Asistencia::create([
+            'clase_id' => $clase->id,
+            'matricula_id' => $matricula->id,
+            'estado' => Asistencia::ASISTIO,
+        ]);
+
+        return $clase;
     }
 
     /**
