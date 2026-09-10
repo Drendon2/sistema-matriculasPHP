@@ -486,11 +486,18 @@ class Matricula extends Model
                 ]);
             }
 
-            $ocupados = $grupo->matriculas()
-                ->where('periodo_id', $this->periodo_id)
-                ->where('estado', self::ACTIVA)
-                ->when($this->exists, fn ($q) => $q->where('id', '!=', $this->id))
-                ->count();
+            // SE LE PREGUNTA AL GRUPO, y no se repite la consulta aqui. Hasta
+            // el 10/09/2026 esta rama llevaba la suya, contando solo las
+            // ACTIVAS, mientras la pantalla y `Grupo::cuposDisponibles()`
+            // contaban tambien las cancelaciones en tramite. O sea que el
+            // numero que se pintaba y el que decidia eran distintos: un grupo de
+            // cupo 1 con su sitio ocupado por una cancelacion salia «1/1, lleno»
+            // y dejaba entrar a otro igual. La condicion vive ahora en un solo
+            // sitio, con el porque escrito ahi.
+            $ocupados = $grupo->ocupadosEn(
+                $this->periodo ?? Periodo::find($this->periodo_id),
+                $this->exists ? $this->id : null
+            );
 
             if ($ocupados >= $grupo->cupo_maximo) {
                 throw ValidationException::withMessages([

@@ -176,23 +176,57 @@ class Grupo extends Model
     }
 
     /**
-     * Sitios libres en el grupo para ese periodo.
+     * Cuanta gente ocupa sitio en el grupo en ese periodo.
      *
-     * Cuenta tambien las cancelaciones en tramite: el sitio sigue ocupado
-     * mientras nadie apruebe la salida.
+     * QUE CUENTA Y POR QUE, que es lo unico que hay que entender de aqui:
+     *
+     * - Las ACTIVAS, obviamente.
+     * - Las CANCELACIONES EN TRAMITE tambien. No es contabilidad: quien pidio
+     *   cancelar sigue yendo a clase hasta que direccion lo resuelva —por eso
+     *   conserva su grupo, y esta escrito en `MisMatriculasController`—, asi
+     *   que su silla esta ocupada. Contarla libre es decir que en el salon cabe
+     *   alguien que no cabe.
+     * - Las PENDIENTES no, aunque tengan grupo asignado. La regla del proyecto
+     *   es que mientras nadie confirme la solicitud esa persona no esta en la
+     *   clase, y es la misma razon por la que el Panel las lista aparte de los
+     *   grupos. `ESTADOS_INSCRITO` es exactamente esa medida, ni mas ni menos.
+     *
+     * OJO, ES DISTINTO DEL CUPO DE PROMOTORIA: aquel cuenta todo lo que no este
+     * retirado, PENDIENTES INCLUIDAS, porque una solicitud sin confirmar ya
+     * reserva el sitio en la promotoria para que quien dicta no acabe
+     * rechazando una lista de espera entera. Son dos preguntas distintas —un
+     * sitio en la lista y una silla en el salon— y por eso las condiciones no
+     * coinciden. No las "unifiques".
+     *
+     * HASTA EL 10/09/2026 ESTO SE CONTABA DE DOS MANERAS. `Matricula::validar()`
+     * llevaba su propia consulta y miraba solo las ACTIVAS, mientras la pantalla
+     * y este metodo miraban `ESTADOS_INSCRITO`. Probado: un grupo de cupo 1 con
+     * su unico sitio ocupado por una cancelacion en tramite se pintaba «1/1,
+     * lleno» y aun asi aceptaba a otro — dos filas en un grupo de uno, y
+     * `cuposDisponibles()` devolviendo -1. Nadie lo habia visto porque este
+     * metodo, que era el que seguia la regla buena, NO LO LLAMABA NADIE.
      */
-    public function cuposDisponibles(?Periodo $periodo): int
+    public function ocupadosEn(?Periodo $periodo, ?int $excluirMatriculaId = null): int
+    {
+        if ($periodo === null) {
+            return 0;
+        }
+
+        return $this->matriculas()
+            ->where('periodo_id', $periodo->id)
+            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->when($excluirMatriculaId !== null, fn ($q) => $q->where('id', '!=', $excluirMatriculaId))
+            ->count();
+    }
+
+    /** Sitios libres en el grupo para ese periodo. */
+    public function cuposDisponibles(?Periodo $periodo, ?int $excluirMatriculaId = null): int
     {
         if ($periodo === null) {
             return $this->cupo_maximo;
         }
 
-        $ocupados = $this->matriculas()
-            ->where('periodo_id', $periodo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
-            ->count();
-
-        return $this->cupo_maximo - $ocupados;
+        return $this->cupo_maximo - $this->ocupadosEn($periodo, $excluirMatriculaId);
     }
 
     /**
