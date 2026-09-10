@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Auditoria;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Validation\ValidationException;
 
@@ -218,6 +219,33 @@ class Matricula extends Model
     public function grupo(): BelongsTo
     {
         return $this->belongsTo(Grupo::class);
+    }
+
+    /**
+     * Los grupos en los que esta repartida esta matricula.
+     *
+     * EXISTE PARA QUE UNA PERSONA PUEDA IR A DOS HORARIOS de la misma
+     * promotoria —el Grupo A el lunes y el Grupo B el miercoles—, que es un
+     * caso corriente que hasta el 10/09/2026 no se podia representar: la
+     * columna `matriculas.grupo_id` solo admite uno.
+     *
+     * OJO, HOY TODAVIA NO MANDA. Mientras la columna siga existiendo, ELLA es
+     * la verdad y esta relacion es una copia que hizo la migracion. El trabajo
+     * va en tres pasos —la tabla, los lectores, y borrar la columna— y hasta
+     * que caiga la columna no hay que fiarse de esta para decidir nada. Se
+     * añade ahora, sin usarla, para que el paso siguiente pueda mover un lector
+     * cada vez con la suite verde en medio.
+     *
+     * Sigue siendo UNA matricula por promotoria: el cupo de promotoria, las
+     * ranuras, el certificado y la renovacion no se enteran de esto. Lo que se
+     * multiplica son las sillas, no las inscripciones.
+     *
+     * @return BelongsToMany<Grupo, $this>
+     */
+    public function grupos(): BelongsToMany
+    {
+        return $this->belongsToMany(Grupo::class, 'asignaciones_grupo')
+            ->withTimestamps();
     }
 
     /**
