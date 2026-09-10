@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\Clase;
 use App\Models\Grupo;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
+use App\Support\Dependencias;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -17,25 +19,25 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * PASO 1 de que una matricula pueda estar en VARIOS grupos.
+ * Que una matricula pueda estar en VARIOS grupos.
  *
  * El caso que se viene a resolver es corriente: alguien que va al Grupo A el
  * lunes Y al Grupo B el miercoles, de la misma promotoria. Son dos clases
  * distintas y se le pasa lista en las dos. Con `matriculas.grupo_id` —una sola
- * columna— no se puede representar.
+ * columna— no se puede ni escribir.
  *
- * ─── QUE PRUEBA ESTE ARCHIVO HOY, Y QUE NO ──────────────────────────────────
+ * ─── VA EN CUATRO PASOS, Y ESTE ARCHIVO CRECE CON ELLOS ─────────────────────
  *
- * Solo la ESTRUCTURA y el VOLCADO. Nada de la aplicacion lee todavia la tabla
- * nueva: la columna sigue siendo la verdad, y por eso ninguna pantalla cambia
- * de comportamiento en este paso. Eso es deliberado — borrar la columna aqui
- * tumbaria de golpe los quince archivos que la leen, y con la suite entera en
- * rojo se pierde la unica red que tiene un cambio de este tamano.
+ * 1. La tabla `asignaciones_grupo` y el volcado de lo que ya habia.
+ * 2. La ESCRITURA DOBLE: lo que se guarda en la columna se copia a la tabla.
+ *    Sin ella, el primer lector que se mueva se queda leyendo una copia que ya
+ *    nadie actualiza — y no lo ve nadie, porque la pantalla sigue pintando
+ *    algo, solo que lo de antes.
+ * 3. Los LECTORES, uno a uno y con la suite verde en medio.
+ * 4. Borrar la columna y con ella la escritura doble.
  *
- * Lo que viene despues: mover los lectores uno a uno con la suite verde en
- * medio, y borrar la columna al final. Cuando eso pase, este archivo crece con
- * las pruebas de comportamiento — que a alguien en dos grupos se le pase lista
- * en los dos, que ocupe una silla en cada uno y UN solo cupo de promotoria.
+ * Mientras 4 no llegue, LA COLUMNA MANDA y la tabla la sigue. Las pruebas de
+ * cada paso van agrupadas y rotuladas mas abajo.
  */
 class VariosGruposPorMatriculaTest extends TestCase
 {
@@ -280,6 +282,135 @@ class VariosGruposPorMatriculaTest extends TestCase
         $despues = DB::table('asignaciones_grupo')->where('matricula_id', $matricula->id)->first();
 
         $this->assertSame($antes->id, $despues->id, 'reescribio la fila sin necesidad.');
+    }
+
+    // --------------------------------------------------------------------
+    // Los lectores (paso 3)
+    // --------------------------------------------------------------------
+
+    /**
+     * EL CUPO DEL GRUPO YA CUENTA POR LA PUENTE, no por la columna.
+     *
+     * Es la prueba que demuestra que `Grupo::matriculas()` cambio de fuente: con
+     * la columna sola esto no se puede ni montar, porque una matricula solo
+     * cabe en un grupo. Quien va al lunes Y al miercoles ocupa una silla en cada
+     * uno, que es lo que pasa fisicamente.
+     */
+    public function test_quien_esta_en_dos_grupos_ocupa_una_silla_en_cada_uno(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $this->assertSame(1, $this->lunes->ocupadosEn($this->periodo));
+        $this->assertSame(1, $this->miercoles->ocupadosEn($this->periodo));
+    }
+
+    /**
+     * Y su segunda silla LLENA el segundo grupo de verdad.
+     *
+     * Sin esto, lo de arriba podria estar contando bien y el cupo seguir
+     * decidiendo por la columna — que es justo el fallo que se viene a evitar.
+     */
+    public function test_la_segunda_silla_llena_el_grupo(): void
+    {
+        $lleno = $this->grupo('Sabado');
+        $lleno->cupo_maximo = 1;
+        $lleno->save();
+
+        $ana = $this->matricula('ana');
+        $ana->grupos()->attach([$this->lunes->id, $lleno->id]);
+
+        $this->assertSame(0, $lleno->cuposDisponibles($this->periodo), 'la segunda silla no lo llena.');
+    }
+
+    /**
+     * A QUIEN VA A DOS HORARIOS SE LE PASA LISTA EN LOS DOS.
+     *
+     * Es el caso que se pidio, visto desde la pantalla de quien dicta. Con la
+     * columna sola, la persona aparecia en la lista de UN grupo y en el otro no
+     * — y el profesor del miercoles no tenia forma de marcarle asistencia.
+     */
+    public function test_a_quien_va_a_dos_horarios_se_le_pasa_lista_en_los_dos(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $delLunes = Clase::abrir($this->lunes, $this->periodo, null);
+        $delMiercoles = Clase::abrir($this->miercoles, $this->periodo, null);
+
+        $this->assertSame(
+            [$matricula->id],
+            $delLunes->matriculasAPasar()->pluck('id')->all(),
+            'no sale en la lista del lunes.'
+        );
+        $this->assertSame(
+            [$matricula->id],
+            $delMiercoles->matriculasAPasar()->pluck('id')->all(),
+            'no sale en la lista del miercoles.'
+        );
+    }
+
+    /**
+     * Y las clases de LOS DOS grupos le salen a ella para confirmar.
+     *
+     * La otra mitad de lo mismo. Sin esto, el profesor le marcaria asistencia
+     * en el miercoles y a ella no le aparecería la clase — que es exactamente
+     * el fallo que ya costo una vez, el 09/09, por otra causa.
+     */
+    public function test_las_clases_de_los_dos_grupos_le_salen_al_estudiante(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        Clase::abrir($this->lunes, $this->periodo, null);
+        Clase::abrir($this->miercoles, $this->periodo, null);
+
+        $suyas = Clase::porConfirmar($matricula->estudiante, $this->periodo);
+
+        $this->assertSame(
+            [$this->lunes->id, $this->miercoles->id],
+            collect($suyas)->pluck('clase.grupo_id')->sort()->values()->all(),
+            'le falta la clase de uno de sus dos horarios.'
+        );
+    }
+
+    /**
+     * El numero de confirmaciones que pide una clase cuenta las dos sillas.
+     *
+     * `Clase::abrir()` congela cuanta gente habia en el grupo ese dia. Si
+     * contara por la columna, el segundo horario abriria sus clases creyendo
+     * que no hay nadie dentro.
+     */
+    public function test_la_clase_del_segundo_grupo_sabe_cuanta_gente_hay(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $clase = Clase::abrir($this->miercoles, $this->periodo, null);
+
+        $this->assertSame(
+            Clase::confirmacionesPara(1),
+            $clase->confirmaciones_requeridas,
+            'abrio la clase del segundo grupo como si estuviera vacio.'
+        );
+    }
+
+    /**
+     * UN GRUPO CON GENTE SOLO EN LA PUENTE TAMPOCO SE BORRA.
+     *
+     * `Dependencias::MAPA` cuenta por la relacion `matriculas` del grupo, asi
+     * que al cambiarle la fuente cambia tambien lo que ese mapa ve. Sin esta
+     * prueba, un grupo con su segundo horario lleno se pintaria como borrable.
+     */
+    public function test_dependencias_ve_a_quien_solo_esta_en_la_puente(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach($this->miercoles->id);
+
+        $this->assertTrue(
+            Dependencias::estaBloqueado($this->miercoles),
+            'el grupo se pinta como borrable con gente dentro.'
+        );
     }
 
     // --------------------------------------------------------------------

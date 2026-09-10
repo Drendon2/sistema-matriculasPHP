@@ -13,12 +13,6 @@ parameters:
 			path: app/Console/Commands/Simular.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$profesor\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Simular.php
-
-		-
 			message: '#^Cannot call method copy\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 2
@@ -31,26 +25,8 @@ parameters:
 			path: app/Console/Commands/Simular.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$promotoria\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/ClaseController.php
-
-		-
 			message: '#^Cannot call method format\(\) on string\.$#'
 			identifier: method.nonObject
-			count: 1
-			path: app/Http/Controllers/ClaseController.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:dictaLaPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 2
-			path: app/Http/Controllers/ClaseController.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:puedeGestionarPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/ClaseController.php
 
@@ -223,18 +199,6 @@ parameters:
 			path: app/Http/Controllers/Gestion/GrupoController.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$area\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Gestion/GrupoController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$area_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Gestion/GrupoController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
 			identifier: property.notFound
 			count: 1
@@ -313,19 +277,7 @@ parameters:
 			path: app/Http/Controllers/InformeController.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\InformeController\:\:promotoriaPedida\(\) should return App\\Models\\Promotoria\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/InformeController.php
-
-		-
 			message: '#^Parameter \#1 \$encuesta of method App\\Http\\Controllers\\InformeController\:\:columnasDeEncuesta\(\) expects App\\Models\\EncuestaDemografica\|null, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/InformeController.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:puedeGestionarPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: app/Http/Controllers/InformeController.php
@@ -427,18 +379,6 @@ parameters:
 			path: app/Http/Controllers/PanelGrupoController.php
 
 		-
-			message: '#^Parameter \#2 \$promotoria of method App\\Http\\Controllers\\PanelGrupoController\:\:validar\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/PanelGrupoController.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of static method App\\Support\\Permisos\:\:puedeGestionarPromotoria\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 3
-			path: app/Http/Controllers/PanelGrupoController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estudiante\.$#'
 			identifier: property.notFound
 			count: 1
@@ -505,12 +445,6 @@ parameters:
 			path: app/Models/Grupo.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Grupo.php
-
-		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: string, Closure\(App\\Models\\SesionGrupo\)\: string given\.$#'
 			identifier: argument.type
 			count: 1
@@ -571,13 +505,7 @@ parameters:
 			path: app/Support/Grafica.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$area\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Support/HorarioSemanal.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tag_color\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Support/HorarioSemanal.php
@@ -707,12 +635,6 @@ parameters:
 			identifier: method.nonObject
 			count: 2
 			path: tests/Feature/GestionTest.php
-
-		-
-			message: '#^Parameter \#2 \$promotoria of method Tests\\Feature\\InformeTest\:\:matricular\(\) expects App\\Models\\Promotoria, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: tests/Feature/InformeTest.php
 
 		-
 			message: '#^Property Tests\\Feature\\InscripcionTest\:\:\$teatro is never read, only written\.$#'

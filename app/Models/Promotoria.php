@@ -32,7 +32,11 @@ class Promotoria extends Model
         return $this->belongsTo(Area::class);
     }
 
-    /** Quien la dicta y pasa lista en sus grupos. Puede ser un director. */
+    /**
+     * Quien la dicta y pasa lista en sus grupos. Puede ser un director.
+     *
+     * @return BelongsTo<Perfil, $this>
+     */
     public function profesor(): BelongsTo
     {
         return $this->belongsTo(Perfil::class, 'profesor_id');

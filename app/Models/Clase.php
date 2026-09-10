@@ -72,6 +72,13 @@ class Clase extends Model
         });
     }
 
+    /**
+     * El tipo va ANOTADO, como en `Matricula`: sin el, el analizador ve un
+     * `Model` generico y `$this->grupo->matriculas()` —que es de donde sale
+     * ahora la lista de quien esta en la clase— sale como metodo inexistente.
+     *
+     * @return BelongsTo<Grupo, $this>
+     */
     public function grupo(): BelongsTo
     {
         return $this->belongsTo(Grupo::class);
@@ -134,10 +141,12 @@ class Clase extends Model
      */
     public static function abrir(Grupo $grupo, Periodo $periodo, ?Perfil $perfil): self
     {
-        $inscritos = Matricula::where('grupo_id', $grupo->id)
-            ->where('periodo_id', $periodo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
-            ->count();
+        // Se le pregunta al GRUPO en vez de filtrar por su columna: desde el
+        // 10/09/2026 quien esta repartido en un grupo vive en
+        // `asignaciones_grupo`, y ahi una misma matricula puede aparecer en dos
+        // grupos de la misma promotoria. `ocupadosEn()` es la unica que cuenta
+        // sillas, y ya aplica el mismo filtro de estados que habia aqui.
+        $inscritos = $grupo->ocupadosEn($periodo);
 
         return static::create([
             'grupo_id' => $grupo->id,
@@ -211,10 +220,19 @@ class Clase extends Model
      */
     public function matriculasAPasar(): Collection
     {
+        // Quien esta en el grupo sale de `asignaciones_grupo` desde el
+        // 10/09/2026, no de `matriculas.grupo_id`. Con la columna, a quien va a
+        // dos horarios de la misma promotoria solo se le podia pasar lista en
+        // uno de los dos.
+        //
+        // Las columnas van CUALIFICADAS —`matriculas.periodo_id`,
+        // `matriculas.estado`— porque ahora hay dos joins y los nombres sueltos
+        // se vuelven ambiguos en cuanto coincidan. El `select` ya estaba por lo
+        // mismo, por el join con `perfiles`.
         return Matricula::query()
-            ->where('grupo_id', $this->grupo_id)
-            ->where('periodo_id', $this->periodo_id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->whereIn('matriculas.id', $this->grupo->matriculas()->select('matriculas.id'))
+            ->where('matriculas.periodo_id', $this->periodo_id)
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
             ->with('estudiante')
             ->join('perfiles', 'perfiles.id', '=', 'matriculas.estudiante_id')
             ->orderBy('perfiles.nombre_completo')
@@ -266,10 +284,14 @@ class Clase extends Model
             return [];
         }
 
+        // `with('grupos')` y no una consulta por matricula: son pocas, pero
+        // recorrerlas para armar el mapa de abajo cuesta una consulta por fila
+        // si no vienen cargadas.
         $matriculas = Matricula::query()
             ->where('estudiante_id', $perfil->id)
             ->where('periodo_id', $periodo->id)
             ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->with('grupos')
             ->get()
             ->keyBy('id');
 
@@ -277,8 +299,28 @@ class Clase extends Model
             return [];
         }
 
-        // Las matriculas que HOY tienen grupo, para las clases de ese grupo.
-        $porGrupo = $matriculas->filter(fn (Matricula $m) => $m->grupo_id !== null)->keyBy('grupo_id');
+        /*
+         * En que grupos esta HOY cada una de sus matriculas, para poder traer
+         * las clases de esos grupos.
+         *
+         * ES UN MAPA grupo => matricula, y NO un `keyBy('grupo_id')` como era
+         * hasta el 10/09/2026: desde que una matricula puede estar repartida en
+         * VARIOS grupos de la misma promotoria —el lunes y el miercoles— una
+         * sola matricula aporta varias entradas. Con el `keyBy` sobre la
+         * columna, el segundo horario no existia para esta lista y sus clases
+         * no le salian a nadie.
+         *
+         * Sigue habiendo UNA matricula por grupo, que es lo que hace que el
+         * mapa siga valiendo: dos grupos distintos de la misma promotoria
+         * cuelgan de la misma matricula, y es la que toca en los dos.
+         */
+        $porGrupo = [];
+
+        foreach ($matriculas as $matricula) {
+            foreach ($matricula->grupos as $grupo) {
+                $porGrupo[$grupo->id] = $matricula;
+            }
+        }
 
         /*
          * LAS CLASES EN LAS QUE CONSTA QUE ESTUVO, que es prueba directa y
@@ -298,7 +340,7 @@ class Clase extends Model
         $clases = static::query()
             ->where('periodo_id', $periodo->id)
             ->where(fn (Builder $q) => $q
-                ->whereIn('grupo_id', $porGrupo->keys())
+                ->whereIn('grupo_id', array_keys($porGrupo))
                 ->orWhereIn('id', $asistidas->keys()))
             ->with(['grupo.promotoria.area', 'grupo.sesiones'])
             ->withCount('confirmaciones')

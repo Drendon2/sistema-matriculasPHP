@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -44,14 +45,41 @@ class Grupo extends Model
         ];
     }
 
+    /**
+     * Anotada por lo mismo que la de `Clase`: sin el tipo, el analizador ve un
+     * `Model` generico y toda la cadena `$clase->grupo->promotoria` acaba
+     * llegando como generica a `Permisos`, que espera una `Promotoria`.
+     *
+     * @return BelongsTo<Promotoria, $this>
+     */
     public function promotoria(): BelongsTo
     {
         return $this->belongsTo(Promotoria::class);
     }
 
-    public function matriculas(): HasMany
+    /**
+     * Quien esta repartido en este grupo.
+     *
+     * PASA POR `asignaciones_grupo` DESDE EL 10/09/2026, no por
+     * `matriculas.grupo_id`. Es lo que permite que una misma matricula este en
+     * dos grupos de la misma promotoria —el lunes y el miercoles—, que con una
+     * columna no se puede ni escribir.
+     *
+     * Mientras la columna siga existiendo la mantiene al dia la escritura doble
+     * de `Matricula`, asi que las dos dicen lo mismo; la columna se borra en el
+     * ultimo paso.
+     *
+     * OJO AL FILTRAR POR ELLA: ahora hay un JOIN, y `asignaciones_grupo` tiene
+     * su propio `id`. Un `where('id', ...)` a secas es ambiguo y revienta la
+     * consulta; hay que escribir `matriculas.id`. Es la unica cosa que cambia
+     * para quien la use, y no avisa hasta que corre.
+     *
+     * @return BelongsToMany<Matricula, $this>
+     */
+    public function matriculas(): BelongsToMany
     {
-        return $this->hasMany(Matricula::class);
+        return $this->belongsToMany(Matricula::class, 'asignaciones_grupo')
+            ->withTimestamps();
     }
 
     public function clases(): HasMany
@@ -213,9 +241,12 @@ class Grupo extends Model
         }
 
         return $this->matriculas()
-            ->where('periodo_id', $periodo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
-            ->when($excluirMatriculaId !== null, fn ($q) => $q->where('id', '!=', $excluirMatriculaId))
+            ->where('matriculas.periodo_id', $periodo->id)
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
+            ->when(
+                $excluirMatriculaId !== null,
+                fn ($q) => $q->where('matriculas.id', '!=', $excluirMatriculaId)
+            )
             ->count();
     }
 
