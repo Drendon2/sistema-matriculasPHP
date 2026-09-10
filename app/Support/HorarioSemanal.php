@@ -9,6 +9,7 @@ use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\SesionGrupo;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * La rejilla semanal de una persona: donde tiene que estar cada dia.
@@ -78,12 +79,19 @@ class HorarioSemanal
      */
     private static function gruposDelEstudiante(Perfil $perfil, Periodo $periodo)
     {
-        $ids = Matricula::query()
-            ->where('estudiante_id', $perfil->id)
-            ->where('periodo_id', $periodo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
-            ->whereNotNull('grupo_id')
-            ->pluck('grupo_id');
+        // Por `asignaciones_grupo` desde el 10/09/2026, no por la columna. Una
+        // matricula puede estar repartida en dos grupos de la misma promotoria
+        // —el lunes y el miercoles— y con la columna el segundo no salia en el
+        // horario de nadie: la persona veia media semana.
+        //
+        // Esta rejilla ya sabia pintar VARIOS grupos, porque quien cursa tres
+        // promotorias tiene tres; lo unico que cambia es de donde sale la lista.
+        $ids = DB::table('asignaciones_grupo')
+            ->join('matriculas', 'matriculas.id', '=', 'asignaciones_grupo.matricula_id')
+            ->where('matriculas.estudiante_id', $perfil->id)
+            ->where('matriculas.periodo_id', $periodo->id)
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
+            ->pluck('asignaciones_grupo.grupo_id');
 
         return Grupo::with(['sesiones', 'promotoria.area'])->whereIn('id', $ids)->get();
     }

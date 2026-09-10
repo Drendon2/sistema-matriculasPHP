@@ -345,6 +345,11 @@ class PanelController extends Controller
                     'estudiante',
                     'estudiante.datosEstudiante.acudiente',
                     'estudiante.datosEstudiante.documentos',
+                    // En que grupos esta repartida cada una. Cargado aqui y no
+                    // consultado por fila: el reparto se pinta grupo a grupo, y
+                    // preguntarlo dentro del bucle es una consulta por
+                    // matricula.
+                    'grupos',
                 ])
                 ->orderBy('id')
                 ->get();
@@ -365,11 +370,21 @@ class PanelController extends Controller
 
         $grupos = [];
 
+        /*
+         * QUIEN ESTA EN CADA GRUPO SALE DE `asignaciones_grupo`, no de la
+         * columna, desde el 10/09/2026.
+         *
+         * Y eso cambia algo que se ve: una misma persona puede aparecer en DOS
+         * grupos de esta misma promotoria, porque va a los dos horarios. No es
+         * un duplicado — son dos sillas, dos clases y dos listas de asistencia.
+         * Sigue siendo UNA matricula, asi que el contador de arriba, el cupo de
+         * la promotoria y su ranura no la cuentan dos veces.
+         */
         foreach ($promotoria->grupos as $grupo) {
             $grupos[] = [
                 'grupo' => $grupo,
                 'estudiantes' => $this->fichas(
-                    $inscritas->where('grupo_id', $grupo->id),
+                    $inscritas->filter(fn (Matricula $m) => $m->grupos->contains('id', $grupo->id)),
                     $exigidos,
                     $renovaciones
                 ),
@@ -380,7 +395,14 @@ class PanelController extends Controller
         return [
             'promotoria' => $promotoria,
             'grupos' => $grupos,
-            'sin_grupo' => $this->fichas($inscritas->whereNull('grupo_id'), $exigidos, $renovaciones),
+            // «Sin grupo» es no estar en NINGUNO, y por eso se pregunta por la
+            // lista vacia y no por la columna: quien va a dos horarios tiene la
+            // columna puesta igual que quien va a uno.
+            'sin_grupo' => $this->fichas(
+                $inscritas->filter(fn (Matricula $m) => $m->grupos->isEmpty()),
+                $exigidos,
+                $renovaciones
+            ),
             'pendientes' => $this->fichas($pendientes, $exigidos, $renovaciones),
             'puede_gestionar' => Permisos::puedeGestionarPromotoria($perfil, $promotoria),
             // Mas estrecho que lo anterior: el boton de clase es solo de quien la
@@ -778,7 +800,8 @@ class PanelController extends Controller
         $matriculas = Matricula::query()
             ->whereIn('id', (array) $request->input('matricula_ids', []))
             ->where('promotoria_id', $promotoria->id)
-            ->whereNull('grupo_id')
+            // Lo mismo que arriba: sin grupo es no estar en ninguno.
+            ->whereDoesntHave('grupos')
             ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
             ->with('estudiante')
             ->get();

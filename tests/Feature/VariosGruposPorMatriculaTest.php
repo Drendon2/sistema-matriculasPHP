@@ -9,8 +9,10 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Models\SesionGrupo;
 use App\Models\User;
 use App\Support\Dependencias;
+use App\Support\HorarioSemanal;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -396,6 +398,75 @@ class VariosGruposPorMatriculaTest extends TestCase
     }
 
     /**
+     * SU HORARIO ENSEÑA LOS DOS DIAS.
+     *
+     * Con la columna veia media semana: el segundo grupo no salia en el horario
+     * de nadie. La rejilla ya sabia pintar varios grupos —quien cursa tres
+     * promotorias tiene tres—, asi que lo unico que cambio es de donde sale la
+     * lista.
+     */
+    public function test_el_horario_enseña_los_dos_grupos(): void
+    {
+        $this->sesion($this->lunes, dia: 1);
+        $this->sesion($this->miercoles, dia: 3);
+
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $horario = HorarioSemanal::de($matricula->estudiante, $this->periodo);
+
+        $dias = collect($horario['franjas'])
+            ->flatMap(fn ($f) => collect($f['celdas'])->filter()->keys())
+            ->unique()->sort()->values()->all();
+
+        $this->assertSame([1, 3], $dias, 'le falta uno de sus dos dias.');
+    }
+
+    /**
+     * EN EL PANEL SALE EN LOS DOS GRUPOS, y eso NO es un duplicado.
+     *
+     * Son dos sillas, dos clases y dos listas de asistencia. Lo que no se
+     * duplica es la matricula, y por eso el contador de la promotoria sigue
+     * contando una sola persona — lo comprueba la afirmacion de abajo.
+     */
+    public function test_en_el_panel_sale_en_los_dos_grupos_y_cuenta_como_una(): void
+    {
+        $matricula = $this->matricula('ana');
+        $matricula->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $cuerpo = $this->cuerpoDelPanel();
+
+        $enCadaGrupo = collect($cuerpo['grupos'])
+            ->mapWithKeys(fn ($g) => [
+                $g['grupo']->id => collect($g['estudiantes'])->pluck('matricula.id')->all(),
+            ]);
+
+        $this->assertSame([$matricula->id], $enCadaGrupo[$this->lunes->id], 'no sale en el lunes.');
+        $this->assertSame([$matricula->id], $enCadaGrupo[$this->miercoles->id], 'no sale en el miercoles.');
+
+        // Y NO cuenta dos veces contra la promotoria: sigue siendo una persona
+        // con una matricula.
+        $this->assertSame(1, $cuerpo['ocupados'], 'la promotoria la conto dos veces.');
+    }
+
+    /** Y quien esta en un grupo NO sale ademas en la lista de «sin grupo». */
+    public function test_quien_tiene_grupo_no_sale_como_sin_grupo(): void
+    {
+        $conGrupo = $this->matricula('ana');
+        $conGrupo->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $suelta = $this->matricula('beto');
+
+        $cuerpo = $this->cuerpoDelPanel();
+
+        $this->assertSame(
+            [$suelta->id],
+            collect($cuerpo['sin_grupo'])->pluck('matricula.id')->all(),
+            'la lista de sin grupo no dice quien esta de verdad sin grupo.'
+        );
+    }
+
+    /**
      * UN GRUPO CON GENTE SOLO EN LA PUENTE TAMPOCO SE BORRA.
      *
      * `Dependencias::MAPA` cuenta por la relacion `matriculas` del grupo, asi
@@ -516,6 +587,44 @@ class VariosGruposPorMatriculaTest extends TestCase
         );
     }
 
+    /**
+     * El cuerpo del Panel para Violin, tal como lo ve su profesor.
+     *
+     * Se pide el CUERPO y no la portada: la portada solo trae el contador de
+     * pendientes, y el reparto por grupos —que es lo que aqui se mira— lo carga
+     * `panel.js` despues, por esta ruta.
+     *
+     * @return array<string, mixed>
+     */
+    private function cuerpoDelPanel(): array
+    {
+        return $this->actingAs($this->profesorDeViolin()->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->original
+            ->getData()['item'];
+    }
+
+    private function profesorDeViolin(): Perfil
+    {
+        if ($this->violin->profesor_id === null) {
+            $this->violin->profesor_id = $this->perfilDe('profe', 'profesor')->id;
+            $this->violin->save();
+        }
+
+        return Perfil::findOrFail($this->violin->profesor_id);
+    }
+
+    private function sesion(Grupo $grupo, int $dia): void
+    {
+        SesionGrupo::create([
+            'grupo_id' => $grupo->id,
+            'dia' => $dia,
+            'hora_inicio' => '16:00',
+            'hora_fin' => '18:00',
+        ]);
+    }
+
     private function grupo(string $nombre): Grupo
     {
         return Grupo::create([
@@ -527,17 +636,22 @@ class VariosGruposPorMatriculaTest extends TestCase
         ]);
     }
 
-    private function matricula(string $nombre): Matricula
+    private function perfilDe(string $nombre, string $rol): Perfil
     {
         $user = User::create(['username' => $nombre, 'password' => 'demo1234', 'activo' => true]);
 
-        $perfil = Perfil::create([
+        return Perfil::create([
             'user_id' => $user->id,
-            'rol' => 'estudiante',
+            'rol' => $rol,
             'nombre_completo' => ucfirst($nombre),
             'fecha_nacimiento' => Carbon::today()->subYears(20)->toDateString(),
             'telefono' => '3000000000',
         ]);
+    }
+
+    private function matricula(string $nombre): Matricula
+    {
+        $perfil = $this->perfilDe($nombre, 'estudiante');
 
         return Matricula::create([
             'estudiante_id' => $perfil->id,
