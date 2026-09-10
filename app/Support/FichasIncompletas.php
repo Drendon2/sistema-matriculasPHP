@@ -491,8 +491,26 @@ class FichasIncompletas
     {
         return self::nombresPorEstudiante(
             $periodo,
+            // «Sin grupo» es no estar en NINGUNO, y por eso se pregunta por la
+            // ausencia de filas en la puente y no por la columna en nulo: quien
+            // va a dos horarios tiene la columna puesta igual que quien va a
+            // uno. Es el mismo cambio de significado que en el Panel.
+            // «Sin grupo» es no estar en NINGUNO, y por eso se pregunta por la
+            // ausencia de filas en la puente y no por la columna en nulo: quien
+            // va a dos horarios tiene la columna puesta igual que quien va a
+            // uno. Es el mismo cambio de significado que en el Panel.
+            //
+            // `whereNotExists` a mano y NO `whereDoesntHave`: esta consulta la
+            // arma el CONSTRUCTOR de consultas y no Eloquent —esta pantalla no
+            // hidrata ni un modelo a proposito, ver la cabecera del archivo— asi
+            // que el metodo de relaciones no existe aqui. Escrito por descuido,
+            // no falla al compilar: se interpreta como una columna llamada
+            // `doesnt_have` y revienta al correr.
             fn ($q) => $q->where('matriculas.estado', Matricula::ACTIVA)
-                ->whereNull('matriculas.grupo_id')
+                ->whereNotExists(fn ($sub) => $sub
+                    ->from('asignaciones_grupo')
+                    ->whereColumn('asignaciones_grupo.matricula_id', 'matriculas.id')
+                    ->selectRaw('1'))
         );
     }
 

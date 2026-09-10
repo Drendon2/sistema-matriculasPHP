@@ -81,14 +81,18 @@ class InformeController extends Controller
                 )
             )
             ->when($promotoria, fn ($q) => $q->where('promotoria_id', $promotoria->id))
-            ->when($grupo, fn ($q) => $q->where('grupo_id', $grupo->id))
+            // Por la puente: quien esta en un grupo vive en `asignaciones_grupo`
+            // desde el 10/09/2026. `whereHas` y no un join, para que este filtro
+            // no duplique filas — el informe se recorre con `lazy()` y puede ser
+            // de cientos, y una matricula en dos grupos saldria dos veces.
+            ->when($grupo, fn ($q) => $q->whereHas('grupos', fn ($g) => $g->where('grupos.id', $grupo->id)))
             ->with([
                 'estudiante.datosEstudiante.acudiente',
                 'promotoria.area',
                 // Con las sesiones: el horario se deriva de ellas, y sin
                 // traerlas aqui el informe pregunta una vez por fila. Este
                 // informe se recorre con `lazy()` y puede ser de cientos.
-                'grupo.sesiones',
+                'grupos.sesiones',
             ])
             ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
@@ -211,20 +215,38 @@ class InformeController extends Controller
             $datos = $matricula->estudiante->datosEstudiante;
             $acudiente = $datos?->acudiente;
 
-            yield array_map(Csv::celda(...), [
-                $matricula->promotoria->area->nombre,
-                $matricula->promotoria->nombre,
-                $matricula->grupo?->nombre ?? 'Sin grupo',
-                $matricula->grupo?->nivel_display,
-                $matricula->grupo?->horario,
-                $matricula->grupo?->salon,
-                $matricula->estudiante->nombre_completo,
-                $matricula->estudiante->edad,
-                $matricula->estudiante->telefono,
-                $acudiente?->nombre,
-                $acudiente?->telefono,
-                Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
-            ]);
+            /*
+             * UNA FILA POR GRUPO, no por matricula, desde el 10/09/2026.
+             *
+             * Lo decide para que es este informe, y esta escrito arriba: «la
+             * lista que se lleva quien dicta para pasar asistencia en papel».
+             * Quien va al Grupo A el lunes y al B el miercoles tiene que salir
+             * en las DOS listas, o el profesor del miercoles va a clase con un
+             * papel al que le falta gente. Es el mismo criterio que
+             * `Clase::matriculasAPasar()`.
+             *
+             * Y la matricula SIN grupo sigue dando su fila —el `?: [null]`—
+             * porque «Sin grupo» es informacion que direccion viene a buscar
+             * aqui: es la lista de quien falta por repartir.
+             */
+            $grupos = $matricula->grupos->all() ?: [null];
+
+            foreach ($grupos as $grupo) {
+                yield array_map(Csv::celda(...), [
+                    $matricula->promotoria->area->nombre,
+                    $matricula->promotoria->nombre,
+                    $grupo?->nombre ?? 'Sin grupo',
+                    $grupo?->nivel_display,
+                    $grupo?->horario,
+                    $grupo?->salon,
+                    $matricula->estudiante->nombre_completo,
+                    $matricula->estudiante->edad,
+                    $matricula->estudiante->telefono,
+                    $acudiente?->nombre,
+                    $acudiente?->telefono,
+                    Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
+                ]);
+            }
         }
     }
 
@@ -324,7 +346,7 @@ class InformeController extends Controller
                     ->when($periodo, fn ($sub) => $sub->where('periodo_id', $periodo->id))
                     ->when($periodo === null, fn ($sub) => $sub->whereRaw('1 = 0')),
                 'matriculas.promotoria.area',
-                'matriculas.grupo.sesiones',
+                'matriculas.grupos.sesiones',
                 'matriculas.periodo',
                 // Los papeles entregados. Se traen aqui y no se preguntan fila a
                 // fila: son 800 personas y esto lo descarga alguien esperando
@@ -459,8 +481,12 @@ class InformeController extends Controller
         return [
             $area->nombre,
             $promotoria->nombre,
-            $matricula->grupo?->nombre ?? 'Sin grupo',
-            $matricula->grupo?->nivel_display,
+            // Aqui la fila es una PERSONA y no una clase, asi que sus grupos se
+            // juntan en la celda en vez de multiplicar filas. Es lo contrario
+            // que en el informe operativo de arriba, y a proposito: alli la fila
+            // ES la lista de un salon.
+            $matricula->grupos->pluck('nombre')->implode(' · ') ?: 'Sin grupo',
+            $matricula->grupos->pluck('nivel_display')->implode(' · '),
             Matricula::ESTADOS[$matricula->estado] ?? $matricula->estado,
             $trayectoria['periodos'],
             $trayectoria['desde'],

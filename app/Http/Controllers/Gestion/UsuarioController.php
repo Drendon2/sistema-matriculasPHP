@@ -778,7 +778,10 @@ class UsuarioController extends Controller
         return Matricula::query()
             ->where('estado', '!=', Matricula::RETIRADA)
             ->when($seleccion['periodo'], fn ($q, $p) => $q->where('periodo_id', $p->id))
-            ->when($seleccion['grupo'], fn ($q, $g) => $q->where('grupo_id', $g->id))
+            ->when($seleccion['grupo'], fn ($q, $g) => $q->whereHas(
+                'grupos',
+                fn ($sub) => $sub->where('grupos.id', $g->id)
+            ))
             ->when($seleccion['promotoria'], fn ($q, $p) => $q->where('promotoria_id', $p->id))
             ->when($seleccion['area'], fn ($q, $a) => $q->whereHas(
                 'promotoria',
