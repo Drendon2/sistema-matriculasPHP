@@ -97,10 +97,14 @@ class ResumenAsistencia
             ->recientesPrimero()
             ->get();
 
+        // Quien esta en el grupo sale de `asignaciones_grupo`, no de la columna.
+        // Las columnas van cualificadas porque ya hay un join con `perfiles` y
+        // la subconsulta trae el suyo: un nombre suelto se vuelve ambiguo en
+        // cuanto coincida, y eso no avisa hasta que corre.
         $matriculas = Matricula::query()
-            ->where('grupo_id', $grupo->id)
-            ->where('periodo_id', $periodo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            ->whereIn('matriculas.id', $grupo->matriculas()->select('matriculas.id'))
+            ->where('matriculas.periodo_id', $periodo->id)
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
             ->with('estudiante')
             ->join('perfiles', 'perfiles.id', '=', 'matriculas.estudiante_id')
             ->orderBy('perfiles.nombre_completo')
@@ -211,11 +215,16 @@ class ResumenAsistencia
             return null;
         }
 
+        // `has('grupos')` en vez de `whereNotNull('grupo_id')`: lo que importa es
+        // estar repartido en ALGUN grupo, y desde el 10/09/2026 eso vive en
+        // `asignaciones_grupo`. Los grupos vienen cargados porque el mapa de
+        // mas abajo los recorre.
         $matriculas = Matricula::query()
             ->where('estudiante_id', $perfil->id)
             ->where('periodo_id', $periodo->id)
-            ->whereNotNull('grupo_id')
+            ->has('grupos')
             ->when($promotorias !== null, fn ($q) => $q->whereIn('promotoria_id', $promotorias))
+            ->with('grupos')
             ->get();
 
         if ($matriculas->isEmpty()) {
@@ -231,17 +240,23 @@ class ResumenAsistencia
         // Una clase le "toca" a una matricula cuando es del grupo de esa
         // matricula. Se recorre asi —y no por las asistencias— porque las clases
         // sin marca tienen que aparecer, y esas no tienen fila que recorrer.
-        $clases = Clase::query()
-            ->whereIn('grupo_id', $matriculas->pluck('grupo_id')->unique())
-            ->where('periodo_id', $periodo->id)
-            ->orderBy('fecha_hora')
-            ->get();
-
+        // El mapa grupo => matricula. Una matricula puede aportar VARIAS
+        // entradas desde que puede estar en dos grupos de la misma promotoria;
+        // sigue habiendo una sola matricula por grupo, que es lo que hace que
+        // el mapa siga valiendo.
         $porGrupo = [];
 
         foreach ($matriculas as $matricula) {
-            $porGrupo[$matricula->grupo_id] ??= $matricula->id;
+            foreach ($matricula->grupos as $grupo) {
+                $porGrupo[$grupo->id] ??= $matricula->id;
+            }
         }
+
+        $clases = Clase::query()
+            ->whereIn('grupo_id', array_keys($porGrupo))
+            ->where('periodo_id', $periodo->id)
+            ->orderBy('fecha_hora')
+            ->get();
 
         $cuenta = ['asistio' => 0, 'falto' => 0, 'excusa' => 0, 'sin_marcar' => 0];
         $dias = [];
@@ -525,9 +540,15 @@ class ResumenAsistencia
         // Para el estudiante se cruzan grupo Y periodo: las clases del grupo en
         // un semestre en el que no estaba no son suyas.
         $ids = $comoEstudiante
+            // El cruce pasa por `asignaciones_grupo`, que es donde vive desde el
+            // 10/09/2026 en que grupos esta repartida cada matricula. El
+            // `distinct` deja de ser un adorno y se vuelve necesario: una
+            // matricula en dos grupos del mismo periodo trae la misma fila dos
+            // veces, y sin el la flecha contaria periodos repetidos.
             ? Clase::query()
+                ->join('asignaciones_grupo', 'asignaciones_grupo.grupo_id', '=', 'clases.grupo_id')
                 ->join('matriculas', function ($union) use ($perfil) {
-                    $union->on('matriculas.grupo_id', '=', 'clases.grupo_id')
+                    $union->on('matriculas.id', '=', 'asignaciones_grupo.matricula_id')
                         ->on('matriculas.periodo_id', '=', 'clases.periodo_id')
                         ->where('matriculas.estudiante_id', '=', $perfil->id);
                 })
