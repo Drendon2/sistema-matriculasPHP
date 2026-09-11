@@ -205,6 +205,14 @@ Route::middleware(['auth', 'rol:administrador,director,profesor'])->group(functi
     Route::post('/panel/matriculas/{matricula}/asignar-grupo', [PanelController::class, 'asignarGrupo'])
         ->name('panel-asignar-grupo');
 
+    // Repartir a alguien en VARIOS grupos. Es una pagina de verdad con su URL
+    // —el Panel la abre en un modal, y sin JavaScript se abre y funciona
+    // igual—, como las confirmaciones de borrado y el formulario de usuario.
+    Route::get('/panel/matriculas/{matricula}/grupos', [PanelController::class, 'grupos'])
+        ->name('panel-grupos');
+    Route::post('/panel/matriculas/{matricula}/grupos', [PanelController::class, 'guardarGrupos'])
+        ->name('panel-guardar-grupos');
+
     Route::post('/panel/promotoria/{promotoria}/cupo', [PanelController::class, 'cupo'])
         ->name('panel-cupo-promotoria');
     Route::post('/panel/promotoria/{promotoria}/asignar-grupo-lote', [PanelController::class, 'asignarGrupoLote'])

@@ -42,6 +42,13 @@ class Promotoria extends Model
         return $this->belongsTo(Perfil::class, 'profesor_id');
     }
 
+    /**
+     * Anotada por lo mismo que `profesor()`: sin el tipo, recorrer los grupos de
+     * una promotoria los entrega como `Model` generico y cualquier `$grupo->id`
+     * o `$grupo->cupo_maximo` sale como propiedad inexistente.
+     *
+     * @return HasMany<Grupo, $this>
+     */
     public function grupos(): HasMany
     {
         return $this->hasMany(Grupo::class);

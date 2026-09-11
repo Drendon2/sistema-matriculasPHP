@@ -2726,6 +2726,36 @@
      media pantalla. Con la clase, lo que hace falta recordar es el nombre. */
   .modal-botones { display: flex; gap: 0.6rem; }
 
+  /* LA LISTA DE GRUPOS DE «repartir en varios», dentro del modal.
+
+     Cada fila es una etiqueta entera y no solo el texto: asi el area que se
+     toca es la fila completa y no la casilla de 13px, que con el pulgar se
+     falla. Es la misma razon por la que los catalogos pasaron sus acciones a un
+     menu de fila el 01/09.
+
+     `align-items: flex-start` y no `center`: la fila tiene dos o tres lineas
+     —horario, salon y cupo— y centrada, la casilla se va a la mitad del bloque
+     y deja de leerse como que pertenece al titulo.
+
+     La casilla lleva `width: auto` porque la regla base de `input` de esta hoja
+     pone `width: 100%` seiscientas lineas mas arriba, y sin esto ocupa la fila
+     entera y empuja su etiqueta al borde. Ya paso con el radio del selector de
+     tema el 08/09. */
+  .lista-grupos { list-style: none; margin: 0 0 1.2rem; padding: 0; }
+
+  .lista-grupos li + li { border-top: 1px solid var(--borde); }
+
+  .lista-grupos label {
+    display: flex; align-items: flex-start; gap: 0.7rem;
+    padding: 0.7rem 0.2rem; cursor: pointer; margin: 0;
+  }
+
+  .lista-grupos input[type="checkbox"] {
+    width: auto; flex: none; margin: 0.15rem 0 0;
+  }
+
+  .lista-grupos .campo-info { margin: 0; }
+
   /* Mientras el envio va en camino, igual que `main[aria-busy]`. */
   dialog.modal[aria-busy="true"] .card,
   dialog.modal[aria-busy="true"] .form-card { opacity: 0.55; pointer-events: none; }

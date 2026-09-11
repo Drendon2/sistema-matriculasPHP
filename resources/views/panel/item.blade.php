@@ -243,11 +243,39 @@
         <td data-label="Acudiente">@if ($e['acudiente']){{ $e['acudiente']->nombre }} ({{ $e['acudiente']->telefono }})@else<span class="vacio">—</span>@endif</td>
         @if ($item['puede_gestionar'])
         <td data-celda="accion">
-          <form action="{{ route('panel-asignar-grupo', $e['matricula']) }}" method="post">
+          <span class="accion-fila">
+          {{--
+            QUITAR DE ESTE GRUPO Y NO DE TODOS.
+
+            Manda la lista de los OTROS grupos de esta matrícula, no un
+            «grupo_id» vacío. Desde que alguien puede ir a dos horarios, vaciar
+            la lista significa «sácalo de todos»: quitar del lunes se llevaría
+            también el miércoles, sin fallar y sin avisar.
+
+            El campo vacío de delante no sobra: si esta persona solo está en
+            este grupo, no hay ningún otro que mandar y sin él no llegaría el
+            campo — el servidor no podría distinguir «sácalo de todos» de «no
+            llegó nada».
+          --}}
+          <form action="{{ route('panel-guardar-grupos', $e['matricula']) }}" method="post" style="display:inline;">
             @csrf
-            <input type="hidden" name="grupo_id" value="">
-            <button type="submit" class="btn btn-retirar btn-sm">Quitar del grupo</button>
+            <input type="hidden" name="grupo_id[]" value="">
+            @foreach ($e['matricula']->grupos as $otro)
+              @if ($otro->id !== $g['grupo']->id)
+                <input type="hidden" name="grupo_id[]" value="{{ $otro->id }}">
+              @endif
+            @endforeach
+            <button type="submit" class="btn btn-retirar btn-sm">Quitar de este grupo</button>
           </form>
+          {{--
+            Y el modal, que es donde se reparte en VARIOS. Va como enlace y no
+            como control dentro de la celda por lo medido el 10/09: un
+            `<select multiple>` sube la fila de 68 a 136 px en escritorio, y en
+            escritorio se maneja con ctrl+clic — un clic normal borra la
+            selección anterior.
+          --}}
+          <a href="{{ route('panel-grupos', $e['matricula']) }}" data-modal>Grupos</a>
+          </span>
         </td>
         @endif
         @if ($esAdministrador)

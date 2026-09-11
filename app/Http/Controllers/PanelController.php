@@ -764,6 +764,124 @@ class PanelController extends Controller
     }
 
     /**
+     * LA PANTALLA PARA REPARTIR A ALGUIEN EN VARIOS GRUPOS.
+     *
+     * Es una pagina de verdad con su URL, y el Panel la abre en un MODAL. Sin
+     * JavaScript se abre y funciona igual: no hay dos versiones del contenido,
+     * que es el mismo criterio de las confirmaciones de borrado y del formulario
+     * de usuario.
+     *
+     * ─── POR QUE UN MODAL Y NO UN CONTROL EN LA FILA ───────────────────────
+     *
+     * Medido el 10/09/2026 con el CSS real, a 390, 641, 1000 y 1440 px. Un
+     * `<select multiple>` en la celda sube la fila de 68 a 136 px en escritorio
+     * y de 112 a 179 en el telefono; una lista de casillas, a 162. El enlace que
+     * abre esto deja la fila en 43 y 58 — mas BAJA que hoy.
+     *
+     * Y hay una razon que pesa mas que el alto: en escritorio, un
+     * `<select multiple>` se maneja con ctrl+clic, y **un clic normal borra la
+     * seleccion anterior**. Probado en el navegador: con «Grupo A» marcado, un
+     * clic en «Grupo B» dejaba solo el B. En esta pantalla eso es sacar a
+     * alguien de su grupo sin decirlo, que es la forma de fallo que este
+     * proyecto lleva documentada desde que costo un profesor.
+     *
+     * En el modal caben ademas los rotulos enteros —52 a 55 caracteres, que es
+     * lo que reventó el ancho de la tabla el 04/09— en vez de solo «Grupo A».
+     */
+    public function grupos(Request $request, Matricula $matricula): View
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        abort_unless(Permisos::puedeGestionarPromotoria($perfil, $matricula->promotoria), 403);
+
+        $periodo = $matricula->periodo;
+
+        return view('panel.grupos', [
+            'matricula' => $matricula->load(['estudiante', 'promotoria', 'grupos']),
+            'grupos' => $matricula->promotoria->grupos()->with('sesiones')->get()
+                ->map(fn (Grupo $grupo) => [
+                    'grupo' => $grupo,
+                    'dentro' => $matricula->grupos->contains('id', $grupo->id),
+                    // Cuantos hay y cuantos caben. Quien reparte decide con esto
+                    // delante, y sin ello el rechazo por cupo llega despues de
+                    // guardar — que es tarde.
+                    'ocupados' => $grupo->ocupadosEn($periodo),
+                ])
+                ->all(),
+        ]);
+    }
+
+    /**
+     * Guarda en que grupos queda esta matricula.
+     *
+     * SE MANDA LA LISTA ENTERA Y NO UN CAMBIO. Las casillas describen un estado
+     * —marcada es «esta dentro»— asi que lo que llega es en que grupos tiene que
+     * quedar, y `repartirEn()` calcula solo lo que entra y lo que sale. Mandar
+     * «anade este» y «quita ese» por separado obligaria a dos peticiones para lo
+     * que la persona vio como un solo cambio.
+     *
+     * OJO CON LA LISTA VACIA: significa «sacalo de todos», y es legitima. Por
+     * eso el campo no puede ser `required` — sin ninguna casilla marcada el
+     * navegador no manda nada, y `input('grupo_id')` devuelve null.
+     */
+    public function guardarGrupos(Request $request, Matricula $matricula): RedirectResponse|Response
+    {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        if (! Permisos::puedeGestionarPromotoria($perfil, $matricula->promotoria)) {
+            return $this->volver('No tienes acceso a esta promotoría.');
+        }
+
+        // Acotado a los grupos de ESTA promotoria en la consulta: los ids llegan
+        // del formulario y nadie garantiza que sean los que se pintaron.
+        $pedidos = array_map('intval', (array) $request->input('grupo_id', []));
+
+        $ids = $matricula->promotoria->grupos()
+            ->whereIn('id', $pedidos)
+            ->pluck('id')
+            ->all();
+
+        try {
+            $matricula->repartirEn($ids);
+        } catch (ValidationException $e) {
+            return $this->volver(implode(' ', Arr::flatten($e->errors())));
+        }
+
+        $nombres = Grupo::whereIn('id', $ids)->pluck('nombre')->implode(' y ');
+
+        /*
+         * SIN `promotoria:`, y esto NO es un olvido.
+         *
+         * Pasarla hace que `volver()` conteste con un FRAGMENTO —solo lo de
+         * dentro de `<main>`— cuando la peticion trae la cabecera de
+         * `acciones.js`. Eso funciona para los formularios que viven en
+         * `<main>`, porque su rama de `acciones.js` le pasa a `pintar()` el dato
+         * de si lo que llega es un fragmento. **La rama del MODAL no se lo
+         * pasa**: llama a `pintar(html, estado, scroll)` sin el cuarto
+         * argumento, asi que busca un `<main>` que un fragmento no trae, se
+         * rinde y NAVEGA a la URL del formulario.
+         *
+         * El sintoma no es un error: el guardado SE HACE y la persona acaba
+         * mirando la pagina suelta del modal en vez del Panel. Se vio en el
+         * navegador el 10/09/2026; ninguna prueba de PHP lo ve, porque por ahi
+         * el cliente no manda esa cabecera.
+         *
+         * Sin `promotoria:` esto redirige al Panel como los demas modales del
+         * proyecto —el borrado y el formulario de usuario hacen lo mismo—, el
+         * `fetch` sigue la redireccion, llega la pagina entera con su `<main>` y
+         * `pintar()` la pinta detras sin recargar.
+         */
+        return $this->volver(
+            $ids === []
+                ? "{$matricula->estudiante->nombre_completo} quedó sin grupo asignado."
+                : "{$matricula->estudiante->nombre_completo} queda en {$nombres}.",
+            exito: true,
+        );
+    }
+
+    /**
      * Manda al mismo grupo a varios estudiantes de una vez.
      *
      * Repartir es la tarea del principio de periodo y se hace por tandas: llegan
