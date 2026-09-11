@@ -83,7 +83,7 @@ class InscripcionTest extends TestCase
         $this->assertNotNull($matricula);
         // Toda matricula nace pendiente: el profesor la confirma.
         $this->assertSame(Matricula::PENDIENTE, $matricula->estado);
-        $this->assertNull($matricula->grupo_id);
+        $this->assertSame(0, $matricula->grupos()->count());
         $this->assertSame($this->violin->id, $matricula->promotoria_id);
     }
 

@@ -307,8 +307,7 @@ class PaseDeListaTest extends TestCase
                 'estado' => Matricula::ACTIVA,
             ]);
             $matricula->save();
-            $matricula->grupo_id = $grupo->id;
-            $matricula->save();
+            $matricula->repartirEn([$grupo->id]);
 
             $matriculas[] = $matricula->id;
         }

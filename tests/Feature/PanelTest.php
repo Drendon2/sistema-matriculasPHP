@@ -568,8 +568,7 @@ class PanelTest extends TestCase
         ]);
 
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->actingAs($this->profesor->user)
             ->post(route('panel-grupo-eliminar', $grupo))
@@ -619,8 +618,7 @@ class PanelTest extends TestCase
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $html = $this->actingAs($this->profesor->user)
             ->get(route('panel-promotoria-cuerpo', $this->violin))
@@ -695,8 +693,7 @@ class PanelTest extends TestCase
         $this->matricular($this->violin, $this->crearEstudiante('tres'), Matricula::ACTIVA);
 
         $conGrupo = $this->matricular($this->violin, $this->crearEstudiante('cuatro'), Matricula::ACTIVA);
-        $conGrupo->grupo_id = $grupo->id;
-        $conGrupo->save();
+        $conGrupo->repartirEn([$grupo->id]);
 
         $html = (string) $this->actingAs($this->director->user)
             ->get(route('panel-promotoria-cuerpo', $this->violin))
@@ -787,20 +784,19 @@ class PanelTest extends TestCase
             ->post(route('panel-asignar-grupo', $matricula), ['grupo_id' => $grupo->id])
             ->assertSessionHas('success');
 
-        $this->assertSame($grupo->id, $matricula->fresh()->grupo_id);
+        $this->assertSame([$grupo->id], $matricula->grupos()->pluck('grupos.id')->all());
     }
 
     public function test_asignar_sin_grupo_lo_saca_del_horario(): void
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->actingAs($this->profesor->user)
             ->post(route('panel-asignar-grupo', $matricula), ['grupo_id' => '']);
 
-        $this->assertNull($matricula->fresh()->grupo_id);
+        $this->assertSame(0, $matricula->grupos()->count());
         $this->assertSame(Matricula::ACTIVA, $matricula->fresh()->estado);
     }
 
@@ -809,8 +805,7 @@ class PanelTest extends TestCase
         $grupo = $this->crearGrupo(cupo: 1);
 
         $primera = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $primera->grupo_id = $grupo->id;
-        $primera->save();
+        $primera->repartirEn([$grupo->id]);
 
         $segunda = $this->matricular($this->violin, $this->crearEstudiante('samu'), Matricula::ACTIVA);
 
@@ -818,7 +813,7 @@ class PanelTest extends TestCase
             ->post(route('panel-asignar-grupo', $segunda), ['grupo_id' => $grupo->id])
             ->assertSessionHas('error');
 
-        $this->assertNull($segunda->fresh()->grupo_id);
+        $this->assertSame(0, $segunda->grupos()->count());
     }
 
     /**
@@ -854,7 +849,7 @@ class PanelTest extends TestCase
                 && str_contains($aviso, 'No se asignó a nadie'));
 
         foreach ($matriculas as $matricula) {
-            $this->assertNull($matricula->fresh()->grupo_id);
+            $this->assertSame(0, $matricula->grupos()->count());
         }
     }
 
@@ -875,7 +870,7 @@ class PanelTest extends TestCase
             ->assertSessionHas('success');
 
         foreach ($matriculas as $matricula) {
-            $this->assertSame($grupo->id, $matricula->fresh()->grupo_id);
+            $this->assertSame([$grupo->id], $matricula->grupos()->pluck('grupos.id')->all());
         }
     }
 
@@ -1049,8 +1044,7 @@ class PanelTest extends TestCase
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
 
@@ -1066,8 +1060,7 @@ class PanelTest extends TestCase
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
 
@@ -1084,8 +1077,7 @@ class PanelTest extends TestCase
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
 
@@ -1143,8 +1135,7 @@ class PanelTest extends TestCase
     {
         $grupo = $this->crearGrupo();
         $matricula = $this->matricular($this->violin, estado: Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $clase = Clase::abrir($grupo, $this->periodo, $this->profesor);
         Asistencia::create([

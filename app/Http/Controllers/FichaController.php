@@ -280,7 +280,7 @@ class FichaController extends Controller
         // El grupo cuelga de la promotoria vieja: dejarlo puesto meteria al
         // estudiante en un horario de otra promotoria. Se pierde siempre, y por
         // eso la pantalla lo avisa antes de preguntar.
-        $matricula->grupo_id = null;
+        $matricula->repartirEn([]);
         $matricula->estado = Matricula::PENDIENTE;
         // Vuelve a estar en juego, asi que el porque de la salida deja de valer:
         // una readmitida no puede seguir contando que la rechazaron.

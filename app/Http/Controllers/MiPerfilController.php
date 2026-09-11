@@ -856,10 +856,13 @@ class MiPerfilController extends Controller
             // empareja por los grupos de cada matricula, y una fila traida sin
             // su id no puede cargar ninguna relacion. Sin las dos cosas esto
             // devolveria cero companeros sin fallar.
+            //
+            // Y `periodo_id` porque la clave del emparejamiento es el par
+            // (grupo, periodo). Nada mas: la columna `grupo_id` ya no existe.
             $activas = Matricula::where('estudiante_id', $perfil->id)
                 ->where('estado', Matricula::ACTIVA)
                 ->with('grupos')
-                ->get(['id', 'grupo_id', 'periodo_id']);
+                ->get(['id', 'periodo_id']);
 
             // "Companero" = mismo GRUPO y periodo, con matricula activa. La
             // regla vive en `Companeros` y no aqui: la escribian este metodo y

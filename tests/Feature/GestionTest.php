@@ -1057,13 +1057,12 @@ class GestionTest extends TestCase
             'nivel' => 'basico', 'salon' => 'S1', 'cupo_maximo' => 10,
         ]);
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
-        $m->grupo_id = $grupo->id;
-        $m->save();
+        $m->repartirEn([$grupo->id]);
 
         $this->actingAs($this->director->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
 
-        $this->assertNull($m->refresh()->grupo_id);
+        $this->assertSame(0, $m->grupos()->count(), 'se llevo el grupo a la promotoria nueva.');
     }
 
     /** La fecha de inscripcion es del dato original y el movimiento no la toca. */
@@ -2488,8 +2487,8 @@ class GestionTest extends TestCase
     /** Registra $cuantas clases del grupo, y confirma las primeras $verificadas. */
     private function dictar(Grupo $grupo, int $cuantas, int $verificadas = 0): void
     {
-        $inscritos = Matricula::where('grupo_id', $grupo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+        $inscritos = $grupo->matriculas()
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
             ->get();
 
         for ($n = 1; $n <= $cuantas; $n++) {
@@ -2544,8 +2543,7 @@ class GestionTest extends TestCase
     {
         $grupo = $this->grupoDeViolin();
         $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->dictar($grupo, 4, verificadas: 2);
 
@@ -2567,8 +2565,7 @@ class GestionTest extends TestCase
     {
         $grupo = $this->grupoDeViolin();
         $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->dictar($grupo, 3);
 
@@ -2591,8 +2588,7 @@ class GestionTest extends TestCase
     {
         $grupo = $this->grupoDeViolin();
         $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->dictar($grupo, 6);
 

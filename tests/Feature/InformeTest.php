@@ -158,8 +158,7 @@ class InformeTest extends TestCase
         ]);
 
         $matricula = $this->matricular($ana, $this->violin);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $csv = $this->contenido(
             $this->actingAs($this->director->user)->get(route('informe-estudiantes'))
@@ -495,8 +494,7 @@ class InformeTest extends TestCase
     private function matricularEnGrupo(Perfil $perfil, Grupo $grupo): Matricula
     {
         $matricula = $this->matricular($perfil, $grupo->promotoria);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         return $matricula;
     }

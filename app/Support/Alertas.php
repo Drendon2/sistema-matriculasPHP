@@ -221,7 +221,7 @@ class Alertas
         $casos = Matricula::query()
             ->whereIn('id', array_keys($rachas))
             ->where('estado', Matricula::ACTIVA)
-            ->with(['estudiante.datosEstudiante.acudiente', 'promotoria.area', 'grupo'])
+            ->with(['estudiante.datosEstudiante.acudiente', 'promotoria.area', 'grupos'])
             ->get()
             ->map(fn (Matricula $m) => [
                 'matricula' => $m,

@@ -131,11 +131,11 @@ class AlertasTest extends TestCase
         $matricula = new Matricula([
             'estudiante_id' => $perfil->id,
             'promotoria_id' => $this->grupo->promotoria_id,
-            'grupo_id' => $this->grupo->id,
             'periodo_id' => $this->periodo->id,
             'estado' => Matricula::ACTIVA,
         ]);
         $matricula->save();
+        $matricula->repartirEn([$this->grupo->id]);
 
         return $matricula;
     }
@@ -569,7 +569,7 @@ class AlertasTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertSame(Matricula::RETIRADA, $matricula->fresh()->estado);
-        $this->assertNull($matricula->fresh()->grupo_id);
+        $this->assertSame(0, $matricula->grupos()->count());
     }
 
     public function test_un_profesor_no_entra_a_la_bandeja(): void

@@ -109,8 +109,8 @@ class CupoDeGrupoTest extends TestCase
         $suya->save();
 
         $this->assertSame(
-            $this->grupo->id,
-            $suya->fresh()->grupo_id,
+            [$this->grupo->id],
+            $suya->grupos()->pluck('grupos.id')->all(),
             'la prueba no vale: la cancelacion perdio el grupo y ya no ocupa nada.'
         );
 
@@ -129,7 +129,7 @@ class CupoDeGrupoTest extends TestCase
         $this->actingAs($this->profesor->user)
             ->post(route('panel-asignar-grupo', $otra), ['grupo_id' => $this->grupo->id]);
 
-        $this->assertNull($otra->fresh()->grupo_id, 'el Panel lo metio en un grupo lleno.');
+        $this->assertSame(0, $otra->grupos()->count(), 'el Panel lo metio en un grupo lleno.');
         $this->assertSame(1, $this->ocupados(), 'hay dos personas en un grupo de una.');
     }
 
@@ -175,13 +175,15 @@ class CupoDeGrupoTest extends TestCase
     {
         $pendiente = $this->matricula('ana', Matricula::PENDIENTE, conGrupo: true);
 
-        $this->assertSame($this->grupo->id, $pendiente->fresh()->grupo_id);
+        $this->assertSame([$this->grupo->id], $pendiente->grupos()->pluck('grupos.id')->all());
         $this->assertSame(1, $this->grupo->cuposDisponibles($this->periodo), 'la pendiente ocupo silla.');
 
         // Y entra alguien de verdad, porque la silla esta libre.
         $this->matricula('beto', Matricula::ACTIVA, conGrupo: true);
-        $this->assertSame($this->grupo->id, Matricula::where('estudiante_id', $this->buscar('beto')->id)
-            ->first()->grupo_id);
+        $this->assertSame(
+            [$this->grupo->id],
+            Matricula::where('estudiante_id', $this->buscar('beto')->id)->first()->grupos()->pluck('grupos.id')->all()
+        );
     }
 
     /** Una retirada libera la silla: se fue de verdad. */
@@ -194,7 +196,11 @@ class CupoDeGrupoTest extends TestCase
         $this->assertSame(1, $this->grupo->cuposDisponibles($this->periodo));
 
         $otra = $this->matricula('beto', Matricula::ACTIVA, conGrupo: true);
-        $this->assertSame($this->grupo->id, $otra->fresh()->grupo_id, 'la retirada no solto el sitio.');
+        $this->assertSame(
+            [$this->grupo->id],
+            $otra->grupos()->pluck('grupos.id')->all(),
+            'la retirada no solto el sitio.'
+        );
     }
 
     /**
@@ -211,18 +217,17 @@ class CupoDeGrupoTest extends TestCase
         $suya->validar();
         $suya->save();
 
-        $this->assertSame($this->grupo->id, $suya->fresh()->grupo_id);
+        $this->assertSame([$this->grupo->id], $suya->grupos()->pluck('grupos.id')->all());
     }
 
     // --------------------------------------------------------------------
 
     private function esperarRechazo(string $nombre): void
     {
-        $otra = $this->nueva($nombre, Matricula::ACTIVA, conGrupo: true);
+        $otra = $this->matricula($nombre, Matricula::ACTIVA, conGrupo: false);
 
         try {
-            $otra->validar();
-            $otra->save();
+            $otra->repartirEn([$this->grupo->id]);
             $this->fail('entro en un grupo que ya estaba lleno.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('grupo', $e->errors(), 'lo rechazo, pero por otra cosa.');
@@ -231,27 +236,24 @@ class CupoDeGrupoTest extends TestCase
 
     private function ocupados(): int
     {
-        return Matricula::where('grupo_id', $this->grupo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+        return $this->grupo->matriculas()
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
             ->count();
-    }
-
-    private function nueva(string $nombre, string $estado, bool $conGrupo): Matricula
-    {
-        return new Matricula([
-            'estudiante_id' => $this->perfil($nombre, 'estudiante')->id,
-            'promotoria_id' => $this->violin->id,
-            'periodo_id' => $this->periodo->id,
-            'grupo_id' => $conGrupo ? $this->grupo->id : null,
-            'fecha' => Carbon::now(),
-            'estado' => $estado,
-        ]);
     }
 
     private function matricula(string $nombre, string $estado, bool $conGrupo): Matricula
     {
-        $matricula = $this->nueva($nombre, $estado, $conGrupo);
-        $matricula->save();
+        $matricula = Matricula::create([
+            'estudiante_id' => $this->perfil($nombre, 'estudiante')->id,
+            'promotoria_id' => $this->violin->id,
+            'periodo_id' => $this->periodo->id,
+            'fecha' => Carbon::now(),
+            'estado' => $estado,
+        ]);
+
+        if ($conGrupo) {
+            $matricula->repartirEn([$this->grupo->id]);
+        }
 
         return $matricula;
     }

@@ -70,7 +70,7 @@ class CancelacionesController extends Controller
                 'estudiante.datosEstudiante.acudiente',
                 'promotoria.area',
                 'periodo',
-                'grupo',
+                'grupos',
             ])
             ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
             ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
@@ -193,7 +193,7 @@ class CancelacionesController extends Controller
 
         $matricula->estado = Matricula::RETIRADA;
         $matricula->motivo_retiro = Matricula::RETIRO_ABANDONO;
-        $matricula->grupo_id = null;
+        $matricula->repartirEn([]);
         $matricula->save();
 
         Auditoria::registrar('matricula.retirada_por_abandono', [
@@ -247,7 +247,7 @@ class CancelacionesController extends Controller
 
         $matricula->estado = Matricula::RETIRADA;
         $matricula->motivo_retiro = Matricula::RETIRO_CANCELACION;
-        $matricula->grupo_id = null;
+        $matricula->repartirEn([]);
         $matricula->save();
 
         return $this->volver(
@@ -302,7 +302,7 @@ class CancelacionesController extends Controller
                 if ($decision === 'aprobar') {
                     $matricula->estado = Matricula::RETIRADA;
                     $matricula->motivo_retiro = Matricula::RETIRO_CANCELACION;
-                    $matricula->grupo_id = null;
+                    $matricula->repartirEn([]);
                 } else {
                     $matricula->estado = Matricula::ACTIVA;
                 }

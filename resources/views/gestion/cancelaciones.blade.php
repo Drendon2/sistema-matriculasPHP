@@ -288,7 +288,7 @@
       </td>
       <td data-label="Promotoría">
         <span class="tag-dot {{ $m->promotoria->area->tag_color }}"></span>{{ $m->promotoria->nombre }}
-        @if ($m->grupo)<span class="lista-nota"> · {{ $m->grupo->rotulo_breve }}</span>@endif
+        @foreach ($m->grupos as $g)<span class="lista-nota"> · {{ $g->rotulo_breve }}</span>@endforeach
       </td>
       <td class="num" data-label="Faltas">
         {{ $caso['faltas'] }}

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Area;
+use App\Models\ConfiguracionInstitucion;
 use App\Models\DatosEstudiante;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -151,7 +152,68 @@ class VariosGruposEnLosListadosTest extends TestCase
         $this->assertNotContains($ana->estudiante_id, $conMotivo, 'mete a quien ya tiene dos grupos.');
     }
 
+    /**
+     * EL CERTIFICADO ACREDITA LOS DOS HORARIOS.
+     *
+     * Es un papel que se entrega: si dice un solo grupo, esta acreditando menos
+     * de lo que la persona cursa. Y el rotulo va en plural cuando hay varios —
+     * un certificado que diga «Grupo» y liste dos se lee como un error del
+     * sistema.
+     *
+     * Se comprueba sobre la PLANTILLA y no sobre el PDF: desde que la fuente va
+     * en subconjunto (09/09), el texto del PDF no se puede leer con una busqueda
+     * — se probo, y no encuentra ni las cadenas que si estan.
+     */
+    public function test_el_certificado_acredita_los_dos_horarios(): void
+    {
+        $ana = $this->matricula('ana');
+        $ana->grupos()->attach([$this->lunes->id, $this->miercoles->id]);
+
+        $html = $this->certificado($ana);
+
+        $this->assertStringContainsString('Lunes tarde', $html, 'le falta uno de sus horarios.');
+        $this->assertStringContainsString('Miercoles tarde', $html, 'le falta el otro.');
+        $this->assertStringContainsString('<th>Grupos</th>', $html, 'el rotulo sigue en singular con dos grupos.');
+    }
+
+    /** Y con uno solo el rotulo se queda en singular. */
+    public function test_con_un_solo_grupo_el_rotulo_es_singular(): void
+    {
+        $ana = $this->matricula('ana');
+        $ana->grupos()->attach($this->lunes->id);
+
+        $html = $this->certificado($ana);
+
+        $this->assertStringContainsString('<th>Grupo</th>', $html);
+    }
+
     // --------------------------------------------------------------------
+
+    /**
+     * El HTML del certificado de una matricula, con el contrato que espera la
+     * plantilla.
+     *
+     * Se renderiza la VISTA y no se lee el PDF: desde que la fuente va en
+     * subconjunto (09/09), buscar texto dentro del PDF no encuentra ni las
+     * cadenas que si estan — se probo.
+     */
+    private function certificado(Matricula $matricula): string
+    {
+        $matricula = $matricula->fresh()->load(['grupos.sesiones', 'promotoria.area', 'promotoria.profesor']);
+
+        return view('certificados.matricula', [
+            'titulo' => 'Certificado de matrícula',
+            'institucion' => ConfiguracionInstitucion::actual(),
+            'estudiante' => $matricula->estudiante,
+            'documento' => '1020304050',
+            'matriculas' => collect([$matricula]),
+            'periodo' => $this->periodo,
+            'finalizado' => false,
+            'expedido' => Carbon::now(),
+            'logo' => null,
+            'firma' => null,
+        ])->render();
+    }
 
     /**
      * El CSV que devuelve una ruta de informe, ya partido en filas y columnas.

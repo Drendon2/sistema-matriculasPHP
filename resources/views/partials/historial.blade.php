@@ -74,8 +74,10 @@
         @endif
 
         <td data-label="Grupo">
-          @if ($m->grupo)
-            {{ $m->grupo->rotulo_breve }}
+          @if ($m->grupos->isNotEmpty())
+            @foreach ($m->grupos as $g)
+              {{ $g->rotulo_breve }}@if (! $loop->last)<br>@endif
+            @endforeach
           @elseif ($m->estado === \App\Models\Matricula::ACTIVA)
             <span class="vacio">Por asignar</span>
           @else

@@ -91,7 +91,7 @@ class MatricularController extends Controller
             // viajaria con ella y la nueva solicitud nacería contando que la
             // rechazaron. Se borra: vuelve a estar en juego.
             $matricula->motivo_retiro = null;
-            $matricula->grupo_id = null;
+            $matricula->repartirEn([]);
         } else {
             $matricula = new Matricula([
                 'estudiante_id' => $perfil->id,

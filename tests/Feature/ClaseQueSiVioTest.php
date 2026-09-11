@@ -109,7 +109,7 @@ class ClaseQueSiVioTest extends TestCase
         $this->marcarAsistencia($clase, $matricula);
 
         // Y al día siguiente dirección la pasa al grupo de la tarde.
-        $matricula->update(['grupo_id' => $this->tarde->id]);
+        $matricula->repartirEn([$this->tarde->id]);
 
         $this->assertVeLaClase($clase);
         $this->assertPuedeConfirmar($clase);
@@ -284,8 +284,7 @@ class ClaseQueSiVioTest extends TestCase
         ]);
         $matricula->save();
 
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         return $matricula;
     }

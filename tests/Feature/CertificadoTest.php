@@ -352,8 +352,7 @@ class CertificadoTest extends TestCase
             ]);
 
             $matricula = $this->matricular($promotoria, Matricula::ACTIVA);
-            $matricula->grupo_id = $grupo->id;
-            $matricula->save();
+            $matricula->repartirEn([$grupo->id]);
 
             $matriculas[] = $matricula;
         }
@@ -454,8 +453,7 @@ class CertificadoTest extends TestCase
         ]);
 
         $matricula = $this->matricular($this->violin, Matricula::ACTIVA);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->assertEsPdf(
             $this->actingAs($this->userAna)->get(route('certificado-matricula', $matricula))

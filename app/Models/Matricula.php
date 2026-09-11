@@ -7,13 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Inscripcion de un estudiante en una PROMOTORIA, para un periodo dado.
  *
- * El estudiante no elige grupo/horario al matricularse: `grupo_id` queda en
- * blanco hasta que quien dicta divide a los matriculados segun su horario.
+ * El estudiante no elige grupo/horario al matricularse: la matricula nace sin
+ * ninguno y quien dicta reparte a los matriculados segun su horario. Desde el
+ * 10/09/2026 puede estar en VARIOS de la misma promotoria —quien va el lunes y
+ * el miercoles—, y por eso los grupos viven en `asignaciones_grupo` y no en una
+ * columna. Se reparte con `repartirEn()`.
  *
  * Toda matricula nace 'pendiente'. Quien dicta la promotoria debe confirmarla
  * antes de que cuente como activa, y solo entonces se le puede asignar grupo.
@@ -112,7 +116,6 @@ class Matricula extends Model
     protected $fillable = [
         'estudiante_id',
         'promotoria_id',
-        'grupo_id',
         'periodo_id',
         'fecha',
         'estado',
@@ -182,98 +185,6 @@ class Matricula extends Model
                 'desde' => $matricula->getOriginal('estado'),
             ], auth()->user()?->perfil);
         });
-
-        /*
-         * La escritura doble mientras la columna y la tabla convivan. El porque
-         * esta en `copiarElGrupo()` y en `moverElGrupo()`.
-         *
-         * SON DOS GANCHOS Y NO UNO EN `saved`, y esto costo un rato: en un
-         * `saved` habria que distinguir el alta de la modificacion, y la forma
-         * evidente de hacerlo NO FUNCIONA. `wasRecentlyCreated` se pone a true
-         * al insertar y NO SE APAGA: sigue valiendo true en todos los guardados
-         * posteriores de esa misma instancia. Con el como discriminante, cada
-         * cambio de grupo tomaba la rama del alta —anadia el nuevo y no soltaba
-         * nunca el anterior—, asi que la persona acababa en los dos grupos. Lo
-         * vieron dos pruebas; leyendo el gancho no se ve.
-         *
-         * Separados, cada uno tiene un significado que no admite duda.
-         */
-        static::created(function (self $matricula) {
-            $matricula->copiarElGrupo();
-        });
-
-        static::updated(function (self $matricula) {
-            $matricula->moverElGrupo();
-        });
-    }
-
-    /**
-     * ESCRITURA DOBLE, TEMPORAL: lo que se guarda en `grupo_id` se copia a
-     * `asignaciones_grupo`.
-     *
-     * ─── POR QUE EXISTE ────────────────────────────────────────────────────
-     *
-     * El trabajo de que una matricula pueda ir a varios grupos va en cuatro
-     * pasos: la tabla (hecha), esta escritura doble, mover los lectores uno a
-     * uno, y borrar la columna. Este paso es el que hace posible el siguiente:
-     * sin el, el primer lector que se mueva a la tabla se queda leyendo una
-     * copia que ya nadie actualiza, y el fallo no lo ve nadie porque la
-     * pantalla sigue pintando algo — solo que lo de antes.
-     *
-     * Mientras esto exista, LA COLUMNA MANDA y la tabla la sigue. Se borra
-     * junto con la columna, en el ultimo paso, y no antes.
-     *
-     * ─── LA TRAMPA: NO ES UN `sync()` ──────────────────────────────────────
-     *
-     * Lo obvio seria `$this->grupos()->sync([$this->grupo_id])`, y se lleva por
-     * delante exactamente aquello para lo que se esta haciendo todo esto: a
-     * quien este en dos grupos, guardar su matricula por cualquier motivo
-     * —confirmarla, retirarla, cambiarle el estado— le borraria el segundo. Sin
-     * fallar y sin avisar, porque la columna solo sabe de uno.
-     *
-     * Por eso se quita el ANTERIOR por su id y se anade el nuevo sin tocar el
-     * resto. Lo vigila una prueba que pone dos grupos, guarda, y vuelve a
-     * mirar.
-     *
-     * ─── POR QUE UN GANCHO Y NO CADA CONTROLADOR ───────────────────────────
-     *
-     * Son ocho sitios los que escriben `grupo_id`, en seis archivos, y todos
-     * pasan por el modelo: comprobado, los dos unicos `update()` masivos de
-     * `matriculas` tocan solo `fecha`. Repartido por los ocho, el que se olvide
-     * deja una asignacion sin copiar y nada falla hasta el paso siguiente.
-     *
-     * `saved` y no `saving`: hace falta el id de la fila, y al crear todavia no
-     * existe. Aqui `getOriginal()` sigue devolviendo lo de ANTES —Laravel
-     * dispara este evento antes de `syncOriginal()`— que es de lo que depende
-     * saber que grupo hay que soltar.
-     */
-    private function copiarElGrupo(): void
-    {
-        if ($this->grupo_id !== null) {
-            $this->grupos()->syncWithoutDetaching($this->grupo_id);
-        }
-    }
-
-    /**
-     * Suelta el grupo anterior y toma el nuevo, sin tocar los demas.
-     *
-     * `getOriginal()` sigue devolviendo lo de ANTES aqui: Laravel dispara
-     * `updated` antes de `syncOriginal()`. Es lo mismo de lo que ya depende el
-     * rastro de auditoria de mas arriba.
-     */
-    private function moverElGrupo(): void
-    {
-        if (! $this->wasChanged('grupo_id')) {
-            return;
-        }
-
-        $anterior = $this->getOriginal('grupo_id');
-
-        if ($anterior !== null) {
-            $this->grupos()->detach($anterior);
-        }
-
-        $this->copiarElGrupo();
     }
 
     /**
@@ -305,12 +216,6 @@ class Matricula extends Model
     public function promotoria(): BelongsTo
     {
         return $this->belongsTo(Promotoria::class);
-    }
-
-    /** @return BelongsTo<Grupo, $this> */
-    public function grupo(): BelongsTo
-    {
-        return $this->belongsTo(Grupo::class);
     }
 
     /**
@@ -583,17 +488,56 @@ class Matricula extends Model
             }
         }
 
-        // -- Coherencia del grupo --------------------------------------------
-        if ($this->grupo_id !== null) {
-            $grupo = $this->grupo ?? Grupo::find($this->grupo_id);
+        // La coherencia del GRUPO ya no se comprueba aqui: desde el 10/09/2026
+        // una matricula esta en varios y se reparte con `repartirEn()`, que es
+        // quien lleva esa regla. Aqui quedaria a medias — no hay un grupo
+        // «pendiente» en el modelo del que tirar.
+    }
 
-            // La FK de `grupo_id` es RESTRICT y los dos controladores que
-            // asignan grupo lo buscan antes acotado a la promotoria, asi que
-            // por ahi no llega un id muerto. Pero `validar()` es publica y esta
-            // era la unica rama que daba por hecho que la fila existe: sin
-            // esto, un id que no esta revienta con un Error fatal en vez de
-            // devolver el mensaje al formulario, que es justo lo que este
-            // metodo promete en su docblock.
+    /**
+     * Reparte esta matricula en los grupos dados. Es la unica forma de hacerlo.
+     *
+     * SUSTITUYE A `$matricula->grupo_id = ...`, que desaparecio con la columna
+     * el 10/09/2026. Recibe ids de grupo: una lista vacia la deja sin grupo, que
+     * es lo que hacen retirar y cancelar.
+     *
+     * ─── POR QUE LA REGLA VIVE AQUI Y NO EN `validar()` ────────────────────
+     *
+     * Porque con la columna habia un grupo «pendiente» en el modelo que
+     * `validar()` podia mirar antes de guardar, y con una tabla puente no lo
+     * hay: lo que se va a escribir es el argumento de este metodo. Partida en
+     * dos —comprobar en un sitio y escribir en otro— quedaria una ventana entre
+     * las dos, que es justo lo que no se quiere en un cupo.
+     *
+     * ─── LO QUE COMPRUEBA, y las dos cosas son de la base ───────────────────
+     *
+     * 1. Que cada grupo sea de la MISMA promotoria. Es una condicion entre dos
+     *    tablas y ningun CHECK de SQL puede consultar otra fila.
+     * 2. El CUPO de cada grupo, contando lo que ya hay dentro y excluyendose a
+     *    si misma. Ojo: se comprueba solo para los grupos en los que ENTRA. Un
+     *    grupo en el que ya estaba no se revisa, porque bajar un cupo por debajo
+     *    de lo ocupado es legitimo —el personal puede necesitarlo— y si se
+     *    revisara, nadie podria tocar a quien ya esta dentro. Es la misma
+     *    decision que ya tiene escrita el trigger de la promotoria.
+     *
+     * Va en una TRANSACCION: si el segundo grupo no cabe, no se queda dentro
+     * del primero. Todo o nada, como el reparto en lote del Panel.
+     *
+     * @param  list<int>  $gruposIds
+     *
+     * @throws ValidationException
+     */
+    public function repartirEn(array $gruposIds): void
+    {
+        $gruposIds = array_values(array_unique(array_map('intval', $gruposIds)));
+        $yaEstaba = $this->grupos()->pluck('grupos.id')->all();
+        $entra = array_diff($gruposIds, $yaEstaba);
+
+        $grupos = Grupo::whereIn('id', $gruposIds)->get()->keyBy('id');
+
+        foreach ($gruposIds as $id) {
+            $grupo = $grupos->get($id);
+
             if ($grupo === null) {
                 throw ValidationException::withMessages([
                     'grupo' => 'El grupo elegido ya no existe.',
@@ -606,25 +550,22 @@ class Matricula extends Model
                 ]);
             }
 
-            // SE LE PREGUNTA AL GRUPO, y no se repite la consulta aqui. Hasta
-            // el 10/09/2026 esta rama llevaba la suya, contando solo las
-            // ACTIVAS, mientras la pantalla y `Grupo::cuposDisponibles()`
-            // contaban tambien las cancelaciones en tramite. O sea que el
-            // numero que se pintaba y el que decidia eran distintos: un grupo de
-            // cupo 1 con su sitio ocupado por una cancelacion salia «1/1, lleno»
-            // y dejaba entrar a otro igual. La condicion vive ahora en un solo
-            // sitio, con el porque escrito ahi.
-            $ocupados = $grupo->ocupadosEn(
-                $this->periodo ?? Periodo::find($this->periodo_id),
-                $this->exists ? $this->id : null
-            );
+            if (! in_array($id, $entra, true)) {
+                continue;
+            }
 
-            if ($ocupados >= $grupo->cupo_maximo) {
+            $periodo = $this->periodo ?? Periodo::find($this->periodo_id);
+
+            if ($grupo->ocupadosEn($periodo, $this->id) >= $grupo->cupo_maximo) {
                 throw ValidationException::withMessages([
-                    'grupo' => 'El grupo no tiene cupos disponibles para este periodo.',
+                    'grupo' => "{$grupo->nombre} no tiene cupos disponibles para este periodo.",
                 ]);
             }
         }
+
+        DB::transaction(fn () => $this->grupos()->sync($gruposIds));
+
+        $this->unsetRelation('grupos');
     }
 
     // -----------------------------------------------------------------------
@@ -715,7 +656,7 @@ class Matricula extends Model
 
         $matriculas = static::query()
             ->where('estudiante_id', $perfil->id)
-            ->with(['periodo', 'promotoria.area', 'promotoria.profesor', 'grupo.sesiones'])
+            ->with(['periodo', 'promotoria.area', 'promotoria.profesor', 'grupos.sesiones'])
             ->join('periodos', 'periodos.id', '=', 'matriculas.periodo_id')
             ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
@@ -848,7 +789,9 @@ class Matricula extends Model
 
     public function __toString(): string
     {
-        $destino = $this->grupo ?? $this->promotoria;
+        // El primero de sus grupos, o la promotoria si no tiene ninguno. Con
+        // varios se nombra uno y no todos: esto sale en avisos de una linea.
+        $destino = $this->grupos->first() ?? $this->promotoria;
 
         return "{$this->estudiante->nombre_completo} -> {$destino}";
     }

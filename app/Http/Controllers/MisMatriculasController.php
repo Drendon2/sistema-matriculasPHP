@@ -69,7 +69,7 @@ class MisMatriculasController extends Controller
         if ($matricula->estado === Matricula::PENDIENTE) {
             $matricula->estado = Matricula::RETIRADA;
             $matricula->motivo_retiro = Matricula::RETIRO_PROPIO;
-            $matricula->grupo_id = null;
+            $matricula->repartirEn([]);
             $matricula->save();
 
             return $this->volver(

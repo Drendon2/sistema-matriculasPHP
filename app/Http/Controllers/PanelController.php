@@ -744,11 +744,12 @@ class PanelController extends Controller
             abort_if($grupo === null, 404);
         }
 
-        $matricula->grupo_id = $grupo?->id;
-
         try {
-            $matricula->validar();
-            $matricula->save();
+            // `repartirEn` y no una asignacion: la columna desaparecio el
+            // 10/09/2026 y una matricula puede estar en varios grupos. Una lista
+            // de uno REEMPLAZA lo que hubiera, que es lo que este boton siempre
+            // ha significado; una vacia la deja sin grupo.
+            $matricula->repartirEn($grupo === null ? [] : [$grupo->id]);
         } catch (ValidationException $e) {
             return $this->volver(implode(' ', Arr::flatten($e->errors())));
         }
@@ -815,13 +816,11 @@ class PanelController extends Controller
                 $asignadas = 0;
 
                 foreach ($matriculas as $matricula) {
-                    $matricula->grupo_id = $grupo->id;
-
                     try {
                         // La misma puerta que usa la asignacion de a uno: el
-                        // cupo del grupo lo decide `validar()`, y cuenta las que
-                        // ya se guardaron en este mismo bucle.
-                        $matricula->validar();
+                        // cupo del grupo lo decide `repartirEn()`, y cuenta las
+                        // que ya se repartieron en este mismo bucle.
+                        $matricula->repartirEn([$grupo->id]);
                     } catch (ValidationException $e) {
                         // Deshace el lote entero. La excepcion es el vehiculo
                         // del rollback y ademas se lleva el motivo REAL: antes
@@ -834,7 +833,9 @@ class PanelController extends Controller
                         );
                     }
 
-                    $matricula->save();
+                    // Sin `save()`: `repartirEn()` ya escribio. La matricula
+                    // en si no cambia al repartirla — lo que cambia es en que
+                    // grupos esta.
                     $asignadas++;
                 }
             });

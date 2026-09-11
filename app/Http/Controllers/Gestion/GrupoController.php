@@ -189,9 +189,8 @@ class GrupoController extends RecursoController
     {
         $grupo->load(['promotoria.area', 'sesiones']);
 
-        $matriculas = Matricula::query()
-            ->where('grupo_id', $grupo->id)
-            ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+        $matriculas = $grupo->matriculas()
+            ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
             ->with(['estudiante.datosEstudiante.acudiente'])
             ->get();
 

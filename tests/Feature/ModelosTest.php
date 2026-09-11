@@ -383,7 +383,7 @@ class ModelosTest extends TestCase
     }
 
     /**
-     * `validar()` es publica, y esta era la unica rama que daba por hecho que
+     * `repartirEn()` es publica, y esta era la unica rama que daba por hecho que
      * la fila existe.
      *
      * No se llega por los controladores —la FK es RESTRICT y los dos que
@@ -394,15 +394,14 @@ class ModelosTest extends TestCase
      */
     public function test_un_grupo_que_no_existe_da_mensaje_y_no_error_fatal(): void
     {
-        $matricula = new Matricula([
+        $matricula = Matricula::create([
             'estudiante_id' => $this->estudiante()->id,
             'promotoria_id' => $this->violin->id,
             'periodo_id' => $this->periodo->id,
-            'grupo_id' => 999999,
         ]);
 
         try {
-            $matricula->validar();
+            $matricula->repartirEn([999999]);
             $this->fail('Se esperaba una ValidationException.');
         } catch (ValidationException $e) {
             $this->assertSame(

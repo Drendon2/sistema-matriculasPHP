@@ -280,8 +280,7 @@ class HorarioTest extends TestCase
             'periodo_id' => $this->periodo->id,
             'estado' => Matricula::ACTIVA,
         ]);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $horario = HorarioSemanal::de($estudiante->refresh(), $this->periodo);
 
@@ -394,8 +393,7 @@ class HorarioTest extends TestCase
             'periodo_id' => $this->periodo->id,
             'estado' => Matricula::ACTIVA,
         ]);
-        $matricula->grupo_id = $grupo->id;
-        $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         $this->actingAs($estudiante->user)
             ->get(route('mi-perfil'))

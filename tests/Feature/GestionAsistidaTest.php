@@ -274,7 +274,6 @@ class GestionAsistidaTest extends TestCase
             'estudiante_id' => $estudiante->id,
             'promotoria_id' => $this->promotoria->id,
             'periodo_id' => Periodo::enCurso()->id,
-            'grupo_id' => $grupo->id,
             'estado' => Matricula::ACTIVA,
         ]);
         // La matricula tiene que ser ANTERIOR a la clase: `Clase::porConfirmar`
@@ -282,6 +281,7 @@ class GestionAsistidaTest extends TestCase
         // no encontraba ninguna que confirmar.
         $matricula->fecha = Carbon::now()->subWeek();
         $matricula->save();
+        $matricula->repartirEn([$grupo->id]);
 
         return Clase::create([
             'grupo_id' => $grupo->id,

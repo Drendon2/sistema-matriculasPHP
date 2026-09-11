@@ -189,11 +189,11 @@ class MisMatriculasTest extends TestCase
         ]);
 
         $matricula = $this->matricular($this->violin, Matricula::PENDIENTE);
-        $matricula->update(['grupo_id' => $grupo->id]);
+        $matricula->repartirEn([$grupo->id]);
 
         $this->actingAs($this->user)->post(route('mis-matriculas.retirar', $matricula));
 
-        $this->assertNull($matricula->fresh()->grupo_id);
+        $this->assertSame(0, $matricula->grupos()->count());
     }
 
     /** Retirarse SI libera la ranura: se puede entrar a otra en su lugar. */

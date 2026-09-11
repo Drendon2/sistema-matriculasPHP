@@ -19,7 +19,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -30,18 +29,14 @@ use Tests\TestCase;
  * distintas y se le pasa lista en las dos. Con `matriculas.grupo_id` —una sola
  * columna— no se puede ni escribir.
  *
- * ─── VA EN CUATRO PASOS, Y ESTE ARCHIVO CRECE CON ELLOS ─────────────────────
+ * ─── LA COLUMNA `matriculas.grupo_id` YA NO EXISTE ──────────────────────────
  *
- * 1. La tabla `asignaciones_grupo` y el volcado de lo que ya habia.
- * 2. La ESCRITURA DOBLE: lo que se guarda en la columna se copia a la tabla.
- *    Sin ella, el primer lector que se mueva se queda leyendo una copia que ya
- *    nadie actualiza — y no lo ve nadie, porque la pantalla sigue pintando
- *    algo, solo que lo de antes.
- * 3. Los LECTORES, uno a uno y con la suite verde en medio.
- * 4. Borrar la columna y con ella la escritura doble.
+ * Se llego aqui en cuatro pasos —la tabla, una escritura doble temporal, los
+ * lectores uno a uno, y borrar la columna—, y de esos solo queda el resultado.
+ * Las pruebas de la escritura doble se fueron con ella: probaban un andamio.
  *
- * Mientras 4 no llegue, LA COLUMNA MANDA y la tabla la sigue. Las pruebas de
- * cada paso van agrupadas y rotuladas mas abajo.
+ * Se reparte con `Matricula::repartirEn()`, que es la unica forma. Ahi vive
+ * tambien la regla del cupo de cada grupo.
  */
 class VariosGruposPorMatriculaTest extends TestCase
 {
@@ -149,143 +144,6 @@ class VariosGruposPorMatriculaTest extends TestCase
         $this->expectException(QueryException::class);
 
         $this->lunes->delete();
-    }
-
-    // --------------------------------------------------------------------
-    // La escritura doble (paso 2)
-    // --------------------------------------------------------------------
-
-    /*
-     * Mientras la columna y la tabla convivan, LA COLUMNA MANDA y la tabla la
-     * sigue. Sin esto, el primer lector que se mueva a la tabla se queda
-     * leyendo una copia que ya nadie actualiza — y no lo ve nadie, porque la
-     * pantalla sigue pintando algo, solo que lo de antes.
-     */
-
-    /** Nacer con grupo deja ya su fila en la puente. */
-    public function test_crear_con_grupo_escribe_en_la_puente(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $nueva = Matricula::create([
-            'estudiante_id' => $matricula->estudiante_id,
-            'promotoria_id' => $this->otraPromotoria()->id,
-            'periodo_id' => $this->periodo->id,
-            'grupo_id' => $this->grupoDeLaOtra()->id,
-            'fecha' => Carbon::now(),
-            'estado' => Matricula::ACTIVA,
-        ]);
-
-        $this->assertSame([$this->grupoDeLaOtra()->id], $nueva->grupos()->pluck('grupos.id')->all());
-    }
-
-    /** Asignar grupo por la columna escribe en la puente. */
-    public function test_asignar_grupo_escribe_en_la_puente(): void
-    {
-        $matricula = $this->matricula('ana');
-
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $this->assertSame([$this->lunes->id], $matricula->grupos()->pluck('grupos.id')->all());
-    }
-
-    /** Cambiar de grupo MUEVE la fila: no deja la vieja detrás. */
-    public function test_cambiar_de_grupo_suelta_el_anterior(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $matricula->grupo_id = $this->miercoles->id;
-        $matricula->save();
-
-        $this->assertSame([$this->miercoles->id], $matricula->grupos()->pluck('grupos.id')->all());
-    }
-
-    /** Y quitarle el grupo la borra: es lo que hacen retirar y cancelar. */
-    public function test_quitar_el_grupo_borra_la_fila(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $matricula->grupo_id = null;
-        $matricula->save();
-
-        $this->assertSame(0, $matricula->grupos()->count());
-    }
-
-    /**
-     * CAMBIAR EL GRUPO DE LA COLUMNA NO SE LLEVA LOS DEMAS.
-     *
-     * Es la prueba que sostiene todo el paso 2. Lo obvio en el gancho seria un
-     * `sync([$this->grupo_id])`, y eso borraria exactamente aquello para lo que
-     * se esta haciendo todo esto: a quien esta en dos grupos, moverle el de la
-     * columna le dejaria SOLO ese. Sin fallar y sin avisar, porque la columna
-     * solo sabe de uno.
-     *
-     * OJO CON COMO SE ESCRIBE, que la primera version no probaba nada: hay que
-     * CAMBIAR `grupo_id`, no guardar cualquier otra cosa. Un guardado que no
-     * toca el grupo sale por el `wasChanged` de arriba y no llega nunca al
-     * `sync`, asi que la prueba pasaba en verde con el fallo puesto —
-     * comprobado. El caso que importa es el reparto: mover a alguien de
-     * horario.
-     */
-    public function test_cambiar_el_grupo_de_la_columna_no_borra_los_demas(): void
-    {
-        $viernes = $this->grupo('Viernes tarde');
-
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        // El segundo grupo solo existe en la puente: la columna no puede con el.
-        $matricula->grupos()->syncWithoutDetaching($this->miercoles->id);
-
-        // La mueven del lunes al viernes. El miercoles no se toca.
-        $matricula->grupo_id = $viernes->id;
-        $matricula->save();
-
-        $this->assertSame(
-            [$this->miercoles->id, $viernes->id],
-            $matricula->grupos()->pluck('grupos.id')->sort()->values()->all(),
-            'mover el grupo de la columna se llevo por delante el otro.'
-        );
-    }
-
-    /** Y guardar sin tocar el grupo tampoco, que es el otro camino. */
-    public function test_guardar_sin_tocar_el_grupo_no_borra_los_demas(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $matricula->grupos()->syncWithoutDetaching($this->miercoles->id);
-
-        $matricula->estado = Matricula::CANCELACION_SOLICITADA;
-        $matricula->save();
-
-        $this->assertSame(2, $matricula->grupos()->count());
-    }
-
-    /** Un guardado que no toca el grupo no reescribe nada. */
-    public function test_guardar_sin_tocar_el_grupo_deja_la_puente_igual(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        $antes = DB::table('asignaciones_grupo')->where('matricula_id', $matricula->id)->first();
-
-        $matricula->estado = Matricula::CANCELACION_SOLICITADA;
-        $matricula->save();
-
-        $despues = DB::table('asignaciones_grupo')->where('matricula_id', $matricula->id)->first();
-
-        $this->assertSame($antes->id, $despues->id, 'reescribio la fila sin necesidad.');
     }
 
     // --------------------------------------------------------------------
@@ -658,109 +516,6 @@ class VariosGruposPorMatriculaTest extends TestCase
         $this->assertTrue(
             Dependencias::estaBloqueado($this->miercoles),
             'el grupo se pinta como borrable con gente dentro.'
-        );
-    }
-
-    // --------------------------------------------------------------------
-    // El volcado
-    // --------------------------------------------------------------------
-
-    /**
-     * LA MIGRACION COPIA LO QUE YA HABIA, Y SE PUEDE REPETIR.
-     *
-     * Las dos mitades importan. La primera porque el dia que corra en
-     * produccion hay ~1.148 matriculas cuyo grupo no se puede perder. La
-     * segunda porque la columna SIGUE siendo la que manda hasta que se borre:
-     * entre esta migracion y aquella se van a seguir asignando grupos, asi que
-     * el volcado tendra que correr otra vez, y repetirlo no puede duplicar
-     * nada.
-     *
-     * Se prueba llamando a la sentencia real de la migracion y no a una copia
-     * escrita aqui: una copia probaria que la copia funciona.
-     */
-    public function test_el_volcado_copia_lo_que_hay_y_se_puede_repetir(): void
-    {
-        $this->assertTrue(
-            Schema::hasColumn('matriculas', 'grupo_id'),
-            'la prueba no vale: la columna ya no existe y no hay nada que volcar.'
-        );
-
-        $conGrupo = $this->matricula('ana');
-        $conGrupo->grupo_id = $this->lunes->id;
-        $conGrupo->save();
-
-        $sinGrupo = $this->matricula('beto');
-
-        // La tabla arranca vacia: estas filas se escribieron DESPUES de migrar.
-        DB::table('asignaciones_grupo')->delete();
-
-        $this->volcar();
-
-        $this->assertSame(1, DB::table('asignaciones_grupo')->count(), 'no copio la que tenia grupo.');
-        $this->assertDatabaseHas('asignaciones_grupo', [
-            'matricula_id' => $conGrupo->id,
-            'grupo_id' => $this->lunes->id,
-        ]);
-        $this->assertDatabaseMissing('asignaciones_grupo', ['matricula_id' => $sinGrupo->id]);
-
-        // Y otra vez, que es lo que hara la migracion que borre la columna.
-        $this->volcar();
-
-        $this->assertSame(1, DB::table('asignaciones_grupo')->count(), 'repetirlo duplico la fila.');
-    }
-
-    /** El volcado respeta lo que ya se hubiera asignado a mano por la puente. */
-    public function test_el_volcado_no_pisa_las_asignaciones_que_ya_estaban(): void
-    {
-        $matricula = $this->matricula('ana');
-        $matricula->grupo_id = $this->lunes->id;
-        $matricula->save();
-
-        // Alguien la mando ademas al miercoles: eso solo vive en la puente.
-        $matricula->grupos()->syncWithoutDetaching($this->miercoles->id);
-
-        $this->volcar();
-
-        $this->assertSame(
-            2,
-            $matricula->fresh()->grupos()->count(),
-            'el volcado se llevo por delante el grupo que no estaba en la columna.'
-        );
-    }
-
-    /**
-     * La sentencia REAL de la migracion, sacada del archivo.
-     *
-     * Se lee del disco a proposito: escrita aqui a mano, esta prueba seguiria
-     * verde el dia que alguien cambie la de la migracion y la rompa.
-     */
-    private function volcar(): void
-    {
-        $archivo = database_path(
-            'migrations/2026_09_10_100000_una_matricula_puede_ir_a_varios_grupos.php'
-        );
-
-        $migracion = require $archivo;
-
-        $metodo = new \ReflectionMethod($migracion, 'volcarDesdeLaColumna');
-        $metodo->invoke($migracion);
-    }
-
-    // --------------------------------------------------------------------
-
-    private function otraPromotoria(): Promotoria
-    {
-        return Promotoria::firstOrCreate(
-            ['nombre' => 'Piano'],
-            ['area_id' => $this->violin->area_id]
-        );
-    }
-
-    private function grupoDeLaOtra(): Grupo
-    {
-        return Grupo::firstOrCreate(
-            ['promotoria_id' => $this->otraPromotoria()->id, 'nombre' => 'Jueves'],
-            ['nivel' => 'basico', 'salon' => 'B2', 'cupo_maximo' => 10]
         );
     }
 

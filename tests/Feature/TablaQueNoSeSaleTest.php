@@ -319,10 +319,13 @@ class TablaQueNoSeSaleTest extends TestCase
             'estudiante_id' => $estudiante->id,
             'promotoria_id' => $promotoria->id,
             'periodo_id' => $periodo->id,
-            'grupo_id' => $grupo?->id,
             'estado' => $estado,
         ]);
         $matricula->save();
+
+        if ($grupo !== null) {
+            $matricula->repartirEn([$grupo->id]);
+        }
     }
 
     private function perfil(string $username, string $rol): Perfil

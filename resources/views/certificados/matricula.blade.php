@@ -158,13 +158,24 @@
       <th>Área</th>
       <td>{{ $matricula->promotoria->area->nombre }}</td>
     </tr>
-    @if ($matricula->grupo)
+    {{--
+      Una fila por grupo: desde el 10/09/2026 una matrícula puede estar en
+      varios de la misma promotoría —quien va el lunes y el miércoles— y el
+      certificado tiene que acreditar los dos horarios, no uno.
+
+      El rótulo dice «Grupo» o «Grupos» según cuántos haya. Un papel que diga
+      «Grupo» y liste dos se lee como un error del sistema.
+    --}}
+    @if ($matricula->grupos->isNotEmpty())
     <tr>
-      <th>Grupo</th>
+      <th>{{ $matricula->grupos->count() === 1 ? 'Grupo' : 'Grupos' }}</th>
       <td>
-        {{ $matricula->grupo->nombre_con_nivel }}
-        @if ($matricula->grupo->horario) — {{ $matricula->grupo->horario }} @endif
-        @if ($matricula->grupo->salon) — {{ $matricula->grupo->salon }} @endif
+        @foreach ($matricula->grupos as $g)
+          {{ $g->nombre_con_nivel }}
+          @if ($g->horario) — {{ $g->horario }} @endif
+          @if ($g->salon) — {{ $g->salon }} @endif
+          @if (! $loop->last)<br>@endif
+        @endforeach
       </td>
     </tr>
     @endif
@@ -199,9 +210,12 @@
         <td>{{ $matricula->promotoria->nombre }}</td>
         <td>{{ $matricula->promotoria->area->nombre }}</td>
         <td>
-          @if ($matricula->grupo)
-            {{ $matricula->grupo->nombre_con_nivel }}
-            @if ($matricula->grupo->horario) — {{ $matricula->grupo->horario }} @endif
+          @if ($matricula->grupos->isNotEmpty())
+            @foreach ($matricula->grupos as $g)
+              {{ $g->nombre_con_nivel }}
+              @if ($g->horario) — {{ $g->horario }} @endif
+              @if (! $loop->last)<br>@endif
+            @endforeach
           @else
             Sin grupo asignado
           @endif

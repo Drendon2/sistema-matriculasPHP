@@ -134,7 +134,7 @@ class CatalogoTest extends TestCase
 
         $matricula = Matricula::first();
         $this->assertSame(Matricula::PENDIENTE, $matricula->estado);
-        $this->assertNull($matricula->grupo_id);
+        $this->assertSame(0, $matricula->grupos()->count());
     }
 
     public function test_con_matriculas_cerradas_no_se_matricula(): void

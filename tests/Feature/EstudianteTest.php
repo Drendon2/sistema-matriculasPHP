@@ -144,8 +144,7 @@ class EstudianteTest extends TestCase
         $matricula->save();
 
         if ($grupo !== null) {
-            $matricula->grupo_id = $grupo->id;
-            $matricula->save();
+            $matricula->repartirEn([$grupo->id]);
         }
 
         return $matricula;

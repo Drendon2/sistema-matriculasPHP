@@ -458,13 +458,19 @@ class Simular extends Command
                 // alguno: repartir es lo que hace quien dicta despues de
                 // confirmar.
                 $suyos = $grupos[$promotoria->id] ?? [];
-
-                if (in_array($estado, Matricula::ESTADOS_INSCRITO, true) && $suyos !== [] && $this->suerte() < 0.8) {
-                    $matricula->grupo_id = $this->deEntre($suyos)->id;
-                }
+                $suGrupo = in_array($estado, Matricula::ESTADOS_INSCRITO, true)
+                    && $suyos !== [] && $this->suerte() < 0.8
+                        ? $this->deEntre($suyos)->id
+                        : null;
 
                 try {
                     $matricula->save();
+
+                    // Repartir va DESPUES de guardar: la puente cuelga del id de
+                    // la matricula, que al crear todavia no existe.
+                    if ($suGrupo !== null) {
+                        $matricula->repartirEn([$suGrupo]);
+                    }
                 } catch (\Throwable) {
                     // El cupo del grupo o la ranura pueden rechazar una: es el
                     // sistema haciendo su trabajo, no un fallo de la siembra.
@@ -621,9 +627,9 @@ class Simular extends Command
                 continue;
             }
 
-            $inscritos = Matricula::where('grupo_id', $grupo->id)
-                ->where('periodo_id', $periodo->id)
-                ->whereIn('estado', Matricula::ESTADOS_INSCRITO)
+            $inscritos = $grupo->matriculas()
+                ->where('matriculas.periodo_id', $periodo->id)
+                ->whereIn('matriculas.estado', Matricula::ESTADOS_INSCRITO)
                 ->get();
 
             if ($inscritos->isEmpty()) {

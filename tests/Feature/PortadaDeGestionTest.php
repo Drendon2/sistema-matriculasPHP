@@ -269,10 +269,13 @@ class PortadaDeGestionTest extends TestCase
             'estudiante_id' => $estudiante->id,
             'promotoria_id' => $this->promotoria->id,
             'periodo_id' => $this->periodo->id,
-            'grupo_id' => $grupo?->id,
             'estado' => Matricula::ACTIVA,
         ]);
         $matricula->save();
+
+        if ($grupo !== null) {
+            $matricula->repartirEn([$grupo->id]);
+        }
 
         return $matricula;
     }
