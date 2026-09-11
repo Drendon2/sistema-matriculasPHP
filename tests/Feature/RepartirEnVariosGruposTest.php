@@ -171,6 +171,75 @@ class RepartirEnVariosGruposTest extends TestCase
     }
 
     // --------------------------------------------------------------------
+    // Cuando sale el enlace, y como se llama
+    // --------------------------------------------------------------------
+
+    /**
+     * CON UN SOLO GRUPO EL ENLACE NO SALE.
+     *
+     * No hay nada que elegir: el modal enseñaria una casilla que hace lo mismo
+     * que el boton de al lado. Medido el 10/09/2026: de las catorce promotorias
+     * con grupos, SIETE tienen uno solo — sin esto el enlace seria ruido en la
+     * mitad de las pantallas.
+     */
+    public function test_con_un_solo_grupo_no_sale_el_enlace(): void
+    {
+        $this->miercoles->delete();
+
+        $ana = $this->matricula('ana');
+        $ana->repartirEn([$this->lunes->id]);
+
+        $html = $this->cuerpoDelPanel();
+
+        // Se afirma sobre el RÓTULO y no sobre la URL: «Quitar de este grupo»
+        // postea a esa misma ruta —GET y POST comparten camino— asi que buscar
+        // la URL la encuentra siempre y la prueba no probaria nada.
+        $this->assertStringNotContainsString(
+            'Agregar a más grupos',
+            $html,
+            'ofrece repartir en varios grupos donde solo hay uno.'
+        );
+    }
+
+    /** Con dos o mas si, y con un rotulo que dice que hace. */
+    public function test_con_dos_grupos_sale_el_enlace_y_dice_que_hace(): void
+    {
+        $ana = $this->matricula('ana');
+        $ana->repartirEn([$this->lunes->id]);
+
+        $html = $this->cuerpoDelPanel();
+
+        $this->assertStringContainsString('Agregar a más grupos', $html);
+        $this->assertStringContainsString(route('panel-grupos', $ana), $html);
+    }
+
+    /**
+     * Y el modal dice que desmarcar SACA del grupo.
+     *
+     * Se llega a el desde un enlace que dice «Agregar», asi que quitar no se
+     * espera — y desmarcar es justo lo que lo hace. Sin esa frase, quien quiere
+     * sacar a alguien de un horario no sabe que esta es la pantalla.
+     */
+    public function test_el_modal_dice_que_desmarcar_saca_del_grupo(): void
+    {
+        $ana = $this->matricula('ana');
+
+        $html = $this->actingAs($this->profesor->user)
+            ->get(route('panel-grupos', $ana))->assertOk()->getContent();
+
+        $this->assertStringContainsString('lo sacas de ese grupo', $html);
+    }
+
+    /** El cuerpo del Panel para Violin, tal como lo ve su profesor. */
+    private function cuerpoDelPanel(): string
+    {
+        return $this->actingAs($this->profesor->user)
+            ->get(route('panel-promotoria-cuerpo', $this->violin))
+            ->assertOk()
+            ->getContent();
+    }
+
+    // --------------------------------------------------------------------
     // Las puertas
     // --------------------------------------------------------------------
 

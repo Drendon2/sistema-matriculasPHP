@@ -273,8 +273,19 @@
             `<select multiple>` sube la fila de 68 a 136 px en escritorio, y en
             escritorio se maneja con ctrl+clic — un clic normal borra la
             selección anterior.
+
+            SOLO SI HAY MÁS DE UN GRUPO, y eso no es un detalle: con uno solo el
+            modal enseñaría una casilla que hace lo mismo que el botón de al
+            lado. Medido el 10/09: de las catorce promotorías con grupos, SIETE
+            tienen uno solo — o sea que sin esta condición el enlace sería ruido
+            en la mitad de las pantallas.
+
+            El rótulo lleva VERBO, como su vecino, y en plural: decía «Grupos», y
+            un sustantivo nombra una cosa en vez de decir qué pasa al pulsarlo.
           --}}
-          <a href="{{ route('panel-grupos', $e['matricula']) }}" data-modal>Grupos</a>
+          @if (count($item['grupos']) > 1)
+            <a href="{{ route('panel-grupos', $e['matricula']) }}" data-modal>Agregar a más grupos</a>
+          @endif
           </span>
         </td>
         @endif

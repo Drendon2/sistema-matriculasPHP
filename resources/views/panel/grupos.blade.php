@@ -20,9 +20,18 @@
 <div class="card" data-modal-cuerpo style="max-width:520px;">
   <h2 style="margin-top:0;">Grupos de {{ $matricula->estudiante->nombre_completo }}</h2>
 
+  {{--
+    Dice las DOS direcciones a propósito. Al modal se llega desde un enlace que
+    dice «Agregar a más grupos», así que quitar no se espera — y desmarcar es
+    justo lo que lo hace. Sin esta frase, quien quiere sacar a alguien de un
+    horario no sabe que esta es la pantalla.
+
+    «Grupos» y no «horarios»: en este sistema «horario» ya significa otra cosa
+    —la rejilla semanal de «Mi horario»— y cada línea de abajo ya trae el suyo.
+  --}}
   <p class="campo-ayuda">
-    {{ $matricula->promotoria->nombre }} · Marca los horarios a los que asiste.
-    Puede ir a más de uno.
+    {{ $matricula->promotoria->nombre }} · Marca los grupos a los que asiste;
+    puede ir a más de uno. Si desmarcas uno, lo sacas de ese grupo.
   </p>
 
   @if ($grupos === [])
