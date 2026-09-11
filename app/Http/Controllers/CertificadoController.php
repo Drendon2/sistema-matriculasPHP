@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Actividad;
 use App\Models\ConfiguracionInstitucion;
+use App\Models\InscritoActividad;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\AsistenciaDeActividad;
 use App\Support\Imagen;
 use App\Support\Permisos;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -112,6 +115,110 @@ class CertificadoController extends Controller
             $periodo,
             false
         );
+    }
+
+    /**
+     * El certificado de asistencia a un curso o un taller.
+     *
+     * ES OTRO DOCUMENTO, no el de matricula con otro titulo, y la diferencia no
+     * es de forma sino de QUE ACREDITA. El de matricula dice que alguien esta
+     * inscrito: se apoya en la matricula, que alguien confirmo. Aqui no hay
+     * matricula —a una actividad se entra por un enlace, sin cuenta— asi que lo
+     * unico que puede sostener un papel es la lista que paso quien la dicto. Por
+     * eso este certifica ASISTENCIA y exige el 80%, y el otro no exige ninguna.
+     *
+     * SOLO CURSOS Y TALLERES, decidido el 11/09/2026 con la alternativa
+     * delante. Un grupo de proyeccion tiene ensayos y lista igual que un curso,
+     * pero no es lo que se pidio. El corte va aqui y por TIPO, no por si tiene
+     * fechas: `TIPOS_CON_FECHAS` es la misma pareja y ya significa «los que se
+     * administran juntos en Cursos y talleres».
+     *
+     * QUIEN LO SACA es el responsable, un administrador o el director —
+     * `puedeVerActividad`, la misma puerta que abre esta pantalla—. El propio
+     * inscrito no: no tiene cuenta con la que entrar, que es justamente lo que
+     * distingue una actividad de una matricula.
+     */
+    public function actividad(Request $request, Actividad $actividad, InscritoActividad $inscrito): Response
+    {
+        // Sin `@var` a proposito, al contrario que los otros dos metodos: aqui
+        // el nulo se comprueba de verdad justo debajo, porque
+        // `puedeVerActividad()` exige un Perfil y no acepta null.
+        $solicitante = $request->user()?->perfil;
+
+        // 404 y no 403, igual que los otros dos: que exista o no esta actividad
+        // tampoco es asunto de quien pregunta.
+        abort_unless($solicitante !== null && Permisos::puedeVerActividad($solicitante, $actividad), 404);
+        abort_unless($actividad->llevaFechas(), 404, 'Solo los cursos y talleres dan certificado.');
+
+        // El enlace no se pinta para quien no llega al minimo, y aun asi se
+        // comprueba aqui: esconder el boton no cierra la URL, y este papel
+        // afirma algo que tiene que ser verdad fuera de casa.
+        $asistencia = AsistenciaDeActividad::deInscrito($inscrito);
+
+        if (! $asistencia['certificable']) {
+            return redirect()
+                ->back(fallback: route('panel-actividad', $actividad))
+                ->with('error', $this->porQueNoSeCertifica($inscrito, $actividad, $asistencia));
+        }
+
+        $institucion = ConfiguracionInstitucion::actual();
+
+        $pdf = Pdf::loadView('certificados.actividad', [
+            'institucion' => $institucion,
+            'actividad' => $actividad,
+            'inscrito' => $inscrito,
+            'asistencia' => $asistencia,
+            // Las fechas solo salen si hubo MAS DE UNA sesion, que es lo que se
+            // pidio: en un taller de un dia, «del 3 de marzo al 3 de marzo» es
+            // ruido que ademas ya dice la linea de al lado.
+            'fechas' => $asistencia['sesiones'] > 1
+                ? AsistenciaDeActividad::fechasDictadas($actividad->id)
+                : null,
+            'expedido' => now(),
+            'logo' => $this->logo($institucion),
+            'firma' => $this->incrustar($institucion->firma),
+        ])->setPaper('letter', 'landscape');
+
+        // HORIZONTAL y carta, pedido asi el 11/09. Carta por lo mismo que el de
+        // matricula —es el papel de oficina en Colombia— y horizontal porque es
+        // la forma en que se enmarca un diploma. Lo que cuesta esa vuelta esta
+        // medido en `CertificadoDeActividadTest`: el ancho pasa de 792 a 1008 pt
+        // y el ALTO disponible baja de 792 a 612, que es la mitad que importa.
+
+        return $pdf->download($this->nombreDeCertificadoDeActividad($actividad, $inscrito));
+    }
+
+    /**
+     * Por que esta persona no tiene papel, dicho con los numeros delante.
+     *
+     * Los dos casos se leen distinto y mandan a sitios distintos: sin ninguna
+     * lista tomada el trabajo es de quien dicta, y con listas tomadas no hay
+     * nada que hacer. Un «no se puede» a secas deja a quien lo lee sin saber
+     * cual de los dos es.
+     *
+     * @param  array{sesiones: int, asistidas: int, porcentaje: int, certificable: bool}  $asistencia
+     */
+    private function porQueNoSeCertifica(InscritoActividad $inscrito, Actividad $actividad, array $asistencia): string
+    {
+        if ($asistencia['sesiones'] === 0) {
+            return 'Todavía no se ha pasado lista en ninguna '.$actividad->etiquetaSesion()
+                .' de «'.$actividad->nombre.'», así que no hay asistencia que certificar.';
+        }
+
+        $minimo = (int) (AsistenciaDeActividad::MINIMO * 100);
+
+        return $inscrito->nombre_completo.' asistió a '.$asistencia['asistidas'].' de '
+            .$asistencia['sesiones'].' ('.$asistencia['porcentaje'].'%), y el certificado pide al menos el '
+            .$minimo.'%.';
+    }
+
+    private function nombreDeCertificadoDeActividad(Actividad $actividad, InscritoActividad $inscrito): string
+    {
+        return implode('-', [
+            'certificado',
+            Str::slug($actividad->nombre),
+            Str::slug($inscrito->nombre_completo),
+        ]).'.pdf';
     }
 
     /**

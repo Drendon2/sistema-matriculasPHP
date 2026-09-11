@@ -139,19 +139,32 @@
   @if ($inscritos->isEmpty())
     <p class="vacio">Todavía no se ha inscrito nadie por el enlace.</p>
   @else
-  <table>
+  {{--
+    `.tabla-personas` desde el 11/09/2026, cuando esta tabla ganó una acción:
+    bajo 640px cada fila se vuelve ficha. Es una lista de registros y no una
+    rejilla —la posición de la celda no es el dato— y sin esto el botón de
+    «Certificado» quedaba al otro lado de un arrastre horizontal en el teléfono,
+    que es donde se usa casi todo esto. Es la trampa que este proyecto ya pagó
+    dos veces.
+  --}}
+  <table class="tabla-personas tabla-catalogo">
     <thead>
       <tr>
         <th>Nombre</th>
         <th class="num">Edad</th>
         <th>Teléfono</th>
         <th>Correo</th>
+        <th>Asistencia</th>
+        @if ($actividad->llevaFechas())
+        <th></th>
+        @endif
       </tr>
     </thead>
     <tbody>
       @foreach ($inscritos as $inscrito)
+      @php($suya = $asistencias[$inscrito->id] ?? ['sesiones' => 0, 'asistidas' => 0, 'porcentaje' => 0, 'certificable' => false])
       <tr>
-        <td>
+        <td data-celda="detalle">
           {{ $inscrito->nombre_completo }}
           {{--
             Quien además es estudiante de la casa. Se sabe porque el documento
@@ -162,15 +175,41 @@
             <span class="campo-info" style="margin:0;display:block;">Estudiante de la institución</span>
           @endif
         </td>
-        <td class="num">
+        <td class="num" data-label="Edad">
           @if ($inscrito->fecha_nacimiento)
             {{ \App\Models\Perfil::edadDe($inscrito->fecha_nacimiento) }}
           @else
             <span class="vacio">—</span>
           @endif
         </td>
-        <td>{{ $inscrito->telefono ?: '—' }}</td>
-        <td>{{ $inscrito->correo ?: '—' }}</td>
+        <td data-label="Teléfono">{{ $inscrito->telefono ?: '—' }}</td>
+        <td data-label="Correo">{{ $inscrito->correo ?: '—' }}</td>
+        <td data-label="Asistencia">
+          @if ($suya['sesiones'] === 0)
+            {{-- Sin lista tomada no hay cifra que dar, y un «0%» diría de cada
+                 inscrito algo falso: que no fue, cuando lo que pasa es que
+                 todavía nadie ha pasado lista. --}}
+            <span class="vacio">Sin lista tomada</span>
+          @else
+            {{ $suya['asistidas'] }} de {{ $suya['sesiones'] }}
+            <span class="lista-nota">({{ $suya['porcentaje'] }}%)</span>
+          @endif
+        </td>
+        @if ($actividad->llevaFechas())
+        {{--
+          `data-celda="accion"` y no `data-label`: en la ficha del teléfono esto
+          no es un dato con rótulo, es lo que se pulsa. Y cuando no se puede, el
+          renglón dice POR QUÉ en vez de quedarse vacío — si no, quien mira una
+          fila sin botón no sabe si le falta asistencia o si el sistema falló.
+        --}}
+        <td data-celda="accion" class="lista-acciones">
+          @if ($suya['certificable'])
+            <a class="btn btn-sm" href="{{ route('certificado-actividad', [$actividad, $inscrito]) }}">Certificado</a>
+          @elseif ($suya['sesiones'] > 0)
+            <span class="lista-nota">Menos del {{ $minimoCertificado }}%</span>
+          @endif
+        </td>
+        @endif
       </tr>
       @endforeach
     </tbody>

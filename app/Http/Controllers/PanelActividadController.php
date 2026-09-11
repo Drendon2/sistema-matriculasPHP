@@ -7,6 +7,7 @@ use App\Models\AsistenciaActividad;
 use App\Models\InscritoActividad;
 use App\Models\Perfil;
 use App\Models\SesionActividad;
+use App\Support\AsistenciaDeActividad;
 use App\Support\PaseDeLista;
 use App\Support\Permisos;
 use App\Support\Reglas;
@@ -102,6 +103,15 @@ class PanelActividadController extends Controller
             // en solo lectura. La plantilla necesita saberlo para no pintar un
             // boton que al pulsarlo rebota.
             'dirige' => Permisos::dirigeLaActividad($perfil, $actividad),
+            // Cuanto asistio cada uno, para el certificado. En DOS consultas
+            // fijas y no una por fila: esta tabla pagina de cincuenta.
+            //
+            // Se calcula tambien para un grupo de proyeccion, donde no hay
+            // certificado: la cifra informa igual —«asistio a 12 de 15»— y
+            // quien decide si hay papel es la plantilla mirando el tipo. Al
+            // reves habria que acordarse de dos cosas en dos sitios.
+            'asistencias' => AsistenciaDeActividad::deActividad($actividad),
+            'minimoCertificado' => (int) (AsistenciaDeActividad::MINIMO * 100),
         ]);
     }
 

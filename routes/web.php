@@ -318,6 +318,19 @@ Route::get('/certificado/estudiante/{estudiante}', [CertificadoController::class
     ->middleware('auth')
     ->name('certificado-todo');
 
+// El de asistencia a un curso o taller. Va aqui y no con las rutas del Panel
+// porque es un certificado y comparte controlador —y con el, el membrete y la
+// firma—, no porque se parezca a pasar lista.
+//
+// `scopeBindings()` es lo que ata el inscrito a SU actividad: sin el, el id de
+// un inscrito de otro curso se resolveria igual y saldria un papel con el
+// nombre de una persona que no estuvo en el que se esta certificando. El
+// permiso no lo veria, porque el permiso mira la ACTIVIDAD y esa si seria suya.
+Route::get('/certificado/actividad/{actividad}/{inscrito}', [CertificadoController::class, 'actividad'])
+    ->middleware('auth')
+    ->scopeBindings()
+    ->name('certificado-actividad');
+
 // ---------------------------------------------------------------------------
 // La autorizacion de tratamiento de datos y uso de imagen
 // ---------------------------------------------------------------------------
