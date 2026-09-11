@@ -190,11 +190,24 @@
     departamento entero y devolvería a quien está resolviendo veinte seguidas al
     principio de todo.
   --}}
+  {{--
+    LA PROMOTORÍA QUE SE PIDE ABIERTA, y su departamento con ella.
+
+    Sirve para volver de una pantalla que se abrió desde aquí —crear o editar un
+    grupo— sin que el Panel reaparezca cerrado y haya que buscar otra vez dónde
+    se estaba. Antes volvía plegado del todo y lo primero que tocaba hacer era
+    deshacer el camino.
+
+    El departamento se abre TAMBIÉN: sin eso la promotoría queda abierta dentro
+    de un plegado cerrado, o sea invisible, que es peor que dejarla cerrada
+    porque parece que la orden no se obedeció.
+  --}}
+  @php($abrir = (int) request('abrir'))
   @php($unSoloDepartamento = $porDepartamento->count() === 1)
   @foreach ($porDepartamento as $departamento => $delDepartamento)
   @php($pendientesDelDepartamento = $delDepartamento->sum(fn ($p) => $pendientes[$p->id] ?? 0))
   <details class="panel-departamento" id="departamento-{{ \Illuminate\Support\Str::slug($departamento) }}"
-           @if ($unSoloDepartamento) open @endif>
+           @if ($unSoloDepartamento || $delDepartamento->contains('id', $abrir)) open @endif>
     <summary class="panel-departamento-resumen">
       <span class="tag-dot {{ $delDepartamento->first()->area->tag_color }}"></span>{{ $departamento }}
       <span class="panel-departamento-cuenta">
@@ -220,7 +233,8 @@
     así que la pantalla no deja de funcionar, solo deja de ser cómoda.
   --}}
   <details class="panel-item" id="promotoria-{{ $promotoria->id }}"
-           data-cuerpo="{{ route('panel-promotoria-cuerpo', $promotoria) }}">
+           data-cuerpo="{{ route('panel-promotoria-cuerpo', $promotoria) }}"
+           @if ($promotoria->id === $abrir) open @endif>
     <summary class="panel-item-resumen">
       {{--
         El departamento YA NO se repite aquí: lo dice el <summary> del grupo que

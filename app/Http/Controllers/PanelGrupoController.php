@@ -62,7 +62,7 @@ class PanelGrupoController extends Controller
 
         HorarioDeGrupo::guardar($grupo, $sesiones);
 
-        return $this->alPanel('Grupo creado.', exito: true);
+        return $this->alPanel('Grupo creado.', exito: true, promotoria: $promotoria);
     }
 
     public function editar(Request $request, Grupo $grupo): View|RedirectResponse
@@ -100,7 +100,7 @@ class PanelGrupoController extends Controller
 
         HorarioDeGrupo::guardar($grupo, $sesiones);
 
-        return $this->alPanel('Grupo actualizado.', exito: true);
+        return $this->alPanel('Grupo actualizado.', exito: true, promotoria: $grupo->promotoria);
     }
 
     /**
@@ -120,6 +120,10 @@ class PanelGrupoController extends Controller
             return $this->alPanel('No tienes acceso a esta promotoría.');
         }
 
+        // Se guarda ANTES de borrar: despues, `$grupo->promotoria` es una
+        // consulta a una fila que ya no tiene de quien colgar.
+        $promotoria = $grupo->promotoria;
+
         try {
             $grupo->delete();
         } catch (QueryException $e) {
@@ -128,11 +132,12 @@ class PanelGrupoController extends Controller
             }
 
             return $this->alPanel(
-                'No se puede eliminar: hay estudiantes con matrícula asignada a este grupo.'
+                'No se puede eliminar: hay estudiantes con matrícula asignada a este grupo.',
+                promotoria: $promotoria,
             );
         }
 
-        return $this->alPanel('Grupo eliminado.', exito: true);
+        return $this->alPanel('Grupo eliminado.', exito: true, promotoria: $promotoria);
     }
 
     /**
@@ -165,9 +170,24 @@ class PanelGrupoController extends Controller
         ]);
     }
 
-    private function alPanel(string $mensaje, bool $exito = false): RedirectResponse
+    /**
+     * De vuelta al Panel, ABIERTO por la promotoria en la que se estaba.
+     *
+     * Sin `abrir`, crear un grupo devolvia el Panel plegado del todo y lo
+     * primero que habia que hacer era buscar otra vez donde se estaba. Lo
+     * reporto el usuario el 10/09/2026 probando: «me devuelve al panel con todo
+     * cerrado».
+     *
+     * `null` cuando no hay promotoria a la que volver —al eliminar un grupo, la
+     * pantalla de destino ya no es la suya— y entonces se va al Panel de
+     * siempre.
+     */
+    private function alPanel(string $mensaje, bool $exito = false, ?Promotoria $promotoria = null): RedirectResponse
     {
-        $respuesta = redirect()->route('panel');
+        $respuesta = redirect()->route(
+            'panel',
+            $promotoria === null ? [] : ['abrir' => $promotoria->id]
+        );
 
         if ($mensaje !== '') {
             $respuesta->with($exito ? 'success' : 'error', $mensaje);

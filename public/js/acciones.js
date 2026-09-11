@@ -101,6 +101,58 @@
    * medio, en vez de llevar a la persona al login. Por eso se pregunta a quien
    * lo sabe.
    */
+  /*
+   * LOS SCRIPTS QUE LA PAGINA NUEVA NECESITA Y ESTA NO TIENE.
+   *
+   * ─── EL FALLO QUE VINO A ARREGLAR ──────────────────────────────────────
+   *
+   * Reportado el 10/09/2026 probando el Panel: crear un grupo devolvia al Panel
+   * y ahi, al desplegar una promotoria, se quedaba en «Cargando…» PARA SIEMPRE.
+   * Habia que recargar la pagina a mano para poder verla.
+   *
+   * La causa es de este archivo. El formulario del grupo vive dentro de <main>,
+   * asi que el envio se intercepta aqui, se sigue la redireccion al Panel y se
+   * repinta <main>... pero `panel.js` y `lote.js` NO viven dentro de <main>:
+   * van en la pila de scripts, al final del <body>, precisamente para
+   * registrarse una vez y sobrevivir a los repintados. Al cambiar de PAGINA por
+   * este camino, la de destino se queda sin ellos. La URL es la del Panel, el
+   * contenido es el del Panel, y los scripts son los de la pagina anterior.
+   *
+   * No falla y no avisa: la pantalla se pinta entera y lo unico que pasa es que
+   * una funcion deja de responder. Diez vistas de este proyecto traen scripts
+   * propios, asi que esto alcanza a cualquiera a la que se llegue enviando un
+   * formulario desde otra.
+   *
+   * ─── POR QUE SE AÑADEN Y NO SE REEMPLAZAN ──────────────────────────────
+   *
+   * Solo se trae lo que FALTA, comparando por la ruta del `src` y no por la URL
+   * entera: `@recurso` le cuelga un `?v=` que no tiene por que coincidir entre
+   * dos renderizados. Volver a cargar uno que ya esta registraria sus oyentes
+   * por segunda vez, que es justo lo que el comentario de `panel.js` explica que
+   * hay que evitar.
+   *
+   * Lo que SOBRA se deja: un `panel.js` cargado de mas en el formulario de un
+   * grupo no hace nada, porque no encuentra ningun `details[data-cuerpo]`. Lo
+   * que rompe es lo que falta, no lo que sobra.
+   */
+  function traerLosScriptsQueFaltan(doc) {
+    var puestos = {};
+
+    document.querySelectorAll("script[src]").forEach(function (s) {
+      puestos[new URL(s.src, location.href).pathname] = true;
+    });
+
+    doc.querySelectorAll("script[src]").forEach(function (s) {
+      var ruta = new URL(s.getAttribute("src"), location.href).pathname;
+      if (puestos[ruta]) { return; }
+      puestos[ruta] = true;
+
+      var script = document.createElement("script");
+      script.src = s.getAttribute("src");
+      document.body.appendChild(script);
+    });
+  }
+
   function pintar(html, estado, scroll, fragmento) {
     var doc = new DOMParser().parseFromString(html, "text/html");
     var nuevo = fragmento ? doc.body : doc.querySelector("main");
@@ -121,6 +173,8 @@
       if (viejo.src) { script.src = viejo.src; } else { script.textContent = viejo.textContent; }
       viejo.parentNode.replaceChild(script, viejo);
     });
+
+    traerLosScriptsQueFaltan(doc);
 
     // Un RECHAZO no restaura el scroll de antes.
     //

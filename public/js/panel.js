@@ -142,4 +142,25 @@
       if (gruposAbiertos[detalle.id]) { detalle.open = true; }
     });
   }
+
+  /* ---------------------------------------------------------------------
+     3. Las que ya llegan abiertas
+     --------------------------------------------------------------------- */
+
+  /*
+   * UNA PROMOTORIA QUE VIENE ABIERTA DEL SERVIDOR NO DISPARA `toggle`.
+   *
+   * Todo lo de arriba cuelga de ese evento, y eso bastaba mientras el Panel
+   * llegara siempre plegado. Desde el 10/09/2026 no: volver de crear o editar
+   * un grupo trae `?abrir=N` y esa promotoria se pinta ya desplegada, asi que
+   * nadie la toca y nadie pide su cuerpo. Se queda en «Cargando…» para siempre
+   * — que es exactamente lo que el usuario reporto.
+   *
+   * El barrido va al final del archivo y no dentro de un `DOMContentLoaded`: el
+   * script se carga con `defer`, asi que cuando corre el documento ya esta
+   * puesto. Y hace falta que sea asi, porque `acciones.js` puede inyectar este
+   * archivo DESPUES de un repintado, cuando ese evento ya paso hace rato y no
+   * va a volver.
+   */
+  document.querySelectorAll("details[data-cuerpo][open]").forEach(cargar);
 })();
