@@ -33,10 +33,7 @@ class MisClasesController extends Controller
             'enAsistida' => GestionAsistida::activa(),
             'periodo' => $periodo,
             'filas' => $filas,
-            'porConfirmar' => count(array_filter(
-                $filas,
-                fn (array $f) => $f['abierta'] && ! $f['confirmada_por_mi']
-            )),
+            'porConfirmar' => Clase::esperanConfirmacion($filas),
             'horasPlazo' => Clase::VENTANA_CONFIRMACION_HORAS,
         ]);
     }
@@ -84,6 +81,18 @@ class MisClasesController extends Controller
             );
         }
 
+        // Va ANTES que el plazo a proposito: los dos motivos pueden darse a la
+        // vez y este es el que explica por que a esta persona no le sale el
+        // boton y a la de al lado si. Decir «venció el plazo» seria cierto y
+        // mandaria a reclamar por donde no es.
+        if ($fila['consta_ausente']) {
+            return $this->volver(
+                'En esa clase quedaste marcado como que no asististe, así que no la puedes '
+                .'confirmar: dar fe de una clase es decir que la viste. Si crees que la falta '
+                .'está mal puesta, díselo a tu profesor.'
+            );
+        }
+
         // El plazo se comprueba aqui y no solo escondiendo el boton: una
         // peticion enviada desde una pestana que quedo abierta antes de que
         // venciera llegaria igual, y a destiempo.
@@ -119,6 +128,12 @@ class MisClasesController extends Controller
      * Rige el mismo plazo que para confirmar. Si retirar siguiera abierto
      * despues, una clase ya verificada podria dejar de estarlo semanas mas
      * tarde, cuando el registro ya se dio por cerrado.
+     *
+     * NO lleva el corte de `consta_ausente` que si lleva confirmar, y es a
+     * proposito: una falta puede marcarse DESPUES de que la persona confirmara
+     * —el profesor corrige la lista al dia siguiente— y con el corte aqui esa
+     * confirmacion quedaria clavada, sin nadie que pudiera quitarla. Cerrar una
+     * puerta de entrada no es razon para cerrar la de salida.
      */
     public function retirar(Request $request, Clase $clase): RedirectResponse
     {

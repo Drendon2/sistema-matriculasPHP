@@ -254,6 +254,31 @@ class Clase extends Model
      * 2. SI NO, entran las clases de su grupo de hoy posteriores a su
      *    matricula: quien acaba de entrar al grupo no estuvo en las de antes.
      *
+     * QUIEN CONSTA AUSENTE SALE EN LA LISTA PERO NO CONFIRMA (`consta_ausente`,
+     * 11/09/2026). La clase le concierne —hay un hecho registrado sobre el en
+     * ella— asi que no desaparece; lo que no puede es dar fe de algo que no
+     * vio. Vale para «Falto» y para «Falto con excusa»: avisar es lo contrario
+     * de desaparecer, pero tampoco estuvo en el salon.
+     *
+     * QUE NO HAYA FILA NO ES LO MISMO, y de ahi que el corte mire el ESTADO y
+     * no la mera existencia del registro. La ausencia de fila significa que a
+     * esa persona no la paso nadie —lo dice `Asistencia`— y eso no afirma que
+     * faltara. Cortar tambien ahi parecia lo coherente y se midio antes de
+     * decidirlo: en produccion habria dejado 23 clases de 123 sin poder
+     * verificarse NUNCA, y 16 de ellas no tienen ni un presente marcado porque
+     * nadie paso lista. O sea que castigaria al que no paso lista, no al que
+     * falto. Con el corte donde esta, solo 2 clases de 61 verificadas se
+     * quedaban cortas.
+     *
+     * LO QUE ESTA BARRERA CUESTA, para quien venga a moverla: atar la
+     * verificacion a la asistencia se la pone en manos de quien pasa lista, que
+     * es justo a quien vigila. No le sirve para fabricar una clase —las
+     * confirmaciones las pulsa cada quien desde su propia sesion— pero si le da
+     * un motivo para marcar presente a quien no fue, porque cada falta que
+     * registre le quita un verificador posible. El margen es estrecho: el dia
+     * que se midio, 22 clases de 123 tenian tantos presentes como
+     * confirmaciones pedian, o sea que tendrian que confirmar todos.
+     *
      * EL PUNTO 1 FALTABA HASTA EL 09/09/2026 y costo caro, porque esta lista se
      * deducia solo de la matricula tal como esta HOY. Dos situaciones
      * corrientes la dejaban sin ver una clase a la que si fue:
@@ -335,7 +360,8 @@ class Clase extends Model
          */
         $asistidas = Asistencia::query()
             ->whereIn('matricula_id', $matriculas->keys())
-            ->pluck('matricula_id', 'clase_id');
+            ->get(['clase_id', 'matricula_id', 'estado'])
+            ->keyBy('clase_id');
 
         $clases = static::query()
             ->where('periodo_id', $periodo->id)
@@ -360,13 +386,14 @@ class Clase extends Model
         $filas = [];
 
         foreach ($clases as $clase) {
-            $asistio = $asistidas->has($clase->id);
+            $asistencia = $asistidas->get($clase->id);
+            $asistio = $asistencia !== null;
 
             // La matricula de la fila. Si consta asistencia, la de ESA
             // asistencia: puede ser una que ya no apunte a este grupo, que es
             // exactamente el caso de quien fue movida despues de la clase.
             $matricula = $asistio
-                ? $matriculas[$asistidas[$clase->id]]
+                ? $matriculas[$asistencia->matricula_id]
                 : ($porGrupo[$clase->grupo_id] ?? null);
 
             if ($matricula === null) {
@@ -385,6 +412,11 @@ class Clase extends Model
             $filas[] = [
                 'clase' => $clase,
                 'matricula' => $matricula,
+                // El estado tal como lo dejo quien paso lista, o null si a esta
+                // persona no la paso nadie. La vista distingue las dos faltas
+                // porque no se leen igual: «Faltaste» y «Faltaste con excusa».
+                'asistencia' => $asistencia?->estado,
+                'consta_ausente' => $asistio && $asistencia->estado !== Asistencia::ASISTIO,
                 'confirmada_por_mi' => in_array($clase->id, $mias, true),
                 'confirmaciones' => $total,
                 'requeridas' => $clase->confirmaciones_requeridas,
@@ -396,6 +428,28 @@ class Clase extends Model
         }
 
         return $filas;
+    }
+
+    /**
+     * De esas filas, cuantas esperan todavia que ESTA persona las confirme.
+     *
+     * Vive aqui y no en cada controlador porque la cifra se pinta en DOS
+     * pantallas —el catalogo, que es donde cae al entrar, y la propia lista— y
+     * escrita a mano en las dos se separa sin que nada falle. El dia que se
+     * anadio el corte de quien consta ausente, la copia olvidada habria dicho
+     * «te falta 1 por confirmar» en una pantalla donde no hay ningun boton que
+     * pulsar.
+     *
+     * @param  list<array<string, mixed>>  $filas
+     */
+    public static function esperanConfirmacion(array $filas): int
+    {
+        return count(array_filter(
+            $filas,
+            fn (array $fila) => $fila['abierta']
+                && ! $fila['confirmada_por_mi']
+                && ! $fila['consta_ausente']
+        ));
     }
 
     public function __toString(): string

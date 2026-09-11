@@ -11,7 +11,8 @@
   sí se dio</strong>: con eso {{ $configuracion->nombre_institucion }} puede verificar que se
   dictó, sin depender solo de quien la registró. Tienes <strong>{{ $horasPlazo }} horas</strong>
   desde que empezó la clase; dentro de ese plazo puedes también quitar tu confirmación si
-  te equivocaste. Después ya no se puede cambiar.
+  te equivocaste. Después ya no se puede cambiar. Solo confirma quien estuvo en la clase:
+  si te marcaron una falta que no era, díselo a tu profesor.
 </p>
 
 @if (! $filas)
@@ -70,11 +71,28 @@
             {{ $f['confirmada_por_mi'] ? 'Quitar mi confirmación' : 'Sí, esta clase se dio' }}
           </span>
         @elseif ($f['confirmada_por_mi'])
+          {{--
+            Va antes que la falta a proposito: si le marcaron la falta DESPUES de
+            que confirmara, tiene que poder quitar su confirmacion. Cerrar la
+            entrada no es razon para cerrar la salida.
+          --}}
           <span class="clase-mia">La confirmaste</span>
           <form action="{{ route('retirar-confirmacion-clase', $f['clase']) }}" method="post">
             @csrf
             <button type="submit" class="btn btn-retirar btn-sm">Quitar mi confirmación</button>
           </form>
+        @elseif ($f['consta_ausente'])
+          {{--
+            Dar fe de una clase es decir que la viste. La accion se queda A LA
+            VISTA y apagada, con el motivo ESCRITO y no solo en el `title`: casi
+            todo el uso es desde el celular, donde no hay raton que lo saque. Y
+            la clase no desaparece de la lista, que era la otra salida: sin
+            explicacion, quien esperaba confirmarla creeria que el sistema se
+            rompio — el fallo que ya costo un profesor.
+          --}}
+          <span class="clase-mia">
+            {{ $f['asistencia'] === \App\Models\Asistencia::EXCUSA ? 'Faltaste con excusa' : 'Faltaste a esta clase' }}
+          </span>
         @else
           <form action="{{ route('confirmar-clase', $f['clase']) }}" method="post">
             @csrf

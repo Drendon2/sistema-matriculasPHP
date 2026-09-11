@@ -131,10 +131,9 @@ class CatalogoController extends Controller
         // una verificacion que solo vive detras de un enlace del menu no la hace
         // nadie — y con 48 horas de plazo, enterarse tarde es quedarse sin poder
         // hacerla.
-        $pendientesDeConfirmar = count(array_filter(
-            Clase::porConfirmar($perfil, $periodo),
-            fn (array $fila) => $fila['abierta'] && ! $fila['confirmada_por_mi']
-        ));
+        $pendientesDeConfirmar = Clase::esperanConfirmacion(
+            Clase::porConfirmar($perfil, $periodo)
+        );
 
         return view('estudiante.promotorias-disponibles', [
             'periodo' => $periodo,
