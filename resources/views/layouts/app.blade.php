@@ -67,7 +67,26 @@
             <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/></svg>
             <span class="nav-texto">Matrículas</span>
           </a>
-          <a href="{{ route('mis-clases') }}">
+          {{--
+            EL PUNTO ROJO. Confirmar una clase es la acción más importante que
+            tiene un estudiante aquí y CADUCA a las 48 horas, así que el aviso no
+            puede vivir solo en «Promotorías disponibles» —que es donde aterriza
+            al entrar, pero que la institución puede APAGAR—. En el menú está en
+            todas las pantallas y no se apaga.
+
+            Va dentro del enlace y posicionado sobre el icono, así que no ocupa
+            sitio: la celda mide lo mismo con punto y sin punto, y la barra no se
+            recoloca al aparecer.
+
+            Y NO ES SOLO UN PUNTO: lleva su texto para quien no ve el color, que
+            es la regla de este proyecto —nada depende únicamente del color—. El
+            número entero va en el `aria-label` del enlace.
+          --}}
+          <a href="{{ route('mis-clases') }}"
+             @if ($clasesPorConfirmar)
+               class="nav-con-aviso"
+               aria-label="Clases — {{ $clasesPorConfirmar }} {{ $clasesPorConfirmar == 1 ? 'clase sin confirmar' : 'clases sin confirmar' }}"
+             @endif>
             <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
             <span class="nav-texto">Clases</span>
           </a>
@@ -107,6 +126,42 @@
     @endauth
   </nav>
 </header>
+{{--
+  EL AVISO AL ENTRAR. Lo pidió el usuario el 12/09/2026: «la verdad es la acción
+  más importante de ese perfil». Y lo es, con una diferencia que lo separa del
+  aviso de la encuesta —que este proyecto decidió a propósito que pidiera sin
+  obligar—: la encuesta puede esperar siempre y esto CADUCA a las 48 horas.
+
+  Aun así NO ES UN MURO: se cierra, y detrás está la pantalla entera. Quien entra
+  con prisa a mirar su horario tiene que poder hacerlo, que es la razón escrita
+  del aviso de la encuesta y vale igual aquí.
+
+  SE ENSEÑA UNA VEZ POR SESIÓN, y la marca la pone el SERVIDOR al pintarlo. Sin
+  eso reaparecería en cada pantalla, que es exactamente cómo se enseña a la gente
+  a cerrar avisos sin leerlos.
+
+  VA FUERA DE `<main>` por la regla de la casa: dentro, el repintado de
+  `acciones.js` se lo llevaría, y `layouts.fragmento` no lo incluye.
+
+  Y ES UN `<dialog>` CERRADO que abre un guion. Sin JavaScript no se ve nada —y
+  está bien— porque la garantía es el PUNTO ROJO del menú, que no necesita
+  guion. Esto lo amplifica; no lo sostiene.
+--}}
+@if ($clasesPorConfirmar && ! session('aviso_clases_visto'))
+  @php(session(['aviso_clases_visto' => true]))
+  <dialog class="aviso-clases" data-aviso-clases>
+    <h2>{{ $clasesPorConfirmar == 1 ? 'Tienes una clase sin confirmar' : 'Tienes '.$clasesPorConfirmar.' clases sin confirmar' }}</h2>
+    <p>
+      Confirmar es decir que la clase sí se dio: es lo que le permite a
+      {{ $configuracion->nombre_institucion }} verificar que se dictó.
+    </p>
+    <p class="aviso-clases-plazo">El plazo es de 48 horas desde que empezó cada clase.</p>
+    <div class="aviso-clases-acciones">
+      <a class="btn" href="{{ route('mis-clases') }}">Confirmar mis clases</a>
+      <button type="button" class="btn btn-blanco" data-cerrar-aviso>Ahora no</button>
+    </div>
+  </dialog>
+@endif
 {{--
   LA BARRA DE GESTIÓN ASISTIDA. Va FUERA de <main> y encima de todo, porque
   mientras dure hay que verla en todas las pantallas: quien la olvida está
@@ -206,6 +261,11 @@
   el color cambie en el acto.
 --}}
 <script src="@recurso('js/tema.js')" defer></script>
+{{--
+  El aviso de clases sin confirmar. Solo lo ABRE: el diálogo ya viene en el HTML
+  y sin este guion no se ve, porque la garantía es el punto rojo del menú.
+--}}
+<script src="@recurso('js/aviso-clases.js')" defer></script>
 @stack('scripts')
 </body>
 </html>

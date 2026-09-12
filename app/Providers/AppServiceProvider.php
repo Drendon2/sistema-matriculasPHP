@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\ConfiguracionInstitucion;
+use App\Models\Periodo;
+use App\Support\ClasesPendientes;
 use App\Support\ConexionQueReintenta;
 use App\Support\Recurso;
 use App\Support\Tema;
@@ -93,6 +95,30 @@ class AppServiceProvider extends ServiceProvider
          */
         View::composer('*', function ($view) {
             $view->with('yo', auth()->user()?->perfil);
+        });
+
+        /**
+         * CUANTAS CLASES ESPERAN QUE ESTE ESTUDIANTE LAS CONFIRME.
+         *
+         * Va al envoltorio para que el aviso viva en el MENU, que es lo unico
+         * que el estudiante ve en todas las pantallas. Antes el unico aviso
+         * estaba en «Promotorias disponibles» —donde aterriza al entrar— y esa
+         * pantalla la puede APAGAR la institucion: con el interruptor en
+         * ventanilla, nadie le decia que tenia 48 horas para confirmar. El
+         * porque entero esta en `Support\ClasesPendientes`.
+         *
+         * SOLO PARA ESTUDIANTES. Para cualquier otro rol es cero y no se
+         * consulta nada: quien dicta no confirma sus propias clases.
+         */
+        View::composer('layouts.app', function ($view) {
+            $perfil = auth()->user()?->perfil;
+
+            $view->with(
+                'clasesPorConfirmar',
+                $perfil?->rol === 'estudiante'
+                    ? ClasesPendientes::cuantas($perfil, Periodo::enCurso())
+                    : 0
+            );
         });
 
         $this->limitarIntentos();

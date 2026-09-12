@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Clase;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
+use App\Support\ClasesPendientes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -131,9 +131,7 @@ class CatalogoController extends Controller
         // una verificacion que solo vive detras de un enlace del menu no la hace
         // nadie — y con 48 horas de plazo, enterarse tarde es quedarse sin poder
         // hacerla.
-        $pendientesDeConfirmar = Clase::esperanConfirmacion(
-            Clase::porConfirmar($perfil, $periodo)
-        );
+        $pendientesDeConfirmar = ClasesPendientes::cuantas($perfil, $periodo);
 
         return view('estudiante.promotorias-disponibles', [
             'periodo' => $periodo,

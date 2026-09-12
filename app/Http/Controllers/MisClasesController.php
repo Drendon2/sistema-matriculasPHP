@@ -6,6 +6,7 @@ use App\Models\Clase;
 use App\Models\ConfirmacionClase;
 use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Support\ClasesPendientes;
 use App\Support\GestionAsistida;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +27,10 @@ class MisClasesController extends Controller
         /** @var Perfil $perfil */
         $perfil = $request->attributes->get('perfil');
         $periodo = Periodo::enCurso();
-        $filas = Clase::porConfirmar($perfil, $periodo);
+        // Por `ClasesPendientes` y no `Clase::porConfirmar` directo: el
+        // envoltorio pide la misma cifra para el punto rojo del menu, y sin la
+        // memoria esta pantalla la calcularia DOS veces por peticion.
+        $filas = ClasesPendientes::filas($perfil, $periodo);
 
         return view('estudiante.mis-clases', [
             // La accion no se esconde: se queda apagada y diciendo por que.
