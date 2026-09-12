@@ -55,65 +55,55 @@
   </div>
   <nav>
     @auth
-      @if ($yo?->rol === 'estudiante')
-        @if ($configuracion->promotorias_visibles_para_estudiantes)
-          <a href="{{ route('promotorias-disponibles') }}">Promotorías disponibles</a>
+      <form action="{{ route('tema') }}" method="post" class="tema-forma nav-tema" data-tema-forma>
+        @csrf
+        <button type="submit" name="tema" value="oscuro" class="tema-boton tema-a-oscuro" aria-label="Cambiar a modo oscuro"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        <button type="submit" name="tema" value="claro" class="tema-boton tema-a-claro" aria-label="Cambiar a modo claro"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </form>
+
+      <div class="nav-barra">
+        @if ($yo?->rol === 'estudiante')
+          <a href="{{ route('mis-matriculas') }}">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/></svg>
+            <span class="nav-texto">Matrículas</span>
+          </a>
+          <a href="{{ route('mis-clases') }}">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>
+            <span class="nav-texto">Clases</span>
+          </a>
+          <a href="{{ route('mis-companeros') }}">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+            <span class="nav-texto">Compañeros</span>
+          </a>
+        @elseif ($yo?->rol)
+          <a href="{{ route('panel') }}">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            <span class="nav-texto">Panel</span>
+          </a>
         @endif
-        <a href="{{ route('mis-matriculas') }}">Mis matrículas</a>
-        <a href="{{ route('mis-clases') }}">Mis clases</a>
-        <a href="{{ route('mis-companeros') }}">Mis compañeros</a>
-      @elseif ($yo?->rol)
-        <a href="{{ route('panel') }}">Panel</a>
-      @endif
 
-      @if (in_array($yo?->rol, ['director', 'administrador'], true))
-        <a href="{{ route('gestion-inicio') }}">Gestión</a>
-      @endif
+        @if (in_array($yo?->rol, ['director', 'administrador'], true))
+          <a href="{{ route('gestion-inicio') }}">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+            <span class="nav-texto">Gestión</span>
+          </a>
+        @endif
 
-      @if ($yo)
-        <a href="{{ route('mi-perfil') }}">Mi perfil</a>
-      @endif
+        <a href="{{ route('mi-perfil') }}">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="nav-texto">Mi perfil</span>
+        </a>
 
-      {{--
-        CLARO U OSCURO, EN UN SOLO BOTÓN. Antes esto era un selector de tres
-        radios en Mi perfil; se movió aquí el 12/09/2026 a petición del usuario,
-        y con él se fue la opción «lo que diga mi dispositivo».
+        <div class="nav-raya"></div>
 
-        SON DOS BOTONES Y NO UNO, y de eso depende que funcione sin JavaScript.
-        Cada uno manda su valor; cuál se ve lo decide el CSS a partir de lo que
-        está pintado AHORA MISMO —incluido el caso de quien no ha elegido nunca,
-        donde manda su sistema y el servidor no puede saberlo—. Con un solo
-        botón habría que calcular el valor contrario en el servidor, que es justo
-        lo que ahí no se sabe.
-
-        Va junto a «Cerrar sesión» porque es un ajuste del aparato y no un sitio
-        al que se navega.
-      --}}
-      <form action="{{ route('tema') }}" method="post" class="tema-forma" data-tema-forma>
-        @csrf
-        <button type="submit" name="tema" value="oscuro" class="tema-boton tema-a-oscuro"
-                aria-label="Cambiar a modo oscuro">
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
-          </svg>
-        </button>
-        <button type="submit" name="tema" value="claro" class="tema-boton tema-a-claro"
-                aria-label="Cambiar a modo claro">
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4"/>
-            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-          </svg>
-        </button>
-      </form>
-
-      <form action="{{ route('logout') }}" method="post" style="display:inline">
-        @csrf
-        <button type="submit" class="btn btn-blanco btn-sm">
-          Cerrar sesión ({{ auth()->user()->username }})
-        </button>
-      </form>
+        <form action="{{ route('logout') }}" method="post" style="display:contents">
+          @csrf
+          <button type="submit" class="nav-salir">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            <span class="nav-texto">Salir</span>
+          </button>
+        </form>
+      </div>
     @endauth
   </nav>
 </header>

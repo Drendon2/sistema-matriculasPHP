@@ -14,10 +14,13 @@ use Tests\TestCase;
 /**
  * MODO OSCURO — 08/09/2026.
  *
- * Tres estados: por defecto se sigue al sistema operativo, y quien quiera puede
- * forzar claro u oscuro desde Mi perfil. La preferencia vive en una galleta del
- * APARATO y no en la cuenta, y el servidor la estampa en el `<html>` antes de
- * enviar la pagina.
+ * Dos opciones desde el 12/09/2026 —claro u oscuro, en un boton del menu— y un
+ * estado inicial que no se elige: sin galleta se sigue al sistema. Antes habia
+ * TRES y «lo que diga mi dispositivo» era una de ellas, en un selector de radios
+ * en Mi perfil; el porque del cambio esta en `Support\Tema`.
+ *
+ * La preferencia vive en una galleta del APARATO y no en la cuenta, y el
+ * servidor la estampa en el `<html>` antes de enviar la pagina.
  *
  * Lo que estas pruebas vigilan no es que se vea bonito —eso se mira abriendo la
  * pagina, y ahi se descubrio el fallo del radio— sino las cuatro cosas que no

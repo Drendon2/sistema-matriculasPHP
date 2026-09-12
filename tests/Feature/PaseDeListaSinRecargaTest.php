@@ -142,7 +142,11 @@ class PaseDeListaSinRecargaTest extends TestCase
 
         $this->assertStringNotContainsString('<html', $html, 'el fragmento trae la pagina entera.');
         $this->assertStringNotContainsString('<main', $html, 'el fragmento trae el <main> que ya existe.');
-        $this->assertStringNotContainsString('Cerrar sesión', $html, 'el fragmento trae la navegacion.');
+        // `nav-barra` Y NO «Cerrar sesión»: desde el 12/09/2026 ese boton dice
+        // «Salir», asi que la asercion vieja seguiria VERDE sin comprobar nada
+        // —el texto ya no existe en ninguna parte—. Se ata a la clase de la
+        // barra, que es lo que identifica la navegacion.
+        $this->assertStringNotContainsString('nav-barra', $html, 'el fragmento trae la navegacion.');
 
         $this->assertStringContainsString('Asistencia guardada', $html, 'el fragmento no trae el aviso.');
         $this->assertStringContainsString('Ana', $html, 'el fragmento no trae la lista.');

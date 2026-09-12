@@ -218,6 +218,51 @@
   header nav a:hover { background: var(--surface-alt); color: var(--ink); }
   header nav form { margin-left: 0.5rem; }
 
+  /* ── EL MENU COMO BARRA, EN EL TELEFONO (12/09/2026) ──────────────────────
+     Lo pidio el usuario: «este menu no es muy funcional para movil, y el boton
+     de cerrar sesion es el mas visible y queda muy cerca de los otros, puede
+     causar que se cierre sesion por error al querer cambiar al modo oscuro».
+
+     La respuesta tiene tres partes y las tres importan:
+
+     1. BAJO 640px LOS DESTINOS SE FIJAN AL BORDE INFERIOR, que es la zona que
+        alcanza un pulgar sin recolocar el telefono. Arriba se queda la marca y
+        el boton del tema. Antes el menu se envolvia en dos o tres filas y
+        empujaba el contenido: medido a 390px, la cabecera paso de 114px a 70.
+     2. «SALIR» DEJA DE SER LO MAS VISIBLE. Era un `.btn-blanco` con contorno
+        —el unico boton dibujado de la cabecera— y ahora es texto tenue. En la
+        barra NO se reparte el ancho con los destinos: sale de la rejilla y se
+        aparta detras de una raya, porque no es un sitio al que se navega.
+     3. YA NO LLEVA EL NOMBRE DEL USUARIO, tambien pedido. El nombre sigue
+        estando en Mi perfil, que es su sitio.
+
+     La separacion entre el tema y salir esta MEDIDA a 390px: 588px, extremos
+     opuestos de la pantalla. Antes eran 10.
+
+     Y OJO CON LOS ICONOS: solo se pintan en la barra del telefono. En
+     escritorio estorban en una fila de texto, y ahi el menu sigue siendo una
+     fila de enlaces como siempre. */
+  header nav .nav-tema { margin-left: auto; order: 2; }
+  .nav-barra { display: flex; align-items: center; gap: 0.2rem; }
+  .nav-barra a, .nav-barra button {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.15rem; min-height: 44px; padding: 0.4rem 0.7rem;
+    border: 0; background: none; cursor: pointer;
+    border-radius: var(--radius-sm);
+    color: var(--ink-soft); text-decoration: none;
+    font-size: 0.85rem; font-weight: 600;
+  }
+  .nav-barra a:hover, .nav-barra button:hover { background: var(--surface-alt); color: var(--ink); }
+  /* El anillo del sistema y NO el halo de `input:focus`: estos controles no
+     tienen borde, y ese halo solo da 1,18 de contraste. Trampa ya pagada en el
+     menu de fila y en la baldosa del logo. */
+  .nav-barra a:focus-visible, .nav-barra button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .nav-salir { color: var(--ink-faint); }
+  .nav-raya { width: 1px; align-self: stretch; margin: 0.5rem 0.45rem; background: var(--border); }
+  .nav-barra svg { display: none; }
+
   main { max-width: 960px; margin: 2rem auto 4rem; padding: 0 1.25rem; }
 
   .btn {
@@ -2389,6 +2434,39 @@
     header nav a { padding: 0.85rem 0.75rem; min-height: 44px; display: inline-flex; align-items: center; }
     header nav form { margin-left: 0.3rem; }
     .tema-boton { min-width: 44px; min-height: 44px; }
+    /* LA BARRA DE ABAJO. `space-around` y `flex: 1 1 0` reparten el ancho entre
+       los destinos; el estudiante tiene CUATRO y es el caso que manda, no el
+       administrador con dos. */
+    .nav-barra {
+      position: fixed; inset: auto 0 0 0; z-index: 50;
+      justify-content: space-around; gap: 0;
+      padding: 0.2rem 0.4rem calc(0.2rem + env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -2px 10px var(--sombra-cerca);
+    }
+    .nav-barra a, .nav-barra button {
+      flex: 1 1 0; min-width: 0; min-height: 52px; padding: 0.3rem 0.15rem;
+      font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.03em; text-transform: uppercase;
+    }
+    .nav-barra .nav-texto {
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nav-barra svg { display: block; flex: 0 0 auto; }
+    /* «Salir» NO es un destino y en la barra lo parecia: misma celda, mismo peso
+       y pegado a «Mi perfil», o sea el fallo que esto venia a arreglar movido de
+       sitio. Se vio abriendo la pagina a 390px. Sale de la rejilla, se aparta
+       detras de la raya y se apaga. */
+    .nav-raya { width: 1px; height: 26px; align-self: center; margin: 0 0.15rem 0 0.35rem; }
+    .nav-barra .nav-salir { flex: 0 0 auto; padding-inline: 0.5rem; color: var(--ink-faint); }
+
+    /* Y HAY QUE RESERVARLE EL ALTO. La barra es `fixed`, asi que no ocupa sitio:
+       `main` acaba con 40px de margen y la barra mide 59, o sea que los ultimos
+       pixeles del contenido quedaban DEBAJO. En una pantalla larga eso es la
+       ultima accion escondida, que es un fallo que este proyecto ya pago dos
+       veces. Va en el `body` porque la barra cruza la pantalla entera. */
+    body { padding-bottom: 66px; }
     .btn { padding: 0.75rem 1.15rem; }
     /* `.btn-sm` anula el min-height de `.btn` para caber en una fila de tabla.
        En el telefono eso lo dejaba en 37px, y es el boton de las ACCIONES de
