@@ -74,6 +74,40 @@
         <a href="{{ route('mi-perfil') }}">Mi perfil</a>
       @endif
 
+      {{--
+        CLARO U OSCURO, EN UN SOLO BOTÓN. Antes esto era un selector de tres
+        radios en Mi perfil; se movió aquí el 12/09/2026 a petición del usuario,
+        y con él se fue la opción «lo que diga mi dispositivo».
+
+        SON DOS BOTONES Y NO UNO, y de eso depende que funcione sin JavaScript.
+        Cada uno manda su valor; cuál se ve lo decide el CSS a partir de lo que
+        está pintado AHORA MISMO —incluido el caso de quien no ha elegido nunca,
+        donde manda su sistema y el servidor no puede saberlo—. Con un solo
+        botón habría que calcular el valor contrario en el servidor, que es justo
+        lo que ahí no se sabe.
+
+        Va junto a «Cerrar sesión» porque es un ajuste del aparato y no un sitio
+        al que se navega.
+      --}}
+      <form action="{{ route('tema') }}" method="post" class="tema-forma" data-tema-forma>
+        @csrf
+        <button type="submit" name="tema" value="oscuro" class="tema-boton tema-a-oscuro"
+                aria-label="Cambiar a modo oscuro">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+          </svg>
+        </button>
+        <button type="submit" name="tema" value="claro" class="tema-boton tema-a-claro"
+                aria-label="Cambiar a modo claro">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+          </svg>
+        </button>
+      </form>
+
       <form action="{{ route('logout') }}" method="post" style="display:inline">
         @csrf
         <button type="submit" class="btn btn-blanco btn-sm">
@@ -176,6 +210,12 @@
   da igual que vaya detrás de `acciones.js`.
 --}}
 <script src="@recurso('js/clases-del-dia.js')" defer></script>
+{{--
+  El cambio de tema sin recargar. El botón del menú funciona sin este guion
+  —manda su formulario y la página vuelve del otro color—; lo que añade es que
+  el color cambie en el acto.
+--}}
+<script src="@recurso('js/tema.js')" defer></script>
 @stack('scripts')
 </body>
 </html>

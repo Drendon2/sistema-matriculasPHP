@@ -61,6 +61,11 @@ class ModoOscuroTest extends TestCase
      * Se comprueba la ausencia y no un valor porque el CSS depende de ella: con
      * `data-tema` puesto a cualquier cosa, `color-scheme` deja de valer
      * `light dark` y la pagina se queda fija en un modo, ignorando el sistema.
+     *
+     * SE BUSCA `data-tema="` Y NO `data-tema`, y el detalle importa: desde el
+     * 12/09/2026 el menu trae un `data-tema-forma` —el marcador del formulario
+     * del boton— que contiene esa cadena sin ser el atributo. Buscarla pelada
+     * ponia roja esta prueba con el codigo bueno.
      */
     public function test_sin_preferencia_el_html_no_lleva_el_atributo(): void
     {
@@ -68,7 +73,7 @@ class ModoOscuroTest extends TestCase
             ->get(route('mi-perfil'))->assertOk()->getContent();
 
         $this->assertStringContainsString('<html lang="es">', $html);
-        $this->assertStringNotContainsString('data-tema', $html);
+        $this->assertStringNotContainsString('data-tema="', $html);
     }
 
     /**
@@ -104,7 +109,10 @@ class ModoOscuroTest extends TestCase
         $html = (string) $this->withCookie(Tema::GALLETA, 'fucsia')
             ->get(route('login'))->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('data-tema', $html);
+        // `data-tema="` por lo mismo que arriba, aunque esta pantalla use el
+        // envoltorio publico y hoy no traiga el boton: la cadena pelada es una
+        // trampa esperando a que alguien lo ponga tambien ahi.
+        $this->assertStringNotContainsString('data-tema="', $html);
     }
 
     // --------------------------------------------------------------------
@@ -121,29 +129,114 @@ class ModoOscuroTest extends TestCase
     }
 
     /**
-     * Volver a «sistema» BORRA la galleta en vez de escribir la palabra.
+     * «sistema» YA NO SE ACEPTA, y esta prueba sustituye a la que comprobaba que
+     * volver a el borraba la galleta.
      *
-     * El estado por defecto no deja rastro: si se guardara «sistema», un aparato
-     * que nunca eligio nada y otro que volvio al principio quedarian distintos
-     * en la base de galletas sin ninguna razon.
+     * El 12/09/2026 el selector de tres radios de Mi perfil se cambio por un
+     * boton de sol y luna en el menu, y con el se fue esa tercera opcion. Esta
+     * prueba es el testigo de esa decision: se pone roja el dia que alguien
+     * devuelva «sistema» a `Tema::OPCIONES` sin devolver tambien una pantalla
+     * que lo ofrezca.
      */
-    public function test_volver_al_sistema_borra_la_galleta(): void
+    public function test_volver_al_sistema_ya_no_es_una_opcion(): void
     {
-        $respuesta = $this->actingAs($this->crearAdministrador())
+        $this->actingAs($this->crearAdministrador())
             ->from(route('mi-perfil'))
-            ->withCookie(Tema::GALLETA, 'oscuro')
             ->post(route('tema'), ['tema' => 'sistema'])
-            ->assertRedirect(route('mi-perfil'));
+            ->assertSessionHasErrors('tema');
+    }
 
-        $galleta = collect($respuesta->headers->getCookies())
-            ->first(fn ($c) => $c->getName() === Tema::GALLETA);
+    // --------------------------------------------------------------------
+    // El boton del menu (12/09/2026)
+    // --------------------------------------------------------------------
 
-        // Lo que borra una galleta es su FECHA DE CADUCIDAD en el pasado, no
-        // su valor: `forget()` la manda a 2021 y deja el valor nulo. Comprobar
-        // el valor daria verde tambien con una galleta vacia pero VIVA, que no
-        // borraria nada.
-        $this->assertNotNull($galleta);
-        $this->assertLessThan(time(), $galleta->getExpiresTime());
+    /**
+     * SON DOS BOTONES EN EL HTML, uno por tema, y de eso depende que funcione
+     * sin JavaScript.
+     *
+     * Con uno solo habria que calcular en el SERVIDOR el tema contrario al que
+     * se esta pintando, y eso es exactamente lo que el servidor no puede saber
+     * cuando no hay galleta: quien no ha elegido nunca sigue a su sistema
+     * operativo, que solo conoce el navegador. Aqui se comprueba que los dos
+     * valores viajan en el HTML; cual se VE lo decide el CSS, y eso lo vigila la
+     * prueba de abajo.
+     */
+    public function test_el_menu_trae_los_dos_botones_de_tema(): void
+    {
+        $html = $this->actingAs($this->crearAdministrador())
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertIsString($html);
+
+        // El formulario, con su marcador para el guion.
+        $this->assertStringContainsString('data-tema-forma', $html);
+
+        // Un boton por tema, cada uno con su valor.
+        $this->assertStringContainsString('name="tema" value="oscuro"', $html);
+        $this->assertStringContainsString('name="tema" value="claro"', $html);
+
+        // Y con nombre para quien no ve el icono. El `aria-label` no es adorno:
+        // el boton es solo un dibujo, asi que sin el no dice nada.
+        $this->assertStringContainsString('aria-label="Cambiar a modo oscuro"', $html);
+        $this->assertStringContainsString('aria-label="Cambiar a modo claro"', $html);
+    }
+
+    /**
+     * La hoja decide cual de los dos botones se ve, y las reglas del atributo
+     * van DESPUES de la consulta de medios.
+     *
+     * Las dos pesan lo mismo (0,3,0) porque una consulta de medios NO anade
+     * especificidad —trampa escrita de este proyecto—, asi que lo unico que
+     * hace ganar a la eleccion de la persona sobre la de su sistema es el ORDEN.
+     * Invertirlo no rompe nada en un sistema en claro, que es donde se mira.
+     */
+    public function test_la_hoja_ordena_las_reglas_del_boton_de_tema(): void
+    {
+        $css = file_get_contents(public_path('css/app.css'));
+        $this->assertIsString($css);
+
+        $consulta = strpos($css, ':root:not([data-tema="claro"]) .tema-a-claro');
+        $atributo = strpos($css, ':root[data-tema="oscuro"] .tema-a-claro');
+
+        $this->assertNotFalse($consulta, 'falta la regla que sigue al sistema');
+        $this->assertNotFalse($atributo, 'falta la regla que obedece al atributo');
+        $this->assertLessThan(
+            $atributo,
+            $consulta,
+            'las reglas de `data-tema` tienen que ir DESPUES de la consulta de medios: pesan lo mismo y decide el orden'
+        );
+    }
+
+    /**
+     * El guion del cambio instantaneo esta cargado.
+     *
+     * No comprueba que funcione —PHPUnit no tiene navegador— sino que siga
+     * enganchado: sin el, el boton sigue funcionando pero cuesta una recarga, y
+     * eso es una degradacion que nadie ve fallar.
+     */
+    public function test_el_guion_del_cambio_instantaneo_va_cargado(): void
+    {
+        $this->actingAs($this->crearAdministrador())
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertSee('js/tema.js', escape: false);
+    }
+
+    /**
+     * Y Mi perfil YA NO trae el selector.
+     *
+     * Es la otra mitad de la decision: si se quedaran los dos, habria dos sitios
+     * donde elegir el tema y uno de ellos con una opcion que el otro no tiene.
+     */
+    public function test_mi_perfil_ya_no_trae_el_selector_de_tema(): void
+    {
+        $this->actingAs($this->crearAdministrador())
+            ->get(route('mi-perfil'))
+            ->assertOk()
+            ->assertDontSee('tema-opciones')
+            ->assertDontSee('Lo que diga mi dispositivo');
     }
 
     public function test_un_tema_inventado_se_rechaza(): void

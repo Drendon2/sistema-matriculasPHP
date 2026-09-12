@@ -22,7 +22,6 @@ use App\Support\HorarioSemanal;
 use App\Support\Imagen;
 use App\Support\Reglas;
 use App\Support\ResumenAsistencia;
-use App\Support\Tema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -85,7 +84,6 @@ class MiPerfilController extends Controller
             'perfil' => $perfil,
             // Cual de los tres marcar en «Apariencia». Sale de la galleta del
             // aparato y no de la cuenta: ver `Support\Tema`.
-            'temaElegido' => Tema::elegido($request),
             'datos' => $datos,
             'encuesta' => $encuesta,
             // Una ranura por papel pedido, con lo que ya subio si es que subio

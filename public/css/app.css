@@ -1080,32 +1080,66 @@
   .asis-cel.cal-n3 { background: var(--cal-n3); border-color: var(--cal-n3); }
   .asis-cel.cal-n4 { background: var(--cal-n4); border-color: var(--cal-n4); }
 
-  /* Las tres opciones de apariencia. Cada una es una fila tocable entera y no
-     solo el círculo del radio: en un teléfono un radio nativo mide 13px, y este
-     proyecto ya tiene escrito lo que cuesta un control que se toca bien con el
-     ratón y mal con el pulgar. */
-  .tema-opciones { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; }
-  .tema-opcion {
-    display: flex; align-items: center; gap: 0.6rem;
-    min-height: 44px; padding: 0.35rem 0.5rem;
-    border-radius: var(--radius-sm); cursor: pointer;
-  }
-  .tema-opcion:hover { background: var(--surface-alt); }
-  /* EL `width: auto` NO SOBRA, y es lo que este selector vino a arreglar: la
-     regla base de `input` de esta hoja pone `width: 100%` —correcto para un
-     campo de texto— y a un radio le da la fila entera, con el circulo dibujado
-     al principio de su caja y la etiqueta empujada al borde derecho. Se ve
-     abriendo la pagina y no leyendo el CSS del selector, porque la regla que
-     manda esta seiscientas lineas mas arriba.
+  /* CLARO U OSCURO, EN EL MENU. Sustituye al selector de tres radios que vivia
+     en Mi perfil hasta el 12/09/2026; con el se fue la opcion «lo que diga mi
+     dispositivo», por decision del usuario ese dia.
 
-     `margin-top` tambien: esa misma regla base le pone 0.15rem y descoloca el
-     circulo respecto a su texto. */
-  .tema-opcion input {
-    width: auto; flex: 0 0 auto;
-    margin: 0; padding: 0;
-    accent-color: var(--accent);
+     Son DOS botones en el HTML y solo uno visible: el que ofrece lo contrario
+     de lo que esta pintado ahora. Se elige aqui abajo, con CSS, y no en el
+     servidor ni en el guion — ver el porque en el bloque de reglas de mas
+     abajo. */
+  .tema-forma { display: inline-flex; margin-left: 0.5rem; }
+  .tema-boton {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 38px; min-height: 38px;
+    padding: 0.4rem;
+    background: none; border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  .tema-opciones .btn { align-self: flex-start; margin-top: 0.6rem; }
+  .tema-boton:hover { background: var(--surface-alt); color: var(--ink); }
+  /* EL ANILLO DEL SISTEMA, Y NO EL HALO DE LOS CAMPOS. Copiar aqui el
+     `input:focus` de esta hoja dejaria el foco INVISIBLE: ese halo funciona
+     porque el indicador de verdad es el BORDE que pasa a `--accent`, y este
+     boton no tiene borde. El halo solo da 1,18 de contraste. Es una trampa que
+     este proyecto ya pago dos veces, en el boton del menu de fila y en la
+     baldosa del logo. */
+  .tema-boton:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* CUAL DE LOS DOS SE VE.
+
+     El caso que obliga a resolverlo en CSS es el de quien no ha elegido nunca:
+     no hay galleta, manda su sistema operativo, y el SERVIDOR NO PUEDE SABER
+     cual es —eso solo lo dice una consulta de medios, en el navegador—. Con un
+     solo boton habria que calcular en el servidor el tema contrario al pintado,
+     que es justo lo que ahi no se sabe. Con dos y estas reglas, el que se ve es
+     siempre el correcto y sin un solo fogonazo.
+
+     Por defecto se ofrece oscuro, que es lo que corresponde a un sistema en
+     claro. */
+  .tema-a-claro { display: none; }
+
+  /* Sistema en oscuro y sin forzar claro: se ofrece volver a claro. El selector
+     va ENTERO dentro de la consulta, porque una consulta de medios NO anade
+     especificidad. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema="claro"]) .tema-a-oscuro { display: none; }
+    :root:not([data-tema="claro"]) .tema-a-claro { display: inline-flex; }
+  }
+
+  /* Y con el atributo puesto manda la persona, diga lo que diga su sistema.
+     ESTAS REGLAS VAN DESPUES DE LA CONSULTA A PROPOSITO: pesan lo mismo que las
+     de arriba (0,3,0), asi que lo unico que las hace ganar es el orden. Subirlas
+     no rompe nada visible en un sistema en claro, que es donde se mira. */
+  :root[data-tema="claro"] .tema-a-oscuro { display: inline-flex; }
+  :root[data-tema="claro"] .tema-a-claro { display: none; }
+  :root[data-tema="oscuro"] .tema-a-oscuro { display: none; }
+  :root[data-tema="oscuro"] .tema-a-claro { display: inline-flex; }
 
   /* La barra de paso entre periodos. Las flechas mantienen su sitio aunque no
      lleven a ninguna parte: si desaparecieran, al llegar al extremo la que queda
@@ -2354,6 +2388,7 @@
     header { padding: 0.8rem 1.1rem; }
     header nav a { padding: 0.85rem 0.75rem; min-height: 44px; display: inline-flex; align-items: center; }
     header nav form { margin-left: 0.3rem; }
+    .tema-boton { min-width: 44px; min-height: 44px; }
     .btn { padding: 0.75rem 1.15rem; }
     /* `.btn-sm` anula el min-height de `.btn` para caber en una fila de tabla.
        En el telefono eso lo dejaba en 37px, y es el boton de las ACCIONES de
