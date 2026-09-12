@@ -390,8 +390,30 @@
   La sección arranca abierta cuando falta algo por contestar. Plegada, una
   encuesta a medias no se distingue de una terminada, y quien la dejó así no
   tiene por qué sospechar que le falta nada.
+
+  Y ABIERTA TAMBIÉN CUANDO NO HAY ENCUESTA NINGUNA, que es el caso que faltaba y
+  el que reportaron los usuarios el 12/09/2026: «me sigue apareciendo el aviso
+  después de llenarla». No la habían llenado. `$faltanPreguntas` vale `[]`
+  cuando la encuesta NO EXISTE —ahí lo que falta es entera, no unas preguntas—
+  así que esta sección, el chip y el aviso de dentro colgaban todos de esa misma
+  condición y NINGUNO se pintaba. Quien pulsaba «Contestar la encuesta» en el
+  aviso aterrizaba en `#bloque-encuesta` y encontraba un título plegado con nada
+  debajo: ni formulario, ni señal de que hubiera algo pendiente. Medido en
+  producción ese día, es el caso de ~924 de 1.048 personas con rol.
+
+  Y ABIERTA SI SUS CAMPOS TRAEN ERROR, que es la regla de la casa y aquí faltaba.
+  Sin JavaScript un rechazo vuelve a pintar la página desde cero, y como seguía
+  sin haber encuesta la sección volvía plegada CON LOS ERRORES DENTRO — el aviso
+  de arriba mandando a buscar lo rojo más abajo y nada rojo a la vista. Con
+  JavaScript no se ve, porque `acciones.js` conserva abiertos los `<details>`
+  que tienen `id`.
+
+  `hasAny` acotado a SUS campos y no `$errors->any()`: con eso se abriría porque
+  falló el formulario de la contraseña, que no tiene nada que ver.
 --}}
-<details class="perfil-seccion" id="bloque-encuesta" @if ($faltanPreguntas) open @endif>
+@php($encuestaSinEmpezar = $encuesta === null)
+@php($erroresDeEncuesta = $errors->hasAny(['genero', 'barrio', 'estrato', 'nivel_educativo', 'ocupacion', 'zona', 'afiliacion_salud', 'grupo_etnico', 'discapacidad', 'victima_conflicto_armado', 'autoriza_tratamiento_datos']))
+<details class="perfil-seccion" id="bloque-encuesta" @if ($faltanPreguntas || $encuestaSinEmpezar || $erroresDeEncuesta) open @endif>
   <summary class="perfil-seccion-cabecera">
     <span class="perfil-seccion-icono icono-encuesta" aria-hidden="true">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -401,11 +423,16 @@
       </svg>
     </span>
     <h3 style="margin:0;">Encuesta demográfica</h3>
-    @if ($faltanPreguntas)<span class="estado estado-pendiente">Incompleta</span>@endif
+    @if ($encuestaSinEmpezar)<span class="estado estado-pendiente">Sin contestar</span>@elseif ($faltanPreguntas)<span class="estado estado-pendiente">Incompleta</span>@endif
     <svg aria-hidden="true" class="perfil-seccion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
   </summary>
   <p class="campo-info" style="margin-top:0.8rem;">Esta información solo la puedes ver tú y el administrador.</p>
-  @if ($faltanPreguntas)
+  @if ($encuestaSinEmpezar)
+  <p class="aviso">
+    Todavía no has contestado esta encuesta. Son unas pocas preguntas y toma
+    menos de un minuto.
+  </p>
+  @elseif ($faltanPreguntas)
   <p class="aviso">
     Falta contestar
     {{ count($faltanPreguntas) === 1 ? 'una pregunta' : count($faltanPreguntas).' preguntas' }}:

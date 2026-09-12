@@ -11,6 +11,8 @@ use App\Models\Periodo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\MessageBag;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 /**
@@ -210,5 +212,144 @@ class RecordarEncuestaTest extends TestCase
             'fecha_nacimiento' => Carbon::today()->subYears(30)->toDateString(),
             'telefono' => '3000000000',
         ]);
+    }
+
+    // --------------------------------------------------------------------
+    // EL OTRO EXTREMO: la pantalla a la que manda el aviso (12/09/2026)
+    //
+    // Lo reportaron los usuarios: «me sigue apareciendo el aviso despues de
+    // llenarla». No la habian llenado. `$faltanPreguntas` vale `[]` cuando la
+    // encuesta NO EXISTE —ahi lo que falta es entera— y la seccion de Mi perfil,
+    // su chip y su aviso colgaban los TRES de esa condicion: quien pulsaba
+    // «Contestar la encuesta» aterrizaba en un titulo plegado con nada debajo.
+    //
+    // Medido en produccion ese dia: 124 encuestas y CERO incompletas, con 1.048
+    // perfiles con rol. O sea que el caso roto no era el raro — era el de ~924
+    // personas, y el de «a medias» no lo tenia nadie.
+    // --------------------------------------------------------------------
+
+    /** La etiqueta de apertura de la seccion, que es donde vive el `open`. */
+    private function seccionDeEncuesta(string $html): string
+    {
+        $i = strpos($html, '<details class="perfil-seccion" id="bloque-encuesta"');
+        $this->assertNotFalse($i, 'no esta la seccion de la encuesta');
+
+        return substr($html, $i, strpos($html, '>', $i) - $i + 1);
+    }
+
+    /** SIN ENCUESTA la seccion viene ABIERTA. Es el fallo reportado. */
+    public function test_sin_encuesta_la_seccion_viene_abierta(): void
+    {
+        $html = (string) $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('open', $this->seccionDeEncuesta($html));
+        $this->assertStringContainsString('Sin contestar', $html);
+        $this->assertStringContainsString('Todavía no has contestado esta encuesta', $html);
+    }
+
+    /** A medias tambien, y entonces el chip dice otra cosa. */
+    public function test_a_medias_la_seccion_viene_abierta(): void
+    {
+        EncuestaDemografica::create([
+            'perfil_id' => $this->ana->id,
+            'genero' => 'f',
+            'barrio' => 'Centro',
+            'estrato' => '2',
+            'nivel_educativo' => '',
+            'ocupacion' => '',
+        ]);
+
+        $html = (string) $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('open', $this->seccionDeEncuesta($html));
+        $this->assertStringContainsString('Incompleta', $html);
+    }
+
+    /** Y contestada entera se pliega: quien ya cumplio no tiene que ver nada. */
+    public function test_contestada_la_seccion_viene_plegada(): void
+    {
+        EncuestaDemografica::create([
+            'perfil_id' => $this->ana->id,
+            'genero' => 'f',
+            'barrio' => 'Centro',
+            'estrato' => '2',
+            'nivel_educativo' => 'ninguno',
+            'ocupacion' => 'estudiante',
+        ]);
+
+        $html = (string) $this->actingAs($this->ana->user)
+            ->get(route('mi-perfil'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('open', $this->seccionDeEncuesta($html));
+        $this->assertStringNotContainsString('Sin contestar', $html);
+    }
+
+    /**
+     * UN RECHAZO DE LA ENCUESTA LA ABRE, aunque siga sin haber encuesta.
+     *
+     * Es la regla de la casa —un `<details>` con formulario se abre si SUS
+     * campos traen error— y aqui faltaba. Sin JavaScript el rechazo repinta la
+     * pagina desde cero y la seccion volvia plegada CON LOS ERRORES DENTRO: el
+     * aviso de arriba mandando a buscar lo rojo mas abajo y nada rojo a la
+     * vista. Con JavaScript no se ve, porque `acciones.js` conserva abiertos los
+     * `<details>` que tienen `id`.
+     */
+    public function test_un_rechazo_de_la_encuesta_abre_su_seccion(): void
+    {
+        // LA ENCUESTA VA COMPLETA A PROPOSITO. Sin esto la prueba no comprobaba
+        // NADA: sin encuesta la seccion se abre igual por `$encuestaSinEmpezar`,
+        // asi que quitar la condicion del error la dejaba en verde. Se vio
+        // saboteando, que es la regla de la casa. Con la encuesta entera, lo
+        // unico que puede abrirla es el error.
+        EncuestaDemografica::create([
+            'perfil_id' => $this->ana->id,
+            'genero' => 'f',
+            'barrio' => 'Centro',
+            'estrato' => '2',
+            'nivel_educativo' => 'ninguno',
+            'ocupacion' => 'estudiante',
+        ]);
+
+        $bolsa = new MessageBag(['ocupacion' => ['Falta ocupación.']]);
+        $errores = new ViewErrorBag;
+        $errores->put('default', $bolsa);
+
+        $html = (string) $this->actingAs($this->ana->user)
+            ->withSession(['errors' => $errores])
+            ->get(route('mi-perfil'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('open', $this->seccionDeEncuesta($html));
+    }
+
+    /**
+     * Y el rechazo de OTRO formulario NO la abre.
+     *
+     * `hasAny` acotado a sus campos y no `$errors->any()`: con eso la encuesta
+     * se abriria porque fallo el formulario de la contraseña, que no tiene nada
+     * que ver, y quien baje a buscar lo rojo lo encontrara en el plegado
+     * equivocado. Esta mitad es la que evita «arreglarlo» al reves.
+     */
+    public function test_el_rechazo_de_otro_formulario_no_la_abre(): void
+    {
+        EncuestaDemografica::create([
+            'perfil_id' => $this->ana->id,
+            'genero' => 'f',
+            'barrio' => 'Centro',
+            'estrato' => '2',
+            'nivel_educativo' => 'ninguno',
+            'ocupacion' => 'estudiante',
+        ]);
+
+        $bolsa = new MessageBag(['password' => ['La contraseña es muy corta.']]);
+        $errores = new ViewErrorBag;
+        $errores->put('default', $bolsa);
+
+        $html = (string) $this->actingAs($this->ana->user)
+            ->withSession(['errors' => $errores])
+            ->get(route('mi-perfil'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('open', $this->seccionDeEncuesta($html));
     }
 }
