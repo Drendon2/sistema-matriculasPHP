@@ -10,6 +10,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
+use App\Support\FichasIncompletas;
 use App\Support\Permisos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -549,6 +550,60 @@ class DirectorPorDepartamentoTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(['Música'], $this->director->fresh()->areasDirigidas->pluck('nombre')->all());
+    }
+
+    /**
+     * LA TERCERA BANDEJA DE ALERTAS TAMBIEN SE ACOTA.
+     *
+     * «Fichas por completar» se quedo fuera del recorte del 12/09/2026 —las
+     * otras dos alertas si se acotaron ese dia— y un director veia las fichas
+     * incompletas de la institucion entera. Lo reporto el usuario.
+     *
+     * «Su gente» es la MISMA definicion que ya usa el filtro de promotoria de
+     * esa pantalla: los matriculados en sus promotorias y quien las dicta. Con
+     * dos definiciones, el filtro y la lista acabarian diciendo cosas distintas.
+     */
+    public function test_las_fichas_incompletas_son_solo_de_su_gente(): void
+    {
+        $suyo = $this->matricular('suyo', $this->piano)->estudiante;
+        $ajeno = $this->matricular('ajeno', $this->ballet)->estudiante;
+
+        $nombres = fn (array $filas) => array_column($filas, 'nombre');
+
+        $delDirector = $nombres(FichasIncompletas::todas($this->director));
+        $delAdmin = $nombres(FichasIncompletas::todas($this->admin));
+
+        $this->assertContains($suyo->nombre_completo, $delDirector);
+        $this->assertNotContains(
+            $ajeno->nombre_completo,
+            $delDirector,
+            've la ficha de alguien de otro departamento'
+        );
+
+        // El administrador sigue viendolos a los dos: la contraparte.
+        $this->assertContains($suyo->nombre_completo, $delAdmin);
+        $this->assertContains($ajeno->nombre_completo, $delAdmin);
+    }
+
+    /** Y la cifra del boton sale del mismo recorrido, asi que tampoco miente. */
+    public function test_la_cifra_de_la_bandeja_va_acotada(): void
+    {
+        $this->matricular('suyo', $this->piano);
+        $this->matricular('ajeno', $this->ballet);
+
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('gestion-cancelaciones'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Ajeno Ruiz', $html);
+
+        // Y el desplegable de promotoria de esa pantalla tampoco ofrece lo ajeno:
+        // un filtro que enseña una promotoria cuya lista sale vacia se lee como
+        // «aqui no falta nada», que es lo contrario de lo que pasa.
+        $fichas = (string) $this->actingAs($this->director->user)
+            ->get(route('gestion-fichas-incompletas'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Piano', $fichas);
+        $this->assertStringNotContainsString('Ballet', $fichas);
     }
 
     private function matricular(string $username, Promotoria $promotoria): Matricula

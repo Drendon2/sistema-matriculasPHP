@@ -129,7 +129,7 @@ class CancelacionesController extends Controller
             // La cifra cuenta PERSONAS y no motivos: a quien le faltan tres
             // cosas es una ficha que atender, no tres. Y el desglose va debajo
             // del boton porque un «810» a secas no dice si vale la pena entrar.
-            'fichasIncompletas' => $this->resumenDeFichas(),
+            'fichasIncompletas' => $this->resumenDeFichas($perfil),
         ]);
     }
 
@@ -144,9 +144,9 @@ class CancelacionesController extends Controller
      *
      * @return array{total: int, porMotivo: array<string, int>}
      */
-    private function resumenDeFichas(): array
+    private function resumenDeFichas(Perfil $quienMira): array
     {
-        $fichas = FichasIncompletas::todas();
+        $fichas = FichasIncompletas::todas($quienMira);
 
         return [
             'total' => count($fichas),

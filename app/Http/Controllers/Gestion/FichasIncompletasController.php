@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gestion;
 
 use App\Http\Controllers\Controller;
+use App\Models\Perfil;
 use App\Models\Promotoria;
 use App\Support\FichasIncompletas;
 use Illuminate\Http\Request;
@@ -42,7 +43,10 @@ class FichasIncompletasController extends Controller
 
     public function index(Request $request): View
     {
-        $todas = FichasIncompletas::todas();
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
+        $todas = FichasIncompletas::todas($perfil);
         $porMotivo = FichasIncompletas::porMotivo($todas);
 
         $motivo = (string) $request->query('motivo', '');
@@ -63,7 +67,10 @@ class FichasIncompletasController extends Controller
             'motivo' => array_key_exists($motivo, FichasIncompletas::MOTIVOS) ? $motivo : '',
             'promotoria' => $promotoria,
             // Con su profesor, que es a quien va dirigida la lista filtrada.
-            'promotorias' => Promotoria::with(['area', 'profesor'])
+            // Acotado tambien: el desplegable no puede ofrecer promotorias que
+            // la lista de abajo ya no trae.
+            'promotorias' => Promotoria::queVe($perfil)
+                ->with(['area', 'profesor'])
                 ->join('areas', 'areas.id', '=', 'promotorias.area_id')
                 ->orderBy('areas.nombre')
                 ->orderBy('promotorias.nombre')

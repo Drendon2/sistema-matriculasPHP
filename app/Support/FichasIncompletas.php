@@ -113,13 +113,25 @@ class FichasIncompletas
      *
      * @return list<FichaIncompleta>
      */
-    public static function todas(): array
+    public static function todas(?Perfil $quienMira = null): array
     {
         $config = ConfiguracionInstitucion::actual();
         $periodo = Periodo::enCurso();
 
-        $personas = self::personas();
-        $vinculos = self::promotoriasDeCadaPersona($periodo);
+        // ACOTADO A QUIEN MIRA desde el 12/09/2026: un director solo ve las
+        // fichas de la gente de sus departamentos. Faltaba — las otras dos
+        // bandejas de esta pantalla se acotaron ese dia y esta se quedo
+        // enseñando la institucion entera, que lo reporto el usuario.
+        //
+        // «Su gente» es la misma definicion que ya usa el filtro de promotoria
+        // de esta pantalla: los MATRICULADOS en sus promotorias y quien las
+        // DICTA. Por eso el recorte va sobre el mapa de vinculos y no sobre una
+        // consulta nueva: con dos definiciones, el filtro y la lista acabarian
+        // diciendo cosas distintas.
+        $vinculos = self::promotoriasDeCadaPersona($periodo, $quienMira);
+        $acotado = $quienMira !== null && Permisos::areasVisiblesPara($quienMira) !== null;
+
+        $personas = self::personas($acotado ? array_keys($vinculos) : null);
         $porAprobar = self::matriculasPorAprobar($periodo);
         $sinGrupo = self::matriculasSinGrupo($periodo);
         $obligatorios = DocumentoRequerido::activos()->where('obligatorio', true)->get();
@@ -191,9 +203,18 @@ class FichasIncompletas
      *
      * @return Collection<int, \stdClass>
      */
-    private static function personas(): Collection
+    /**
+     * @param  list<int>|null  $soloEstos  Ids de perfil, o null para todos.
+     * @return Collection<int, \stdClass>
+     */
+    private static function personas(?array $soloEstos = null): Collection
     {
+        // OJO CON LA LISTA VACIA: un director sin nadie en sus departamentos da
+        // `[]` y este `whereIn` no devuelve a nadie, que es lo correcto. La
+        // tentacion al leerlo es «si esta vacia, no filtres»; eso le devolveria
+        // la institucion entera.
         return DB::table('perfiles')
+            ->when($soloEstos !== null, fn ($q) => $q->whereIn('perfiles.id', $soloEstos ?? []))
             ->leftJoin('datos_estudiante', 'datos_estudiante.perfil_id', '=', 'perfiles.id')
             ->leftJoin('acudientes', 'acudientes.id', '=', 'datos_estudiante.acudiente_id')
             ->select(
@@ -431,13 +452,15 @@ class FichasIncompletas
      *
      * @return array<int, list<array{id: int, nombre: string}>>
      */
-    private static function promotoriasDeCadaPersona(?Periodo $periodo): array
+    private static function promotoriasDeCadaPersona(?Periodo $periodo, ?Perfil $quienMira = null): array
     {
         $mapa = [];
+        $areas = $quienMira === null ? null : Permisos::areasVisiblesPara($quienMira);
 
         if ($periodo !== null) {
             $matriculados = DB::table('matriculas')
                 ->join('promotorias', 'promotorias.id', '=', 'matriculas.promotoria_id')
+                ->when($areas !== null, fn ($q) => $q->whereIn('promotorias.area_id', $areas ?? []))
                 ->where('matriculas.periodo_id', $periodo->id)
                 ->where('matriculas.estado', '!=', Matricula::RETIRADA)
                 ->select('matriculas.estudiante_id as perfil_id', 'promotorias.id', 'promotorias.nombre')
@@ -456,6 +479,7 @@ class FichasIncompletas
         // profesor con su promotoria no se acaba porque cambie el semestre— y
         // por eso va fuera del `if`.
         $dictadas = DB::table('promotorias')
+            ->when($areas !== null, fn ($q) => $q->whereIn('promotorias.area_id', $areas ?? []))
             ->whereNotNull('promotorias.profesor_id')
             ->select('promotorias.profesor_id as perfil_id', 'promotorias.id', 'promotorias.nombre')
             ->orderBy('promotorias.nombre')
