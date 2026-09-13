@@ -66,8 +66,11 @@
 <section class="programa-seccion" aria-labelledby="seccion-cursos">
   <div class="programa-cabecera">
     <h3 id="seccion-cursos">Cursos y talleres</h3>
-    <a class="btn btn-blanco btn-sm" href="{{ route('actividad-curso-nueva') }}" data-modal
-       aria-label="Nuevo curso o taller">+ Nuevo</a>
+    {{-- Crear es del administrador desde el 12/09/2026; ver `routes/web.php`. --}}
+    @if ($yo->rol === 'administrador')
+      <a class="btn btn-blanco btn-sm" href="{{ route('actividad-curso-nueva') }}" data-modal
+         aria-label="Nuevo curso o taller">+ Nuevo</a>
+    @endif
   </div>
   <p class="campo-ayuda">
     No pasan por matrícula: se entra por un enlace que alguien comparte, sin
@@ -80,8 +83,11 @@
 <section class="programa-seccion" aria-labelledby="seccion-proyeccion">
   <div class="programa-cabecera">
     <h3 id="seccion-proyeccion">Grupos de proyección</h3>
-    <a class="btn btn-blanco btn-sm" href="{{ route('actividad-proyeccion-nueva') }}" data-modal
-       aria-label="Nuevo grupo de proyección">+ Nuevo</a>
+    {{-- Crear es del administrador desde el 12/09/2026; ver `routes/web.php`. --}}
+    @if ($yo->rol === 'administrador')
+      <a class="btn btn-blanco btn-sm" href="{{ route('actividad-proyeccion-nueva') }}" data-modal
+         aria-label="Nuevo grupo de proyección">+ Nuevo</a>
+    @endif
   </div>
 
   @include('partials.tabla-actividades', $proyeccion + ['vacio_texto' => 'Todavía no hay grupos de proyección.'])

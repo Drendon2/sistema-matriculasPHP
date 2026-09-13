@@ -16,7 +16,15 @@
 --}}
 <a href="{{ route('gestion-inicio') }}" class="volver">&larr; Gestión</a>
 <h2>{{ $titulo }}</h2>
+{{--
+  Crear una actividad es del ADMINISTRADOR desde el 12/09/2026: un director la
+  gestiona si se la asignan —poniendolo de responsable— pero no la crea. El
+  boton se esconde Y la ruta esta cerrada; esconder el enlace no cierra la
+  puerta, que es regla de esta casa.
+--}}
+@if ($yo->rol === 'administrador')
 <p><a class="btn" href="{{ route($ruta_nuevo) }}" @if ($modal ?? false) data-modal @endif>+ Nuevo</a></p>
+@endif
 
 @include('partials.tabla-actividades')
 @endsection

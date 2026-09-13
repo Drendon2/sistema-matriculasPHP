@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Actividad;
 use App\Models\Area;
 use App\Models\Grupo;
 use App\Models\Matricula;
@@ -311,6 +312,108 @@ class DirectorPorDepartamentoTest extends TestCase
                 "{$url} se le cerro al director de su propio departamento"
             );
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Cursos, talleres y grupos de proyeccion
+    // ------------------------------------------------------------------
+
+    /**
+     * SOLO VE LAS QUE DIRIGE, y el recorte aqui NO es por departamento.
+     *
+     * Una actividad no cuelga de un departamento: vive en su propia tabla y lo
+     * que tiene es una PERSONA responsable. Asi que «asignarle» un curso a un
+     * director es ponerlo de responsable — decision del usuario el 12/09/2026,
+     * con la alternativa delante de darle un `area_id` a la actividad.
+     *
+     * Y SE AFIRMAN LAS DOS MITADES. Sin la de abajo, quitar el recorte daria
+     * verde igual.
+     */
+    public function test_solo_ve_las_actividades_que_dirige(): void
+    {
+        $suya = Actividad::create([
+            'tipo' => Actividad::TALLER,
+            'nombre' => 'Taller suyo',
+            'responsable_id' => $this->director->id,
+            'periodo_id' => $this->periodo->id,
+        ]);
+
+        $ajena = Actividad::create([
+            'tipo' => Actividad::TALLER,
+            'nombre' => 'Taller ajeno',
+            'responsable_id' => $this->admin->id,
+            'periodo_id' => $this->periodo->id,
+        ]);
+
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('actividad-curso-lista'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Taller suyo', $html);
+        $this->assertStringNotContainsString('Taller ajeno', $html);
+
+        // Y tampoco por URL: el listado acotado no basta si `buscar()` no lo
+        // esta. Es el mismo agujero que aparecio en las promotorias.
+        $this->assertSame(
+            404,
+            $this->actingAs($this->director->user)
+                ->get(route('actividad-curso-editar', $ajena))->getStatusCode(),
+            'edita por URL una actividad que no dirige'
+        );
+
+        // La suya si la gestiona: no se le cierra lo propio.
+        $this->actingAs($this->director->user)
+            ->get(route('actividad-curso-editar', $suya))
+            ->assertOk();
+    }
+
+    /**
+     * NO LAS CREA, y esto salio de probarlo con un director de verdad.
+     *
+     * El formulario le ofrecia poner de responsable a cualquiera de las 29
+     * personas, y en cuanto ponia a otro la actividad DESAPARECIA de su vista:
+     * no la veia, no la editaba, no la borraba. Crear algo y perderlo en el
+     * mismo gesto es peor que no poder crearlo.
+     *
+     * Decision del usuario el 12/09/2026, con la alternativa delante —dejar que
+     * solo se las creara a si mismo—.
+     */
+    public function test_no_crea_actividades(): void
+    {
+        foreach (['actividad-curso-nueva', 'actividad-proyeccion-nueva'] as $ruta) {
+            $this->actingAs($this->director->user)
+                ->get(route($ruta))
+                ->assertRedirect();
+        }
+
+        $this->actingAs($this->director->user)
+            ->post(route('actividad-curso-nueva'), [
+                'nombre' => 'Colado',
+                'responsable_id' => $this->director->id,
+                'clases' => 1,
+            ])
+            ->assertRedirect();
+
+        $this->assertNull(Actividad::where('nombre', 'Colado')->first());
+
+        // Y el administrador si: la contraparte.
+        $this->actingAs($this->admin->user)
+            ->get(route('actividad-curso-nueva'))
+            ->assertOk();
+    }
+
+    /** Y el boton tampoco se le pinta: un boton que rebota es un boton roto. */
+    public function test_no_se_le_pinta_el_boton_de_crear_actividades(): void
+    {
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(route('actividad-curso-nueva'), $html);
+        $this->assertStringNotContainsString(route('actividad-proyeccion-nueva'), $html);
+
+        $delAdmin = (string) $this->actingAs($this->admin->user)
+            ->get(route('gestion-programas'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(route('actividad-curso-nueva'), $delAdmin);
     }
 
     private function matricular(string $username, Promotoria $promotoria): Matricula

@@ -455,8 +455,6 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
 
     // Cursos y talleres
     Route::get('/cursos', [Gestion\CursoTallerController::class, 'index'])->name('actividad-curso-lista');
-    Route::get('/cursos/nuevo', [Gestion\CursoTallerController::class, 'crear'])->name('actividad-curso-nueva');
-    Route::post('/cursos/nuevo', [Gestion\CursoTallerController::class, 'guardar']);
     Route::get('/cursos/{objeto}/editar', [Gestion\CursoTallerController::class, 'editar'])
         ->name('actividad-curso-editar');
     Route::post('/cursos/{objeto}/editar', [Gestion\CursoTallerController::class, 'actualizar']);
@@ -475,9 +473,6 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     // Grupos de proyeccion
     Route::get('/proyeccion', [Gestion\ProyeccionController::class, 'index'])
         ->name('actividad-proyeccion-lista');
-    Route::get('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'crear'])
-        ->name('actividad-proyeccion-nueva');
-    Route::post('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'guardar']);
     Route::get('/proyeccion/{objeto}/editar', [Gestion\ProyeccionController::class, 'editar'])
         ->name('actividad-proyeccion-editar');
     Route::post('/proyeccion/{objeto}/editar', [Gestion\ProyeccionController::class, 'actualizar']);
@@ -512,6 +507,24 @@ Route::post('/gestion/asistida/{usuario}', [Gestion\AsistidaController::class, '
 // identidad de la entidad y una regla que gobierna las matriculas de todo el
 // mundo; las segundas agregan la encuesta demografica.
 Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(function () {
+    // CREAR una actividad es del ADMINISTRADOR desde el 12/09/2026.
+    //
+    // Un director SI gestiona las que le asignen: las edita, les pone fechas,
+    // les pasa lista y saca sus certificados. Lo que no hace es crearlas, y la
+    // razon salio de probarlo con un director de verdad: el formulario le
+    // ofrecia poner de responsable a cualquiera de las 29 personas, y en
+    // cuanto ponia a otro la actividad DESAPARECIA de su vista —no la ve, no
+    // la edita, no la borra— porque una actividad no cuelga de un
+    // departamento y su recorte va por responsable.
+    //
+    // Crear algo y perderlo en el mismo gesto es peor que no poder crearlo.
+    // Decision del usuario ese dia, con la alternativa delante: dejar que
+    // solo se las creara A SI MISMO.
+    Route::get('/cursos/nuevo', [Gestion\CursoTallerController::class, 'crear'])->name('actividad-curso-nueva');
+    Route::post('/cursos/nuevo', [Gestion\CursoTallerController::class, 'guardar']);
+    Route::get('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'crear'])
+        ->name('actividad-proyeccion-nueva');
+    Route::post('/proyeccion/nuevo', [Gestion\ProyeccionController::class, 'guardar']);
 
     // ── SOLO EL ADMINISTRADOR, desde el 12/09/2026 ──────────────────────
     //
