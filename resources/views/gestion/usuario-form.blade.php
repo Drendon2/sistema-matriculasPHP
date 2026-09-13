@@ -155,15 +155,6 @@
   </div>
 
   {{--
-    «Cancelar» sirve en los dos sitios: dentro del modal es lo que lo cierra, y
-    en la página suelta es la salida que no obliga a subir hasta el «Volver».
-  --}}
-  <div class="modal-botones" style="margin-top:1.3rem;">
-    <button type="submit" class="btn">Guardar</button>
-    <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
-  </div>
-
-  {{--
     LOS DEPARTAMENTOS QUE DIRIGE. Desde el 12/09/2026 un director no ve la casa
     entera: ve lo de los departamentos que se le asignen, y este es el único
     sitio donde se asignan.
@@ -200,6 +191,16 @@
 
     @error('areas_dirigidas.*')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
   </div>
+
+  {{--
+    «Cancelar» sirve en los dos sitios: dentro del modal es lo que lo cierra, y
+    en la página suelta es la salida que no obliga a subir hasta el «Volver».
+  --}}
+  <div class="modal-botones" style="margin-top:1.3rem;">
+    <button type="submit" class="btn">Guardar</button>
+    <a href="{{ route('usuario-lista') }}" class="btn btn-secundario" data-modal-cerrar>Cancelar</a>
+  </div>
+
 
   {{--
     El guion va DENTRO del formulario y no después, y no es cosmético: el modal

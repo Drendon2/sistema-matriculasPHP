@@ -492,6 +492,65 @@ class DirectorPorDepartamentoTest extends TestCase
         $this->assertStringNotContainsString('Ballet', $grupo, 'puede colgar un grupo de una promotoría ajena');
     }
 
+    /**
+     * UN DIRECTOR PUEDE DIRIGIR VARIOS DEPARTAMENTOS.
+     *
+     * Es la razon de que esto sea una tabla puente y no una columna `area_id` en
+     * `perfiles`: con una columna habria que inventar un segundo perfil de la
+     * misma persona el dia que dirija dos, y en produccion la casa crece
+     * justamente asi.
+     *
+     * Se comprueba por el FORMULARIO y no asignando a mano, porque lo que puede
+     * romperse es el `sync()`: guardar dos casillas marcadas tiene que dejar
+     * las dos, y el formulario manda la lista entera.
+     */
+    public function test_un_director_puede_dirigir_varios_departamentos(): void
+    {
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $this->director), [
+                'username' => 'dire',
+                'password' => '',
+                'rol' => 'director',
+                'nombre_completo' => 'Dire Ruiz',
+                'fecha_nacimiento' => '1985-01-01',
+                'telefono' => '3001112233',
+                'areas_dirigidas' => [$this->musica->id, $this->danza->id],
+            ])
+            ->assertRedirect();
+
+        $dirige = $this->director->fresh()->areasDirigidas->pluck('nombre')->all();
+
+        sort($dirige);
+        $this->assertSame(['Danza', 'Música'], $dirige);
+
+        // Y las ve las dos: el recorte no se queda con la primera.
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('panel'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Piano', $html);
+        $this->assertStringContainsString('Ballet', $html);
+    }
+
+    /** Y quitarle uno se lo quita de verdad: el formulario manda la lista entera. */
+    public function test_desmarcar_un_departamento_se_lo_quita(): void
+    {
+        $this->dirige($this->director, $this->musica, $this->danza);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $this->director), [
+                'username' => 'dire',
+                'password' => '',
+                'rol' => 'director',
+                'nombre_completo' => 'Dire Ruiz',
+                'fecha_nacimiento' => '1985-01-01',
+                'telefono' => '3001112233',
+                'areas_dirigidas' => [$this->musica->id],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(['Música'], $this->director->fresh()->areasDirigidas->pluck('nombre')->all());
+    }
+
     private function matricular(string $username, Promotoria $promotoria): Matricula
     {
         $estudiante = $this->perfil($username, 'estudiante');
