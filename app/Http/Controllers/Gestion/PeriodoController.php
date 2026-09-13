@@ -33,6 +33,11 @@ class PeriodoController extends RecursoController
             // crear uno es parte de abrir un periodo, no de mantener un
             // catalogo aparte. Ahi vuelve al guardar, cancelar o borrar.
             'ruta_lista' => 'gestion-matriculas',
+            // Crear, editar y borrar esto es del ADMINISTRADOR desde el
+            // 12/09/2026: es una decision de toda la casa y un director esta
+            // acotado a sus departamentos. Lo lee `partials.tabla-catalogo`
+            // para no pintar un menu de fila que rebotaria en la puerta.
+            'solo_admin' => true,
             'ruta_nuevo' => 'periodo-nuevo',
             'ruta_editar' => 'periodo-editar',
             'ruta_eliminar' => 'periodo-eliminar',

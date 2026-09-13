@@ -110,9 +110,16 @@
         pulses para que te lo nieguen.
       --}}
       <td data-celda="accion" class="lista-acciones lista-acciones-menu">
+        {{--
+          SIN OPCIONES NO SE PINTA EL MENU, y de eso se aprovecha el corte del
+          12/09/2026: los catalogos que pasaron a ser SOLO DEL ADMINISTRADOR
+          —departamentos y periodos— le enseñaban a un director un botón que
+          rebotaba en la puerta. Un botón que no hace nada es un fallo que este
+          proyecto ya pagó, así que aquí no se pinta.
+        --}}
         @include('partials.menu-fila', [
             'etiqueta' => $obj,
-            'opciones' => [
+            'opciones' => ($solo_admin ?? false) && $yo->rol !== 'administrador' ? [] : [
                 ['texto' => 'Editar', 'url' => route($ruta_editar, $obj), 'modal' => $abreEnModal],
                 [
                     'texto' => 'Eliminar',

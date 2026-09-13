@@ -28,6 +28,11 @@ class AreaController extends RecursoController
             // donde vive esta lista desde el 01/09/2026, y donde estaba quien
             // abrio el modal.
             'ruta_lista' => 'gestion-programas',
+            // Crear, editar y borrar esto es del ADMINISTRADOR desde el
+            // 12/09/2026: es una decision de toda la casa y un director esta
+            // acotado a sus departamentos. Lo lee `partials.tabla-catalogo`
+            // para no pintar un menu de fila que rebotaria en la puerta.
+            'solo_admin' => true,
             'ruta_nuevo' => 'area-nueva',
             'ruta_editar' => 'area-editar',
             'ruta_eliminar' => 'area-eliminar',

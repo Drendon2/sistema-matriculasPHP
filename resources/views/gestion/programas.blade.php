@@ -32,8 +32,16 @@
 <section class="programa-seccion" aria-labelledby="seccion-departamentos">
   <div class="programa-cabecera">
     <h3 id="seccion-departamentos">Departamentos</h3>
-    <a class="btn btn-blanco btn-sm" href="{{ route('area-nueva') }}" data-modal
-       aria-label="Nuevo departamento">+ Nuevo</a>
+    {{--
+      SOLO EL ADMINISTRADOR desde el 12/09/2026: crear un departamento es una
+      decisión de toda la casa, y un director está acotado a los suyos. Sin este
+      corte el botón seguía pintado y la ruta —ya cerrada— lo devolvía rebotado:
+      un botón que no hace nada, que es un fallo que este proyecto ya pagó.
+    --}}
+    @if ($yo->rol === 'administrador')
+      <a class="btn btn-blanco btn-sm" href="{{ route('area-nueva') }}" data-modal
+         aria-label="Nuevo departamento">+ Nuevo</a>
+    @endif
   </div>
   <p class="campo-ayuda">
     Cada departamento agrupa sus promotorías, y cada promotoría sus grupos con
