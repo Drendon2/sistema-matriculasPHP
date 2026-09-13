@@ -430,8 +430,6 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
 
     // Promotorias
     Route::get('/promotorias', [Gestion\PromotoriaController::class, 'index'])->name('promotoria-lista');
-    Route::get('/promotorias/nueva', [Gestion\PromotoriaController::class, 'crear'])->name('promotoria-nueva');
-    Route::post('/promotorias/nueva', [Gestion\PromotoriaController::class, 'guardar']);
     Route::get('/promotorias/{objeto}/editar', [Gestion\PromotoriaController::class, 'editar'])
         ->name('promotoria-editar');
     Route::post('/promotorias/{objeto}/editar', [Gestion\PromotoriaController::class, 'actualizar']);
@@ -507,6 +505,17 @@ Route::post('/gestion/asistida/{usuario}', [Gestion\AsistidaController::class, '
 // identidad de la entidad y una regla que gobierna las matriculas de todo el
 // mundo; las segundas agregan la encuesta demografica.
 Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(function () {
+    // CREAR una promotoria es del ADMINISTRADOR desde el 12/09/2026, y esta
+    // linea llego despues de las demas: se vio abriendo Programas como
+    // director, donde el formulario le ofrecia TODOS los departamentos en el
+    // desplegable —incluidos los que no administra—.
+    //
+    // Un director SIGUE editando las suyas y armando sus grupos, que es su
+    // trabajo. Abrir una promotoria nueva es decidir lo que la casa ofrece,
+    // y eso no se acota a un departamento. Decision del usuario ese dia.
+    Route::get('/promotorias/nueva', [Gestion\PromotoriaController::class, 'crear'])->name('promotoria-nueva');
+    Route::post('/promotorias/nueva', [Gestion\PromotoriaController::class, 'guardar']);
+
     // CREAR una actividad es del ADMINISTRADOR desde el 12/09/2026.
     //
     // Un director SI gestiona las que le asignen: las edita, les pone fechas,

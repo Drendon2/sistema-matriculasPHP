@@ -34,7 +34,19 @@
 <h2>{{ $titulo }}</h2>
 {{-- El espacio antes de la directiva no sobra: pegada a una letra, Blade lee
      «algo@if» como un correo y se come el @endif que le toca. --}}
+{{--
+  `crear_solo_admin` lo declaran los catalogos cuya creacion paso a ser del
+  administrador el 12/09/2026 —departamentos, periodos y promotorias—. El boton
+  se esconde Y la ruta esta cerrada: esconder el enlace no cierra la puerta, y
+  dejarlo pintado sobre una ruta cerrada es un boton que no hace nada.
+
+  Es una bandera aparte de `solo_admin` a proposito: un director NO crea una
+  promotoria pero SI edita las suyas, asi que la que apaga el boton de crear no
+  puede ser la misma que apaga el menu de fila.
+--}}
+@if (! ($crear_solo_admin ?? false) || $yo->rol === 'administrador')
 <p><a class="btn" href="{{ route($ruta_nuevo).$preset }}" @if ($abreEnModal) data-modal @endif>+ Nuevo</a></p>
+@endif
 
 @php($losFiltros = $filtros ?? [])
 @php($hayFiltros = $hay_filtros ?? false)

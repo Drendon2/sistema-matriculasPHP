@@ -34,6 +34,7 @@ class PromotoriaController extends RecursoController
             'titulo_nuevo' => 'Nueva promotoría',
             'titulo_editar' => 'Editar promotoría',
             'ruta_lista' => 'promotoria-lista',
+            'crear_solo_admin' => true,
             'ruta_nuevo' => 'promotoria-nueva',
             'ruta_editar' => 'promotoria-editar',
             'ruta_eliminar' => 'promotoria-eliminar',
@@ -138,7 +139,14 @@ class PromotoriaController extends RecursoController
             'area_id' => [
                 'etiqueta' => 'Departamento',
                 'tipo' => 'select',
-                'opciones' => Area::orderBy('nombre')->pluck('nombre', 'id')->all(),
+                // SOLO LOS SUYOS. Un director ya no crea promotorias —eso es
+                // del administrador desde el 12/09/2026— pero si EDITA las de
+                // sus departamentos, y con la lista entera aqui podia moverse
+                // una a un departamento ajeno: al guardar desaparecia de su
+                // vista y no podia devolverla. Se pierde algo sin que nada
+                // falle, que es la forma peor.
+                'opciones' => Area::queVe($request->attributes->get('perfil'))
+                    ->orderBy('nombre')->pluck('nombre', 'id')->all(),
                 // Al llegar desde un departamento se preselecciona: quien esta
                 // armando ese departamento no tiene por que volver a elegirlo.
                 'valor' => $objeto?->area_id ?? $request->query('area_id'),

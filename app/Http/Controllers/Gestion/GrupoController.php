@@ -286,7 +286,12 @@ class GrupoController extends RecursoController
 
     protected function campos(Request $request, ?Model $objeto): array
     {
-        $promotorias = Promotoria::with('area')
+        // SOLO LAS SUYAS. Crear grupos SI es trabajo de un director —armar los
+        // horarios de sus promotorias lo es— pero con la lista entera podia
+        // colgar un grupo de una promotoria ajena, y entonces ni lo veia
+        // despues. Ver `Promotoria::queVe()`.
+        $promotorias = Promotoria::queVe($request->attributes->get('perfil'))
+            ->with('area')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
             ->orderBy('areas.nombre')
             ->orderBy('promotorias.nombre')

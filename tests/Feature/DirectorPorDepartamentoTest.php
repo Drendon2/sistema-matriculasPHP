@@ -416,6 +416,82 @@ class DirectorPorDepartamentoTest extends TestCase
         $this->assertStringContainsString(route('actividad-curso-nueva'), $delAdmin);
     }
 
+    // ------------------------------------------------------------------
+    // Crear promotorias, y los desplegables de los formularios
+    // ------------------------------------------------------------------
+
+    /**
+     * UN DIRECTOR NO CREA PROMOTORIAS, pero SIGUE editando las suyas.
+     *
+     * Lo reporto el usuario el 12/09/2026 mirando Programas → promotorías de
+     * Música: el botón «+ Nuevo» estaba ahí. Abrir una promotoria nueva es
+     * decidir lo que la casa ofrece, y eso no se acota a un departamento.
+     *
+     * Las dos mitades importan: si de paso se le cerrara la edicion, se quedaria
+     * sin poder trabajar y nadie lo veria hasta que llamara.
+     */
+    public function test_no_crea_promotorias_pero_edita_las_suyas(): void
+    {
+        $this->actingAs($this->director->user)
+            ->get(route('promotoria-nueva'))
+            ->assertRedirect();
+
+        $this->actingAs($this->director->user)
+            ->post(route('promotoria-nueva'), ['nombre' => 'Colada', 'area_id' => $this->musica->id])
+            ->assertRedirect();
+
+        $this->assertNull(Promotoria::where('nombre', 'Colada')->first());
+
+        // Lo suyo sigue abriendo, y el administrador sigue creando.
+        $this->actingAs($this->director->user)
+            ->get(route('promotoria-editar', $this->piano))
+            ->assertOk();
+
+        $this->actingAs($this->admin->user)
+            ->get(route('promotoria-nueva'))
+            ->assertOk();
+    }
+
+    /** Y el boton tampoco se le pinta, que es lo que se vio en pantalla. */
+    public function test_no_se_le_pinta_el_boton_de_nueva_promotoria(): void
+    {
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('promotorias-por-area', $this->musica))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString(route('promotoria-nueva'), $html);
+
+        $delAdmin = (string) $this->actingAs($this->admin->user)
+            ->get(route('promotorias-por-area', $this->musica))->assertOk()->getContent();
+
+        $this->assertStringContainsString(route('promotoria-nueva'), $delAdmin);
+    }
+
+    /**
+     * LOS DESPLEGABLES DE LOS FORMULARIOS SOLO OFRECEN LO SUYO.
+     *
+     * Es la otra mitad de lo mismo y el caso peor: editando SU promotoria, el
+     * desplegable de departamento le ofrecia TODOS. Bastaba con elegir otro para
+     * que al guardar la promotoria desapareciera de su vista — y sin forma de
+     * devolverla. Se pierde algo sin que nada falle.
+     *
+     * Y en el formulario de grupo, la lista de promotorias ofrecia las ajenas:
+     * podia colgar un grupo de una promotoria que despues no veia.
+     */
+    public function test_los_desplegables_solo_ofrecen_lo_suyo(): void
+    {
+        $html = (string) $this->actingAs($this->director->user)
+            ->get(route('promotoria-editar', $this->piano))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Música', $html);
+        $this->assertStringNotContainsString('Danza', $html, 'puede mover su promotoría a un departamento ajeno');
+
+        $grupo = (string) $this->actingAs($this->director->user)
+            ->get(route('grupo-nuevo'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Piano', $grupo);
+        $this->assertStringNotContainsString('Ballet', $grupo, 'puede colgar un grupo de una promotoría ajena');
+    }
+
     private function matricular(string $username, Promotoria $promotoria): Matricula
     {
         $estudiante = $this->perfil($username, 'estudiante');
