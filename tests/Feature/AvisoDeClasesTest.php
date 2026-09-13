@@ -242,4 +242,35 @@ class AvisoDeClasesTest extends TestCase
         $this->assertStringNotContainsString('nav-con-aviso', $html);
         $this->assertStringNotContainsString('data-aviso-clases', $html);
     }
+
+    /**
+     * EL REPINTADO SIN RECARGA TIENE QUE TRAERSE EL MENU.
+     *
+     * El punto vive FUERA de `<main>`, asi que `pintar()` no lo toca: al
+     * confirmar la ultima clase la fila pasaba a VERIFICADA y el punto seguia
+     * diciendo «1 clase sin confirmar» hasta la siguiente navegacion de verdad.
+     * Se vio recorriendo el flujo entero el 12/09/2026, no en una prueba.
+     *
+     * Un contador que miente una vez no lo vuelve a mirar nadie, y este existe
+     * justamente para que no se pase el plazo de 48 horas.
+     *
+     * PHPUnit no tiene navegador, asi que esto NO comprueba que el menu se
+     * actualice: vigila que la llamada siga escrita, que es lo mismo que hace
+     * `ToqueEnElTelefonoTest` con sus marcadores. Lo otro se vio en el navegador.
+     */
+    public function test_el_repintado_sincroniza_el_menu(): void
+    {
+        $js = (string) file_get_contents(public_path('js/acciones.js'));
+
+        $this->assertStringContainsString('function sincronizarMenu', $js);
+        $this->assertStringContainsString('sincronizarMenu(doc);', $js);
+
+        // Y la guarda que impide que un FRAGMENTO borre el menu: `layouts.fragmento`
+        // no trae `<nav>`, y sin esta comprobacion el menu se quedaria vacio.
+        $this->assertMatchesRegularExpression(
+            '/if \(!nueva \|\| !actual\) \{ return; \}/',
+            $js,
+            'sin la guarda, un fragmento sin <nav> deja el menu vacio'
+        );
+    }
 }

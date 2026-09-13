@@ -153,6 +153,22 @@
     });
   }
 
+  /**
+   * Copia el menu de la respuesta al que ya esta, si vino en el HTML.
+   *
+   * Solo cuando llega la pagina ENTERA: un fragmento —`layouts.fragmento`— no
+   * trae <nav>, y con `querySelector` devolviendo null aqui se borraria el menu
+   * de la pantalla. Por eso se comprueba antes de tocar nada.
+   */
+  function sincronizarMenu(doc) {
+    var nueva = doc.querySelector("header nav");
+    var actual = document.querySelector("header nav");
+
+    if (!nueva || !actual) { return; }
+
+    actual.innerHTML = nueva.innerHTML;
+  }
+
   function pintar(html, estado, scroll, fragmento) {
     var doc = new DOMParser().parseFromString(html, "text/html");
     var nuevo = fragmento ? doc.body : doc.querySelector("main");
@@ -160,6 +176,19 @@
 
     main.innerHTML = nuevo.innerHTML;
     if (doc.title) { document.title = doc.title; }
+
+    // LA INSIGNIA DEL MENU, que vive FUERA de <main> y por eso no la trae el
+    // repintado.
+    //
+    // Se vio recorriendo el flujo entero el 12/09/2026: un estudiante confirma
+    // su ultima clase, la fila cambia a VERIFICADA... y el punto rojo de
+    // «Clases» se queda diciendo «1 clase sin confirmar» hasta la siguiente
+    // navegacion de verdad. Un contador que miente una vez no lo vuelve a mirar
+    // nadie, y este existe justamente para que no se pase el plazo de 48 horas.
+    //
+    // No es un caso del punto: es de TODO lo que vive fuera de <main> y cambia
+    // con la accion. Aqui solo el menu, que es lo unico que hay hoy.
+    sincronizarMenu(doc);
 
     main.querySelectorAll("details[id]").forEach(function (d) {
       if (d.id in estado) { d.open = estado[d.id]; }
