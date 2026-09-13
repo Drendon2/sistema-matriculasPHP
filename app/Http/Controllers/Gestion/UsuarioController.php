@@ -265,6 +265,10 @@ class UsuarioController extends Controller
             'esCreacion' => true,
             'perfil' => new Perfil,
             'accion' => route('usuario-nuevo'),
+            // Los departamentos, para el bloque que solo se ve cuando el rol es
+            // `director`. Al crear no hay ninguno marcado.
+            'areas' => Area::orderBy('nombre')->get(),
+            'dirigidas' => [],
             'datos' => null,
             'acudiente' => null,
             'roles' => $this->rolesQuePuedeRepartir($request),
@@ -305,6 +309,11 @@ class UsuarioController extends Controller
                 if ($datos['rol'] === 'estudiante') {
                     $this->guardarDatosEstudiante($perfil, $datos, null, null);
                 }
+
+                // Tambien al CREAR: sin esto, un director nuevo nace sin
+                // departamentos y no ve nada hasta que alguien vuelva a abrir su
+                // ficha y guarde. Se veria como «el sistema esta roto».
+                $this->guardarAreasDirigidas($perfil, $datos);
             });
         } catch (ValidationException $e) {
             return back()->withInput()->withErrors($e->errors());
@@ -325,6 +334,11 @@ class UsuarioController extends Controller
             'esCreacion' => false,
             'perfil' => $usuario,
             'accion' => route('usuario-editar', $usuario),
+            'areas' => Area::orderBy('nombre')->get(),
+            // Los ids que ya dirige. Se leen SIEMPRE, tenga el rol que tenga:
+            // si alguien le cambia el rol y vuelve atras sin guardar, el
+            // formulario tiene que seguir enseñando lo que habia.
+            'dirigidas' => $usuario->areasDirigidas->pluck('id')->all(),
             'datos' => $datos,
             'acudiente' => $datos?->acudiente,
             'roles' => $this->rolesQuePuedeRepartir($request),
@@ -381,6 +395,8 @@ class UsuarioController extends Controller
                 if ($datos['rol'] === 'estudiante') {
                     $this->guardarDatosEstudiante($usuario, $datos, $datosEstudiante, $acudiente);
                 }
+
+                $this->guardarAreasDirigidas($usuario, $datos);
             });
         } catch (ValidationException $e) {
             return back()->withInput()->withErrors($e->errors());
@@ -388,6 +404,34 @@ class UsuarioController extends Controller
 
         return redirect(Regreso::url(route('usuario-lista'), $request->input('volver')))
             ->with('success', 'Usuario actualizado.');
+    }
+
+    /**
+     * Las areas que dirige, cuando el rol es `director`.
+     *
+     * ─── SE BORRAN AL DEJAR DE SER DIRECTOR, Y ES A PROPOSITO ──────────────
+     *
+     * La tentacion es conservarlas «por si vuelve». Pero un perfil que hoy es
+     * profesor con filas en `areas_dirigidas` es una bomba de relojeria: el dia
+     * que alguien le devuelva el rol, recupera en silencio unos departamentos
+     * que nadie acaba de decidir. Quien vuelva a ser director nace sin ninguna,
+     * que es el estado que obliga a elegir.
+     *
+     * `sync()` y no `attach()`: el formulario manda la lista ENTERA, asi que lo
+     * que no viene es lo que se quita. Con `attach` no habria forma de quitarle
+     * un departamento sin una pantalla aparte.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function guardarAreasDirigidas(Perfil $usuario, array $datos): void
+    {
+        if ($datos['rol'] !== 'director') {
+            $usuario->areasDirigidas()->sync([]);
+
+            return;
+        }
+
+        $usuario->areasDirigidas()->sync($datos['areas_dirigidas'] ?? []);
     }
 
     /**
@@ -594,6 +638,13 @@ class UsuarioController extends Controller
         $esEstudiante = $request->input('rol') === 'estudiante';
 
         return $request->validate([
+            // LAS AREAS QUE DIRIGE. Solo se piden cuando el rol es `director`;
+            // para cualquier otro no viajan y no se guardan. `exists` no sobra:
+            // sin el, un id inventado en el formulario se colaria en la tabla
+            // puente y ese director veria un departamento que no existe —o peor,
+            // uno creado despues con ese id—.
+            'areas_dirigidas' => ['array'],
+            'areas_dirigidas.*' => ['integer', Rule::exists('areas', 'id')],
             'username' => Reglas::usuario(
                 Rule::unique('users', 'username')->ignore($perfil?->user_id),
             ),

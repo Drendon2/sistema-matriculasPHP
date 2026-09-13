@@ -21,6 +21,7 @@ use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Models\User;
+use App\Support\Permisos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,10 @@ class GestionTest extends TestCase
 
         $this->musica = Area::create(['nombre' => 'Musica']);
         $this->director = $this->crearPerfil('dire', 'director');
+        // Dirige todos los departamentos: estas pruebas no van del recorte del
+        // 12/09/2026 sino de lo que Gestion hace, y un director sin
+        // departamentos no ve nada. Las del recorte estan en su propio archivo.
+        $this->dirige($this->director);
         $this->admin = $this->crearPerfil('admin', 'administrador');
         $this->profesor = $this->crearPerfil('profe', 'profesor');
         $this->estudiante = $this->crearEstudiante('ana');
@@ -155,7 +160,7 @@ class GestionTest extends TestCase
     {
         $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-resolver-cancelacion', [$matricula, 'aprobar']))
             ->assertSessionHas('success');
 
@@ -172,7 +177,7 @@ class GestionTest extends TestCase
         $menor = $this->crearEstudiante('nino', Carbon::today()->subYears(10)->toDateString());
         $matricula = $this->matricular($menor, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-resolver-cancelacion', [$matricula, 'rechazar']))
             ->assertSessionHas('success');
 
@@ -184,7 +189,7 @@ class GestionTest extends TestCase
     {
         $matricula = $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-resolver-cancelacion', [$matricula, 'rechazar']))
             ->assertSessionHas('error');
 
@@ -200,7 +205,7 @@ class GestionTest extends TestCase
             $this->matricular($this->crearEstudiante('otro'), $otra, Matricula::CANCELACION_SOLICITADA),
         ];
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cancelaciones-lote'), [
                 'decision' => 'aprobar',
                 'matricula_ids' => array_map(fn (Matricula $m) => $m->id, $unas),
@@ -228,7 +233,7 @@ class GestionTest extends TestCase
         $delMenor = $this->matricular($menor, $this->violin, Matricula::CANCELACION_SOLICITADA);
         $delAdulto = $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->post(route('gestion-cancelaciones-lote'), [
                 'decision' => 'rechazar',
                 'matricula_ids' => [$delMenor->id, $delAdulto->id],
@@ -253,7 +258,7 @@ class GestionTest extends TestCase
             Matricula::CANCELACION_SOLICITADA
         );
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cancelaciones-lote'), [
                 'decision' => 'aprobar',
                 'matricula_ids' => [$activa->id, $enTramite->id],
@@ -274,7 +279,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::CANCELACION_SOLICITADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('gestion-inicio'))
             ->assertOk()
             ->assertSee('Alertas y cancelaciones');
@@ -286,13 +291,13 @@ class GestionTest extends TestCase
 
     public function test_se_cierran_y_se_abren_las_matriculas(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-matriculas'), ['accion' => 'cerrar'])
             ->assertSessionHas('success');
 
         $this->assertFalse($this->periodo->fresh()->matriculas_abiertas);
 
-        $this->actingAs($this->director->user)->post(route('gestion-matriculas'), ['accion' => 'abrir']);
+        $this->actingAs($this->admin->user)->post(route('gestion-matriculas'), ['accion' => 'abrir']);
 
         $this->assertTrue($this->periodo->fresh()->matriculas_abiertas);
     }
@@ -311,7 +316,7 @@ class GestionTest extends TestCase
             'matriculas_abiertas' => false,
         ]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-matriculas'), ['accion' => 'poner_en_curso', 'periodo_id' => $nuevo->id])
             ->assertSessionHas('success');
 
@@ -329,7 +334,7 @@ class GestionTest extends TestCase
     {
         $danza = Promotoria::create(['nombre' => 'Danza', 'area_id' => $this->musica->id]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cupos-periodo', $this->periodo), [
                 "cupo_{$this->violin->id}" => '10',
                 "cupo_{$danza->id}" => '',
@@ -345,7 +350,7 @@ class GestionTest extends TestCase
     {
         $danza = Promotoria::create(['nombre' => 'Danza', 'area_id' => $this->musica->id]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cupos-periodo', $this->periodo), [
                 "cupo_{$this->violin->id}" => '10',
                 "cupo_{$danza->id}" => 'muchos',
@@ -367,7 +372,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->post(route('gestion-cupos-periodo', $this->periodo), [
                 "cupo_{$this->violin->id}" => '0',
             ]);
@@ -437,11 +442,11 @@ class GestionTest extends TestCase
         DB::enableQueryLog();
 
         if ($guardando) {
-            $this->actingAs($this->director->user)
+            $this->actingAs($this->admin->user)
                 ->post(route('gestion-cupos-periodo', $this->periodo), [])
                 ->assertRedirect();
         } else {
-            $this->actingAs($this->director->user)
+            $this->actingAs($this->admin->user)
                 ->get(route('gestion-cupos-periodo', $this->periodo))
                 ->assertOk();
         }
@@ -510,7 +515,7 @@ class GestionTest extends TestCase
         DB::flushQueryLog();
         DB::enableQueryLog();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cupos-periodo', $this->periodo), $campos)
             ->assertRedirect();
 
@@ -535,7 +540,7 @@ class GestionTest extends TestCase
             'matriculas_abiertas' => false,
         ]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('gestion-cupos-periodo', $viejo), ["cupo_{$this->violin->id}" => '5'])
             ->assertSessionHas('error');
 
@@ -548,7 +553,7 @@ class GestionTest extends TestCase
 
     public function test_se_crea_un_departamento(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('area-nueva'), ['nombre' => 'Teatro'])
             ->assertRedirect(route('gestion-programas'));
 
@@ -561,7 +566,7 @@ class GestionTest extends TestCase
      */
     public function test_la_confirmacion_avisa_de_lo_que_bloquea_el_borrado(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-eliminar', $this->musica))
             ->assertOk()
             ->assertSee('No se puede eliminar')
@@ -572,7 +577,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('promotoria-eliminar', $this->violin))
             ->assertSessionHas('error');
 
@@ -584,12 +589,12 @@ class GestionTest extends TestCase
     {
         $vacia = Area::create(['nombre' => 'Sin nada']);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-eliminar', $vacia))
             ->assertOk()
             ->assertSee('¿Eliminar', false);
 
-        $this->actingAs($this->director->user)->post(route('area-eliminar', $vacia));
+        $this->actingAs($this->admin->user)->post(route('area-eliminar', $vacia));
 
         $this->assertNull($vacia->fresh());
     }
@@ -610,7 +615,7 @@ class GestionTest extends TestCase
             'cupo_maximo' => 5,
         ]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('promotoria-eliminar', $sinMatriculas))
             ->assertOk()
             ->assertSee('Se llevará también');
@@ -618,7 +623,7 @@ class GestionTest extends TestCase
 
     public function test_la_promotoria_nueva_vuelve_a_su_departamento(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('promotoria-nueva'), [
                 'nombre' => 'Tiple',
                 'area_id' => $this->musica->id,
@@ -633,7 +638,7 @@ class GestionTest extends TestCase
 
     public function test_se_crea_un_usuario_estudiante_con_sus_datos(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), [
                 'username' => 'nuevo',
                 'password' => 'secreta123',
@@ -654,7 +659,7 @@ class GestionTest extends TestCase
     /** La regla vive en el modelo porque la minoria de edad esta en otra tabla. */
     public function test_un_estudiante_menor_necesita_acudiente(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), [
                 'username' => 'nino',
                 'password' => 'secreta123',
@@ -673,7 +678,7 @@ class GestionTest extends TestCase
     {
         $antes = $this->estudiante->user->password;
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-editar', $this->estudiante), [
                 'username' => 'ana',
                 'password' => '',
@@ -702,7 +707,7 @@ class GestionTest extends TestCase
     {
         $antes = $this->estudiante->user->password;
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-editar', $this->estudiante), [
                 'username' => 'ana',
                 'password' => 'corta7c',
@@ -722,7 +727,7 @@ class GestionTest extends TestCase
     /** Una contrasena corta tampoco crea la cuenta desde Gestion. */
     public function test_al_crear_una_contrasena_corta_se_rechaza(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), [
                 'username' => 'nuevo.corto',
                 'password' => 'corta7c',
@@ -761,20 +766,43 @@ class GestionTest extends TestCase
         ];
     }
 
-    public function test_un_director_no_crea_administradores(): void
+    // -- Usuarios es SOLO DEL ADMINISTRADOR desde el 12/09/2026 --------------
+    //
+    // Hasta ese dia un director entraba a Gestion → Usuarios y repartia roles,
+    // y estas pruebas comprobaban donde estaban sus limites DENTRO de esa
+    // pantalla: no ascender a nadie a administrador, no tocar la ficha de uno.
+    //
+    // Ahora no entra. A las personas llega por los grupos de los departamentos
+    // que administra —su ficha se abre desde el Panel— y no por un listado de
+    // la institucion entera. Asi que el limite dejo de estar dentro de la
+    // pantalla y pasó a ser la puerta.
+    //
+    // LAS REGLAS DE `Permisos` SE QUEDAN Y SE COMPRUEBAN APARTE, abajo. No son
+    // codigo muerto por capricho: son la segunda cerradura del dia que alguien
+    // vuelva a abrirle esta pantalla a un director, y sin prueba se irian
+    // pudriendo sin que nada fallara.
+
+    /**
+     * El director rebota en TODAS las rutas de Usuarios, y no cambia nada.
+     *
+     * Se afirman las dos cosas. Que rebote es lo que se pidio; que no cambie
+     * nada es lo que distingue una puerta cerrada de un cartel.
+     *
+     * OJO: el middleware `rol:` REDIRIGE, no da 403 — asi que esperar un 403
+     * aqui falla con el codigo bueno. Lo comprobado es que NO sea 200.
+     */
+    public function test_un_director_ya_no_entra_a_usuarios(): void
     {
         $this->actingAs($this->director->user)
-            ->post(route('usuario-nuevo'), $this->datosDeUsuario([
-                'username' => 'colado',
-                'rol' => 'administrador',
-            ]))
-            ->assertForbidden();
+            ->get(route('usuario-lista'))
+            ->assertRedirect();
+
+        $this->actingAs($this->director->user)
+            ->post(route('usuario-nuevo'), $this->datosDeUsuario(['username' => 'colado']))
+            ->assertRedirect();
 
         $this->assertNull(User::where('username', 'colado')->first());
-    }
 
-    public function test_un_director_no_asciende_a_nadie_a_administrador(): void
-    {
         $this->actingAs($this->director->user)
             ->post(route('usuario-editar', $this->profesor), $this->datosDeUsuario([
                 'username' => 'profe',
@@ -782,88 +810,42 @@ class GestionTest extends TestCase
                 'rol' => 'administrador',
                 'nombre_completo' => 'Profe',
             ]))
-            ->assertForbidden();
+            ->assertRedirect();
 
         $this->assertSame('profesor', $this->profesor->fresh()->rol);
-    }
 
-    /** El camino corto y el mas obvio: ascenderse uno mismo. */
-    public function test_un_director_no_se_asciende_a_si_mismo(): void
-    {
         $this->actingAs($this->director->user)
-            ->post(route('usuario-editar', $this->director), $this->datosDeUsuario([
-                'username' => 'dire',
-                'password' => '',
-                'rol' => 'administrador',
-                'nombre_completo' => 'Dire',
-            ]))
-            ->assertForbidden();
+            ->post(route('usuario-alternar-activo', $this->profesor))
+            ->assertRedirect();
 
-        $this->assertSame('director', $this->director->fresh()->rol);
+        $this->assertTrue($this->profesor->fresh()->user->activo);
     }
 
     /**
-     * El otro camino: no ascenderse, sino suplantar.
+     * Y las dos reglas que protegian esa pantalla siguen escritas.
      *
-     * Sin esto la restriccion anterior no vale nada — bastaba con ponerle al
-     * administrador una contrasena conocida y entrar como el.
+     * Se comprueban directamente y no por HTTP porque ya no hay HTTP que las
+     * alcance. Si algun dia se le vuelve a abrir Usuarios a un director, estas
+     * son las que impiden que se ascienda solo.
      */
-    public function test_un_director_no_le_cambia_la_contrasena_al_administrador(): void
+    public function test_las_reglas_que_acotaban_al_director_siguen_en_pie(): void
     {
-        $antes = $this->admin->user->password;
+        $this->assertNotContains(
+            'administrador',
+            Permisos::rolesAsignablesPor($this->director),
+            'un director volveria a poder repartir el rol de administrador'
+        );
 
-        $this->actingAs($this->director->user)
-            ->post(route('usuario-editar', $this->admin), $this->datosDeUsuario([
-                'username' => 'admin',
-                'password' => 'lamiaahora',
-                'rol' => 'administrador',
-                'nombre_completo' => 'Admin',
-            ]))
-            ->assertForbidden();
+        $this->assertFalse(
+            Permisos::puedeEditarUsuario($this->director, $this->admin),
+            'un director volveria a poder abrir la ficha de un administrador'
+        );
 
-        $this->assertSame($antes, $this->admin->fresh()->user->password);
-    }
-
-    public function test_un_director_no_abre_la_edicion_de_un_administrador(): void
-    {
-        $this->actingAs($this->director->user)
-            ->get(route('usuario-editar', $this->admin))
-            ->assertForbidden();
-    }
-
-    /**
-     * Desactivar tambien es tocar la cuenta.
-     *
-     * No es ascenso, pero deja al administrador fuera y con el a las tres
-     * pantallas que solo el abre, que es el mismo daño por el otro lado.
-     */
-    public function test_un_director_no_desactiva_a_un_administrador(): void
-    {
-        $this->actingAs($this->director->user)
-            ->post(route('usuario-alternar-activo', $this->admin))
-            ->assertForbidden();
-
-        $this->assertTrue($this->admin->fresh()->user->activo);
-    }
-
-    /** El desplegable no ofrece lo que va a rebotar. */
-    public function test_el_formulario_no_le_ofrece_administrador_a_un_director(): void
-    {
-        $this->actingAs($this->director->user)
-            ->get(route('usuario-nuevo'))
-            ->assertOk()
-            ->assertDontSee('value="administrador"', false)
-            ->assertSee('value="profesor"', false);
-    }
-
-    /** Ni el listado pinta acciones sobre una cuenta que no puede tocar. */
-    public function test_el_listado_no_le_ofrece_editar_al_administrador(): void
-    {
-        $this->actingAs($this->director->user)
-            ->get(route('usuario-lista'))
-            ->assertOk()
-            ->assertDontSee(route('usuario-editar', $this->admin), false)
-            ->assertSee(route('usuario-editar', $this->profesor), false);
+        // Y la contraparte, que es la mitad que importa: el administrador sigue
+        // pudiendo con todo. Una restriccion que de paso le cerrara la puerta a
+        // el seria peor que el problema.
+        $this->assertContains('administrador', Permisos::rolesAsignablesPor($this->admin));
+        $this->assertTrue(Permisos::puedeEditarUsuario($this->admin, $this->profesor));
     }
 
     // -- Y el administrador sigue pudiendo con todo -------------------------
@@ -901,7 +883,7 @@ class GestionTest extends TestCase
 
     public function test_el_alta_guarda_el_correo(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), $this->datosDeUsuario([
                 'username' => 'con.correo',
                 'correo' => 'profe@ejemplo.co',
@@ -921,7 +903,7 @@ class GestionTest extends TestCase
     public function test_dos_cuentas_pueden_compartir_correo(): void
     {
         foreach (['hermano.uno', 'hermano.dos'] as $username) {
-            $this->actingAs($this->director->user)
+            $this->actingAs($this->admin->user)
                 ->post(route('usuario-nuevo'), $this->datosDeUsuario([
                     'username' => $username,
                     'correo' => 'acudiente@ejemplo.co',
@@ -935,7 +917,7 @@ class GestionTest extends TestCase
     /** Sin correo se guarda null, no cadena vacia. */
     public function test_el_alta_sin_correo_guarda_null(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), $this->datosDeUsuario(['username' => 'sin.correo']))
             ->assertRedirect(route('usuario-lista'));
 
@@ -944,7 +926,7 @@ class GestionTest extends TestCase
 
     public function test_un_correo_mal_escrito_no_crea_la_cuenta(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-nuevo'), $this->datosDeUsuario([
                 'username' => 'correo.malo',
                 'correo' => 'arroba-ninguna',
@@ -954,23 +936,13 @@ class GestionTest extends TestCase
         $this->assertNull(User::where('username', 'correo.malo')->first());
     }
 
-    /** Un director sigue repartiendo los tres roles que si le tocan. */
-    public function test_un_director_si_crea_profesores(): void
-    {
-        $this->actingAs($this->director->user)
-            ->post(route('usuario-nuevo'), $this->datosDeUsuario(['username' => 'profe.nuevo']))
-            ->assertRedirect(route('usuario-lista'));
-
-        $this->assertSame('profesor', User::where('username', 'profe.nuevo')->first()->perfil->rol);
-    }
-
     /**
      * Desactivar y no borrar: borrar el usuario se llevaria su perfil y con el
      * todo su historial de matriculas.
      */
     public function test_se_desactiva_una_cuenta(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('usuario-alternar-activo', $this->estudiante))
             ->assertSessionHas('success');
 
@@ -979,11 +951,11 @@ class GestionTest extends TestCase
 
     public function test_nadie_se_desactiva_a_si_mismo(): void
     {
-        $this->actingAs($this->director->user)
-            ->post(route('usuario-alternar-activo', $this->director))
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-alternar-activo', $this->admin))
             ->assertSessionHas('error');
 
-        $this->assertTrue($this->director->fresh()->user->activo);
+        $this->assertTrue($this->admin->fresh()->user->activo);
     }
 
     /**
@@ -994,7 +966,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['promotoria' => $this->violin->id]));
 
         $respuesta->assertOk();
@@ -1022,7 +994,7 @@ class GestionTest extends TestCase
         $guitarra = $this->otraPromotoria();
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
             ->assertSessionHas('success');
 
@@ -1042,7 +1014,7 @@ class GestionTest extends TestCase
         $guitarra = $this->otraPromotoria();
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
 
         $this->assertSame(Matricula::PENDIENTE, $m->refresh()->estado);
@@ -1059,7 +1031,7 @@ class GestionTest extends TestCase
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
         $m->repartirEn([$grupo->id]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
 
         $this->assertSame(0, $m->grupos()->count(), 'se llevo el grupo a la promotoria nueva.');
@@ -1072,7 +1044,7 @@ class GestionTest extends TestCase
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
         $fecha = $m->fresh()->fecha;
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id]);
 
         $m->refresh();
@@ -1111,7 +1083,7 @@ class GestionTest extends TestCase
         ]);
         $m->save();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
             ->assertSessionHas('error');
 
@@ -1128,7 +1100,7 @@ class GestionTest extends TestCase
         $guitarra = $this->otraPromotoria();
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
             ->assertSessionHas('success');
 
@@ -1152,7 +1124,7 @@ class GestionTest extends TestCase
         $this->matricular($this->estudiante, $piano, Matricula::ACTIVA);
         $this->matricular($this->estudiante, $canto, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $retirada), ['promotoria_id' => $guitarra->id])
             // El MOTIVO, no un error cualquiera: con solo `assertSessionHas`
             // esta prueba pasaba tambien cuando lo que fallaba era otra cosa
@@ -1236,7 +1208,7 @@ class GestionTest extends TestCase
         $this->matricular($this->estudiante, $guitarra, Matricula::RETIRADA);
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
             ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'ya tiene una matrícula'));
 
@@ -1257,7 +1229,7 @@ class GestionTest extends TestCase
 
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $guitarra->id])
             ->assertSessionHas('error', fn ($mensaje) => str_contains($mensaje, 'cupo libre'));
 
@@ -1269,7 +1241,7 @@ class GestionTest extends TestCase
     {
         $m = $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('corregir-promotoria', $m), ['promotoria_id' => $this->violin->id])
             ->assertSessionHas('error');
     }
@@ -1289,7 +1261,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::ACTIVA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('historial-estudiante', $this->estudiante))
             ->assertSee('Mover matrícula');
     }
@@ -1299,7 +1271,7 @@ class GestionTest extends TestCase
     {
         $this->matricular($this->estudiante, $this->violin, Matricula::RETIRADA);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['promotoria' => $this->violin->id]))
             ->assertDontSee('>Ana<', false);
     }
@@ -1310,7 +1282,7 @@ class GestionTest extends TestCase
 
     public function test_el_buscador_encuentra_por_nombre(): void
     {
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'Ana']));
 
         $respuesta->assertOk();
@@ -1325,7 +1297,7 @@ class GestionTest extends TestCase
      */
     public function test_el_buscador_encuentra_por_nombre_de_usuario(): void
     {
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'profe']));
 
         $respuesta->assertSee('>Profe<', false);
@@ -1345,7 +1317,7 @@ class GestionTest extends TestCase
         $conTilde = $this->crearPerfil('jgomez', 'profesor');
         $conTilde->update(['nombre_completo' => 'Jorge Gómez']);
 
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'GOMEZ']));
 
         $respuesta->assertSee('Jorge Gómez', false);
@@ -1359,7 +1331,7 @@ class GestionTest extends TestCase
      */
     public function test_el_buscador_no_trata_el_porcentaje_como_comodin(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => '%']))
             ->assertSee('Ningún usuario coincide con estos filtros.');
     }
@@ -1367,7 +1339,7 @@ class GestionTest extends TestCase
     /** Y el guion bajo, que casa con cualquier letra suelta. */
     public function test_el_buscador_no_trata_el_guion_bajo_como_comodin(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'An_']))
             ->assertSee('Ningún usuario coincide con estos filtros.');
     }
@@ -1383,7 +1355,7 @@ class GestionTest extends TestCase
      */
     public function test_un_buscador_en_blanco_no_cuenta_como_filtro(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => '   ']))
             ->assertDontSee('Limpiar');
     }
@@ -1394,7 +1366,7 @@ class GestionTest extends TestCase
         $otra = $this->crearPerfil('anadir', 'profesor');
         $otra->update(['nombre_completo' => 'Ana Profesora']);
 
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'Ana', 'rol' => 'profesor']));
 
         $respuesta->assertSee('Ana Profesora', false);
@@ -1409,7 +1381,7 @@ class GestionTest extends TestCase
     /** Lo tecleado vuelve en el campo: si no, no se sabe que se busco. */
     public function test_el_buscador_conserva_lo_tecleado(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => 'Ana']))
             ->assertSee('value="Ana"', false);
     }
@@ -1422,7 +1394,7 @@ class GestionTest extends TestCase
      */
     public function test_el_buscador_escapa_lo_tecleado_en_el_atributo(): void
     {
-        $respuesta = $this->actingAs($this->director->user)
+        $respuesta = $this->actingAs($this->admin->user)
             ->get(route('usuario-lista', ['buscar' => '"><script>x</script>']));
 
         $respuesta->assertDontSee('<script>x</script>', false);
@@ -1841,7 +1813,7 @@ class GestionTest extends TestCase
     {
         $this->montarCatalogoParaFiltrar();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista'))
             ->assertOk()
             ->assertSee('Lunes tarde · Básico')
@@ -2056,7 +2028,7 @@ class GestionTest extends TestCase
             ->assertSee('data-modal-cuerpo', false);
 
         // Y la de los catalogos, que es la que usan los otros seis sitios.
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-eliminar', $this->musica))
             ->assertOk()
             ->assertSee('data-modal-cuerpo', false);
@@ -2139,7 +2111,7 @@ class GestionTest extends TestCase
 
     public function test_el_formulario_de_catalogo_lo_puede_llevar_el_modal(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-nueva'))
             ->assertOk()
             ->assertSee('data-modal-cuerpo', false)
@@ -2150,7 +2122,7 @@ class GestionTest extends TestCase
 
     public function test_crear_y_editar_un_departamento_abren_en_modal(): void
     {
-        $html = $this->actingAs($this->director->user)
+        $html = $this->actingAs($this->admin->user)
             ->get(route('area-lista'))
             ->assertOk()
             ->getContent();
@@ -2177,7 +2149,7 @@ class GestionTest extends TestCase
     {
         $grupo = $this->grupoDeViolin();
 
-        $html = $this->actingAs($this->director->user)
+        $html = $this->actingAs($this->admin->user)
             ->get(route('grupo-lista'))
             ->assertOk()
             ->getContent();
@@ -2201,7 +2173,7 @@ class GestionTest extends TestCase
         // compartida, asi que el marcador tiene que colgar del mismo
         // interruptor. Si no, quedaria diciendo que cabe en un modal un
         // formulario que hemos decidido que no.
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-editar', $grupo))
             ->assertOk()
             ->assertDontSee('data-modal-cuerpo', false);
@@ -2216,12 +2188,12 @@ class GestionTest extends TestCase
      */
     public function test_al_editar_un_catalogo_se_vuelve_a_la_lista_con_sus_filtros(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-editar', $this->musica), ['referer' => route('gestion-programas', ['page' => 2])])
             ->assertOk()
             ->assertSee('name="volver" value="page=2"', false);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('area-editar', $this->musica), [
                 'nombre' => 'Música y sonido',
                 'volver' => 'page=2',
@@ -2255,7 +2227,7 @@ class GestionTest extends TestCase
 
     public function test_gestion_ensena_el_enlace_para_mandarselo_al_profesor(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('usuario-lista'))
             ->assertOk()
             ->assertSee(route('registro'));
@@ -2308,7 +2280,7 @@ class GestionTest extends TestCase
     {
         $c = $this->montarCatalogoParaFiltrar();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista', ['area' => $c['danza']->id]))
             ->assertOk()
             // La FILA, no el nombre suelto: «Violin» aparece igual como opcion
@@ -2321,7 +2293,7 @@ class GestionTest extends TestCase
     {
         $this->montarCatalogoParaFiltrar();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista', ['promotoria' => $this->violin->id]))
             ->assertOk()
             ->assertSee('Violin - Lunes tarde')
@@ -2332,7 +2304,7 @@ class GestionTest extends TestCase
     {
         $c = $this->montarCatalogoParaFiltrar();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista', ['profesor' => $c['otroProfesor']->id]))
             ->assertOk()
             ->assertSee('Ballet - Martes tarde')
@@ -2359,7 +2331,7 @@ class GestionTest extends TestCase
             'cupo_maximo' => 10,
         ]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista', ['profesor' => GrupoController::PROFESOR_SIN_ASIGNAR]))
             ->assertOk()
             ->assertSee('Titeres - Viernes tarde')
@@ -2376,7 +2348,7 @@ class GestionTest extends TestCase
      */
     public function test_gestion_crea_varios_grupos_del_mismo_nivel(): void
     {
-        $this->actingAs($this->director->user)->post(route('grupo-nuevo'), [
+        $this->actingAs($this->admin->user)->post(route('grupo-nuevo'), [
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Lunes tarde',
             'nivel' => 'basico',
@@ -2385,7 +2357,7 @@ class GestionTest extends TestCase
             'cupo_maximo' => 10,
         ]);
 
-        $this->actingAs($this->director->user)->post(route('grupo-nuevo'), [
+        $this->actingAs($this->admin->user)->post(route('grupo-nuevo'), [
             'promotoria_id' => $this->violin->id,
             'nombre' => 'Jueves tarde',
             'nivel' => 'basico',
@@ -2411,7 +2383,7 @@ class GestionTest extends TestCase
             'cupo_maximo' => 10,
         ]);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('grupo-nuevo'), [
                 'promotoria_id' => $this->violin->id,
                 'nombre' => 'Lunes tarde',
@@ -2448,7 +2420,7 @@ class GestionTest extends TestCase
         $c = $this->montarCatalogoParaFiltrar();
 
         // Danza + el profesor de Violin: no existe esa combinacion.
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista', [
                 'area' => $c['danza']->id,
                 'profesor' => $this->profesor->id,
@@ -2465,7 +2437,7 @@ class GestionTest extends TestCase
      */
     public function test_sin_grupos_y_sin_coincidencias_dicen_cosas_distintas(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('grupo-lista'))
             ->assertOk()
             ->assertSee('Todavía no hay nada aquí', false);
@@ -2474,7 +2446,7 @@ class GestionTest extends TestCase
     /** Los otros catalogos no pintan barra de filtros. */
     public function test_los_otros_catalogos_siguen_sin_filtros(): void
     {
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('area-lista'))
             ->assertOk()
             ->assertDontSee('class="filtros"', false);

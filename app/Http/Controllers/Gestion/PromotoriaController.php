@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Gestion;
 use App\Models\Area;
 use App\Models\Perfil;
 use App\Models\Promotoria;
+use App\Support\Permisos;
 use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -41,10 +42,32 @@ class PromotoriaController extends RecursoController
         ];
     }
 
+    /**
+     * LA MISMA PUERTA PARA EDITAR, ACTUALIZAR Y BORRAR.
+     *
+     * `buscar()` es por donde pasan los cuatro metodos del recurso, asi que
+     * acotarlo aqui los cierra todos de una vez. Sin esto el recorte del
+     * 12/09/2026 era SOLO COSMETICO: los listados no enseñaban lo ajeno y un
+     * director abria `/gestion/promotorias/12/editar` por URL y le respondia 200.
+     * Se encontro abriendo la pagina, no leyendo el codigo.
+     *
+     * 404 y no 403: que exista o no una promotoria de otro departamento tampoco
+     * es asunto suyo.
+     */
+    protected function buscar(string $id): Model
+    {
+        /** @var Perfil $perfil */
+        $perfil = request()->attributes->get('perfil');
+
+        return Promotoria::queVe($perfil)->findOrFail($id);
+    }
+
     protected function listado(Request $request): array
     {
         return [
-            'objetos' => $this->filas(Promotoria::query()),
+            // ACOTADO: un director solo ve las de los departamentos que
+            // administra. Para el administrador `queVe()` no filtra nada.
+            'objetos' => $this->filas(Promotoria::queVe($request->attributes->get('perfil'))),
             ...$this->columnas(),
         ];
     }
@@ -52,10 +75,19 @@ class PromotoriaController extends RecursoController
     /** Las promotorias de un solo departamento, llegando desde Departamentos. */
     public function porArea(Area $area): View
     {
+        // Y el departamento tambien: llegar por `/gestion/areas/3/promotorias`
+        // a uno ajeno enseñaba su nombre en el titulo aunque la lista saliera
+        // vacia. 404, como todo lo demas de aqui.
+        abort_unless(
+            Permisos::areasVisiblesPara(request()->attributes->get('perfil')) === null
+                || in_array($area->id, Permisos::areasVisiblesPara(request()->attributes->get('perfil')), true),
+            404
+        );
+
         return view('gestion.lista', [
             ...$this->textos(),
             'titulo' => "Promotorías de {$area->nombre}",
-            'objetos' => $this->filas(Promotoria::where('area_id', $area->id)),
+            'objetos' => $this->filas(Promotoria::where('area_id', $area->id)->queVe(request()->attributes->get('perfil'))),
             ...$this->columnas(),
             'preset_campo' => 'area_id',
             'preset_valor' => $area->id,

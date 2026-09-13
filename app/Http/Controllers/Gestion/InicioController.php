@@ -5,17 +5,21 @@ namespace App\Http\Controllers\Gestion;
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\Matricula;
+use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Models\Promotoria;
 use App\Support\Alertas;
 use App\Support\ResumenInstitucion;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 /** La portada de Gestion: las fichas que llevan a cada pantalla. */
 class InicioController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
         $config = ConfiguracionInstitucion::actual();
         $periodo = Periodo::enCurso();
 
@@ -30,7 +34,7 @@ class InicioController extends Controller
 
         if ($periodo !== null) {
             if ($config->alerta_clase_no_dictada) {
-                $sinDictar = Alertas::clasesNoDictadas($periodo);
+                $sinDictar = Alertas::clasesNoDictadas($periodo, $perfil);
                 $alertas += $sinDictar->count();
 
                 foreach ($sinDictar as $falta) {
@@ -49,7 +53,7 @@ class InicioController extends Controller
             }
 
             if ($config->alerta_abandono) {
-                $abandonos = Alertas::posiblesAbandonos($periodo);
+                $abandonos = Alertas::posiblesAbandonos($periodo, $perfil);
                 $alertas += $abandonos->count();
 
                 foreach ($abandonos as $caso) {

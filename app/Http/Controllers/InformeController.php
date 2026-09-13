@@ -73,11 +73,21 @@ class InformeController extends Controller
             // Sin periodo en curso no hay lista que dar: se devuelve vacio en
             // vez de barrer el historico entero.
             ->when($periodo === null, fn ($q) => $q->whereRaw('1 = 0'))
+            // EL RECORTE DE QUIEN PIDE EL INFORME, y desde el 12/09/2026
+            // alcanza tambien al DIRECTOR: solo saca la informacion de los
+            // departamentos que administra. Antes solo se acotaba al profesor y
+            // direccion bajaba la casa entera.
+            //
+            // Una sola subconsulta para los dos casos, por `queVe()`, que es
+            // donde vive la regla. Escrito como dos `when()` distintos se
+            // separarian, y aqui separarse significa que un director se baja en
+            // un CSV los datos —telefono, acudiente, documento— de estudiantes
+            // de un departamento que no es suyo.
             ->when(
-                $perfil->rol === 'profesor',
+                $perfil->rol !== 'administrador',
                 fn ($q) => $q->whereIn(
                     'promotoria_id',
-                    Promotoria::where('profesor_id', $perfil->id)->select('id')
+                    Promotoria::queVe($perfil)->select('promotorias.id')
                 )
             )
             ->when($promotoria, fn ($q) => $q->where('promotoria_id', $promotoria->id))

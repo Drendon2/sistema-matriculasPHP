@@ -730,11 +730,11 @@ class ActividadTest extends TestCase
             ->assertOk();
     }
 
-    public function test_direccion_ve_las_de_todos(): void
+    public function test_el_administrador_ve_las_de_todos(): void
     {
         $banda = $this->crearActividad(Actividad::PROYECCION, 'Banda sinfónica');
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('panel-actividad', $banda))
             ->assertOk()
             ->assertSee('Banda sinfónica');
@@ -812,7 +812,7 @@ class ActividadTest extends TestCase
         $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
         $sesion = $curso->sesiones()->create(['fecha' => '2026-09-03']);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('panel-actividad-iniciar', $sesion))
             ->assertSessionHas('error');
 
@@ -825,7 +825,7 @@ class ActividadTest extends TestCase
         $curso = $this->crearActividad(Actividad::CURSO, 'Iniciación a la guitarra');
         $curso->sesiones()->create(['fecha' => '2026-09-03']);
 
-        $html = $this->actingAs($this->director->user)
+        $html = $this->actingAs($this->admin->user)
             ->get(route('panel-actividad', $curso))
             ->assertOk()
             ->getContent();
@@ -1016,12 +1016,12 @@ class ActividadTest extends TestCase
         $sesion = $this->sesionEnMarcha(1);
         $uno = $sesion->actividad->inscritos()->first();
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->get(route('panel-actividad-lista', $sesion))
             ->assertOk()
             ->assertSee('Inscrito 1');
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('panel-actividad-lista', $sesion), ["estado_{$uno->id}" => 'asistio'])
             ->assertSessionHas('error');
 
@@ -1032,7 +1032,7 @@ class ActividadTest extends TestCase
     {
         $sesion = $this->sesionEnMarcha(1);
 
-        $html = $this->actingAs($this->director->user)
+        $html = $this->actingAs($this->admin->user)
             ->get(route('panel-actividad-lista', $sesion))
             ->assertOk()
             ->getContent();
@@ -1124,7 +1124,7 @@ class ActividadTest extends TestCase
     {
         $sesion = $this->sesionEnMarcha(1);
 
-        $this->actingAs($this->director->user)
+        $this->actingAs($this->admin->user)
             ->post(route('panel-actividad-anadir', $sesion), ['nombre_completo' => 'Pedro Nel Gómez'])
             ->assertSessionHas('error');
 
@@ -1179,5 +1179,36 @@ class ActividadTest extends TestCase
         ]);
 
         $this->assertNull(Actividad::firstWhere('nombre', 'Taller de cajón')->periodo_id);
+    }
+
+    /**
+     * EL DIRECTOR SOLO VE LAS QUE DIRIGE, desde el 12/09/2026.
+     *
+     * Hasta ese dia «direccion» —director y administrador— veia todas las
+     * actividades, y esta prueba sustituye a la que lo afirmaba. Una actividad
+     * no cuelga de un departamento: lo que tiene es una PERSONA responsable, asi
+     * que «asignarle» una a un director es ponerlo de responsable.
+     *
+     * Se afirman las DOS mitades. Sin la segunda, poner al administrador de
+     * responsable de todo dejaria esta prueba en verde sin comprobar el recorte.
+     */
+    public function test_el_director_solo_ve_las_actividades_que_dirige(): void
+    {
+        $ajena = $this->crearActividad(Actividad::PROYECCION, 'Banda ajena');
+
+        // 404 y no 403: la actividad ajena no se distingue de una que no
+        // existe, que es como responde esta pantalla a proposito.
+        $this->actingAs($this->director->user)
+            ->get(route('panel-actividad', $ajena))
+            ->assertNotFound();
+
+        $suya = $this->crearActividad(Actividad::PROYECCION, 'Banda suya');
+        $suya->responsable_id = $this->director->id;
+        $suya->save();
+
+        $this->actingAs($this->director->user)
+            ->get(route('panel-actividad', $suya))
+            ->assertOk()
+            ->assertSee('Banda suya');
     }
 }

@@ -8,7 +8,9 @@ use App\Models\Matricula;
 use App\Models\Perfil;
 use App\Models\Promotoria;
 use App\Support\HorarioDeGrupo;
+use App\Support\Permisos;
 use App\Support\Reglas;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -75,7 +77,19 @@ class GrupoController extends RecursoController
             'profesor' => $request->query('profesor') ?: null,
         ];
 
+        // EL RECORTE DEL DIRECTOR VA PRIMERO y no como un filtro mas: los de
+        // abajo los elige quien mira, este no se puede quitar. Un grupo cuelga
+        // de una promotoria y esa de un departamento, asi que se pregunta por
+        // la relacion.
+        $perfil = request()->attributes->get('perfil');
+
         $consulta = Grupo::query()
+            // La anotacion no sobra: dentro de `whereHas` el constructor llega
+            // sin tipo y el analizador no sabe que `queVe()` existe.
+            ->whereHas('promotoria', function ($q) use ($perfil) {
+                /** @var Builder<Promotoria> $q */
+                $q->queVe($perfil);
+            })
             ->when($seleccion['promotoria'], fn ($q, $id) => $q->where('grupos.promotoria_id', $id))
             ->when($seleccion['area'], fn ($q, $id) => $q->whereHas(
                 'promotoria',
@@ -117,7 +131,8 @@ class GrupoController extends RecursoController
      */
     private function filtros(array $seleccion): array
     {
-        $promotorias = Promotoria::with('area')
+        $promotorias = Promotoria::queVe(request()->attributes->get('perfil'))
+            ->with('area')
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
             ->orderBy('areas.nombre')
             ->orderBy('promotorias.nombre')
@@ -165,9 +180,31 @@ class GrupoController extends RecursoController
         ];
     }
 
+    /**
+     * La misma puerta que en promotorias, y por lo mismo: sin ella un director
+     * abria `/gestion/grupos/14/editar` de un grupo de otro departamento y le
+     * respondia 200. `buscar()` es por donde pasan editar, actualizar y borrar.
+     */
+    protected function buscar(string $id): Model
+    {
+        /** @var Perfil $perfil */
+        $perfil = request()->attributes->get('perfil');
+
+        return Grupo::whereHas('promotoria', function ($q) use ($perfil) {
+            /** @var Builder<Promotoria> $q */
+            $q->queVe($perfil);
+        })->findOrFail($id);
+    }
+
     /** Los grupos de una sola promotoria, llegando desde su departamento. */
     public function porPromotoria(Promotoria $promotoria): View
     {
+        // Una promotoria ajena no enseña ni sus grupos ni su nombre.
+        abort_unless(
+            Permisos::veLaPromotoria(request()->attributes->get('perfil'), $promotoria),
+            404
+        );
+
         $promotoria->load('area');
 
         return view('gestion.lista', [

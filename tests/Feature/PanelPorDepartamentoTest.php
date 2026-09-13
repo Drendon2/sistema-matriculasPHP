@@ -147,6 +147,10 @@ class PanelPorDepartamentoTest extends TestCase
         $this->promotoria('Ballet', 'Danza');
         $matricula = $this->pendiente($promotoria, 'ana');
 
+        // Esta prueba no pasa por `portada()`, asi que dirige aqui: los
+        // departamentos se crean arriba y un director sin ninguno no confirma.
+        $this->dirige($this->director);
+
         $html = $this->actingAs($this->director->user)
             ->withHeader(Fragmento::CABECERA, '1')
             ->post(route('panel-confirmar-matricula', $matricula))
@@ -162,6 +166,11 @@ class PanelPorDepartamentoTest extends TestCase
 
     private function portada(): string
     {
+        // Dirigir AQUI y no en `setUp`: los departamentos los crea cada prueba,
+        // asi que al arrancar no hay ninguno que asignar. Desde el 12/09/2026 un
+        // director solo ve lo suyo, y estas pruebas no van del recorte.
+        $this->dirige($this->director);
+
         return $this->actingAs($this->director->user)
             ->get(route('panel'))
             ->assertOk()

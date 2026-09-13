@@ -68,6 +68,11 @@ class PaseDeListaTest extends TestCase
         $this->director = $this->crearPerfil('dire', 'director');
 
         $this->hojas = [$this->hojaDePromotoria(), $this->hojaDeActividad()];
+        // Dirige todos los departamentos. VA AL FINAL de `setUp` a proposito:
+        // los departamentos se crean mas arriba, y llamando a esto antes no
+        // habria ninguno que asignarle. Desde el 12/09/2026 un director solo
+        // ve lo suyo, y estas pruebas no van del recorte.
+        $this->dirige($this->director);
     }
 
     /**
@@ -266,11 +271,17 @@ class PaseDeListaTest extends TestCase
      */
     public function test_el_chip_de_solo_lectura_va_coloreado_en_las_dos(): void
     {
+        // EL LECTOR ES EL ADMINISTRADOR y no el director, desde el 12/09/2026:
+        // una de las dos hojas es de una ACTIVIDAD, y un director solo ve las
+        // que dirige —una actividad no cuelga de un departamento—. Lo que esta
+        // prueba mira es el chip de solo lectura, que es igual para los dos.
+        $lector = $this->crearPerfil('jefa', 'administrador');
+
         foreach ($this->hojas as $hoja) {
             $this->actingAs($this->profesor->user)
                 ->post($hoja['url'], ['estado_'.$hoja['ids'][0] => 'asistio']);
 
-            $this->actingAs($this->director->user)
+            $this->actingAs($lector->user)
                 ->get($hoja['url'])
                 ->assertOk()
                 ->assertSee('class="estado estado-activa"', false);

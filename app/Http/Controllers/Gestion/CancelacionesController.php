@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\Matricula;
 use App\Models\OmisionArchivada;
+use App\Models\Perfil;
 use App\Models\Periodo;
 use App\Support\Alertas;
 use App\Support\Auditoria;
@@ -62,8 +63,11 @@ class CancelacionesController extends Controller
      */
     public const OMISIONES_VISIBLES = 50;
 
-    public function index(): View|RedirectResponse
+    public function index(Request $request): View|RedirectResponse
     {
+        /** @var Perfil $perfil */
+        $perfil = $request->attributes->get('perfil');
+
         $pendientes = Matricula::query()
             ->where('estado', Matricula::CANCELACION_SOLICITADA)
             ->with([
@@ -101,7 +105,7 @@ class CancelacionesController extends Controller
         // Sin periodo en curso no hay nada que cruzar: ni horario que mirar ni
         // clases que buscar. Las dos alertas se apagan solas.
         $omisiones = ($config->alerta_clase_no_dictada && $periodo)
-            ? Alertas::clasesNoDictadas($periodo)
+            ? Alertas::clasesNoDictadas($periodo, $perfil)
             : collect();
 
         return view('gestion.cancelaciones', [
@@ -114,7 +118,7 @@ class CancelacionesController extends Controller
             'clasesNoDictadas' => $omisiones->take(self::OMISIONES_VISIBLES),
             'omisionesTotales' => $omisiones->count(),
             'abandonos' => ($config->alerta_abandono && $periodo)
-                ? Alertas::posiblesAbandonos($periodo)
+                ? Alertas::posiblesAbandonos($periodo, $perfil)
                 : collect(),
             'periodo' => $periodo,
             // La tercera bandeja entra por un BOTON con su cifra, y no como una

@@ -103,6 +103,11 @@ class PaseDeListaSinRecargaTest extends TestCase
         }
 
         $this->clase = Clase::abrir($grupo, $periodo, $this->profesor);
+        // Dirige todos los departamentos. VA AL FINAL de `setUp` a proposito:
+        // los departamentos se crean mas arriba, y llamando a esto antes no
+        // habria ninguno que asignarle. Desde el 12/09/2026 un director solo
+        // ve lo suyo, y estas pruebas no van del recorte.
+        $this->dirige($this->director);
     }
 
     /**

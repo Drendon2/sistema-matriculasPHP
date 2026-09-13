@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\Permisos;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +21,36 @@ use Illuminate\Support\Collection;
  */
 class Promotoria extends Model
 {
+    /**
+     * Las promotorias que esta persona del personal puede ver.
+     *
+     * ─── UNA SOLA CASA PARA EL RECORTE ────────────────────────────────────
+     *
+     * Desde el 12/09/2026 un director solo ve las areas que dirige, y esa regla
+     * hace falta en una docena de listados: el Panel, Gestion → Promotorias,
+     * Grupos, Cupos, Programas, las alertas, las fichas incompletas y los
+     * informes. Escrita a mano en cada uno se separan sin que nada falle — y el
+     * que se olvide no enseña de mas en su pantalla, sino que deja una puerta
+     * por la que se lee lo de otra area.
+     *
+     * El profesor se acota por su VINCULO y no por area, que es como ya estaba.
+     *
+     * OJO CON EL ARRAY VACIO: un director sin areas asignadas da `[]` y este
+     * `whereIn` no devuelve nada, que es lo que tiene que pasar. La tentacion al
+     * leerlo es «si esta vacio, no filtres»; eso le devolveria la casa entera a
+     * quien no dirige ninguna area.
+     *
+     * @param  Builder<Promotoria>  $query
+     */
+    public function scopeQueVe($query, Perfil $perfil): void
+    {
+        $areas = Permisos::areasVisiblesPara($perfil);
+
+        $query
+            ->when($perfil->rol === 'profesor', fn ($q) => $q->where('profesor_id', $perfil->id))
+            ->when($areas !== null, fn ($q) => $q->whereIn('area_id', $areas ?? []));
+    }
+
     protected $table = 'promotorias';
 
     protected $fillable = [

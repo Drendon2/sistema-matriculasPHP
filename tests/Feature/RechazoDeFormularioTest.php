@@ -41,12 +41,20 @@ class RechazoDeFormularioTest extends TestCase
         'Accept' => '*/*',
     ];
 
+    /**
+     * EL ACTOR ES UN ADMINISTRADOR desde el 12/09/2026.
+     *
+     * Estas pruebas van del mecanismo de rechazo —que vuelva HTML y no JSON, que
+     * el aviso no se desvanezca— y usan `area-nueva` como formulario de muestra.
+     * Crear un departamento paso a ser cosa del administrador ese dia, asi que
+     * con un director rebotan en la puerta sin llegar a probar nada.
+     */
     private function director(): User
     {
         $user = User::create(['username' => 'dire', 'password' => 'x', 'activo' => true]);
         Perfil::create([
             'user_id' => $user->id,
-            'rol' => 'director',
+            'rol' => 'administrador',
             'nombre_completo' => 'Dire',
             'fecha_nacimiento' => '1980-01-01',
             'telefono' => '3000000000',

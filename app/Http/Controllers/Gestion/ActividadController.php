@@ -64,7 +64,15 @@ abstract class ActividadController extends RecursoController
         return [
             ...$this->textos(),
             'modal' => $this->cabeEnModal(),
+            // EL DIRECTOR SOLO LAS QUE DIRIGE, desde el 12/09/2026. Una
+            // actividad no cuelga de un departamento —lo que tiene es una
+            // PERSONA responsable— asi que «asignarsela» a un director es
+            // ponerlo de responsable. Misma regla que `Permisos::puedeVerActividad()`.
             'actividades' => Actividad::with(['responsable', 'periodo'])
+                ->when(
+                    $request->attributes->get('perfil')->rol !== 'administrador',
+                    fn ($q) => $q->where('responsable_id', $request->attributes->get('perfil')->id)
+                )
                 // El conteo por `withCount` y no recorriendo la relacion: el
                 // listado pinta una fila por actividad y `sesiones` dentro del
                 // bucle costaria una consulta por fila.
@@ -173,6 +181,18 @@ abstract class ActividadController extends RecursoController
      */
     protected function buscar(string $id): Model
     {
-        return Actividad::whereIn('tipo', $this->tipos())->findOrFail($id);
+        /** @var Perfil $perfil */
+        $perfil = request()->attributes->get('perfil');
+
+        // Y DESDE EL 12/09/2026 tambien por quien mira: un director solo toca
+        // las actividades que dirige. Va aqui porque `buscar()` es por donde
+        // pasan editar, actualizar y borrar — el listado ya estaba acotado, y
+        // sin esta linea el recorte era solo cosmetico: se llegaba por URL.
+        return Actividad::whereIn('tipo', $this->tipos())
+            ->when(
+                $perfil->rol !== 'administrador',
+                fn ($q) => $q->where('responsable_id', $perfil->id)
+            )
+            ->findOrFail($id);
     }
 }

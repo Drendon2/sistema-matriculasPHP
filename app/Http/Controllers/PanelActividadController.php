@@ -31,12 +31,21 @@ use Illuminate\View\View;
  */
 class PanelActividadController extends Controller
 {
-    /** Las que puede ver quien mira: direccion todas, el responsable las suyas. */
+    /**
+     * Las que puede ver quien mira.
+     *
+     * EL ADMINISTRADOR TODAS; cualquier otro —incluido el DIRECTOR desde el
+     * 12/09/2026— solo las que dirige. Una actividad no cuelga de un
+     * departamento: lo que tiene es una PERSONA responsable, asi que el recorte
+     * del director aqui no es por area. Es la misma regla que
+     * `Permisos::puedeVerActividad()`, y si las dos se separan esta es la que
+     * deja la puerta abierta, porque es la que alimenta las URL.
+     */
     private function visiblesPara(Perfil $perfil): Builder
     {
         return Actividad::query()
             ->when(
-                ! in_array($perfil->rol, ['director', 'administrador'], true),
+                $perfil->rol !== 'administrador',
                 fn (Builder $q) => $q->where('responsable_id', $perfil->id)
             );
     }

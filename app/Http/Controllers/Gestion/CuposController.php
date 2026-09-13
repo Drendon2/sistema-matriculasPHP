@@ -189,7 +189,10 @@ class CuposController extends Controller
     /** @return Collection<int, Promotoria> */
     private function promotorias()
     {
-        return Promotoria::with(['area', 'profesor', 'cupos'])
+        // ACOTADO al director: reparte los cupos de sus departamentos y no de
+        // los ajenos. Ver `Promotoria::queVe()`.
+        return Promotoria::queVe(request()->attributes->get('perfil'))
+            ->with(['area', 'profesor', 'cupos'])
             ->join('areas', 'areas.id', '=', 'promotorias.area_id')
             ->orderBy('areas.nombre')
             ->orderBy('promotorias.nombre')

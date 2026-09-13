@@ -6,8 +6,11 @@ use App\Models\Asistencia;
 use App\Models\ConfiguracionInstitucion;
 use App\Models\Grupo;
 use App\Models\Matricula;
+use App\Models\Perfil;
 use App\Models\Periodo;
+use App\Models\Promotoria;
 use App\Models\SesionGrupo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +81,7 @@ class Alertas
      *
      * @return Collection<int, array{grupo: Grupo, fecha: Carbon, dia: string}>
      */
-    public static function clasesNoDictadas(Periodo $periodo): Collection
+    public static function clasesNoDictadas(Periodo $periodo, ?Perfil $quienMira = null): Collection
     {
         // El horario de todos los grupos con matriculas en este periodo, de una
         // vez. Un grupo sin sesiones no tiene dia asignado y no puede faltar a
@@ -112,8 +115,22 @@ class Alertas
             ->map(fn ($f) => $f->grupo_id.'|'.Carbon::parse($f->fecha)->toDateString())
             ->flip();
 
+        // ACOTADO A QUIEN MIRA desde el 12/09/2026: un director solo ve las
+        // alertas de los departamentos que administra. El recorte va AQUI, en
+        // el mapa de grupos, y no al final sobre la lista: el bucle de abajo ya
+        // salta los grupos que no estan en el mapa, asi que la CIFRA que se
+        // enseña sale bien sola. Filtrando despues habria que acordarse de
+        // recontar, y esa es la clase de olvido que deja un contador mintiendo.
         $grupos = Grupo::with('promotoria.area', 'promotoria.profesor')
             ->whereIn('id', $sesiones->keys())
+            ->when($quienMira !== null, function ($q) use ($quienMira) {
+                // La anotacion no sobra: dentro de `whereHas` el constructor
+                // llega sin tipo y el analizador no sabe que `queVe()` existe.
+                $q->whereHas('promotoria', function ($sub) use ($quienMira) {
+                    /** @var Builder<Promotoria> $sub */
+                    $sub->queVe($quienMira);
+                });
+            })
             ->get()
             ->keyBy('id');
 
@@ -168,7 +185,7 @@ class Alertas
      *
      * @return Collection<int, array{matricula: Matricula, faltas: int, desde: Carbon}>
      */
-    public static function posiblesAbandonos(Periodo $periodo): Collection
+    public static function posiblesAbandonos(Periodo $periodo, ?Perfil $quienMira = null): Collection
     {
         $umbral = ConfiguracionInstitucion::actual()->faltas_para_abandono;
 
@@ -218,9 +235,19 @@ class Alertas
         // Solo las ACTIVAS: una retirada ya no abandona nada, y una con la
         // cancelacion pedida ya esta en la bandeja de al lado.
         /** @var Collection<int, array{matricula: Matricula, faltas: int, desde: Carbon}> $casos */
+        // ACOTADO A QUIEN MIRA, igual que la alerta de al lado: un director no
+        // ve los abandonos de un departamento que no administra. Va en la
+        // consulta y no sobre la coleccion, para que la cifra no dependa de un
+        // segundo recuento.
         $casos = Matricula::query()
             ->whereIn('id', array_keys($rachas))
             ->where('estado', Matricula::ACTIVA)
+            ->when($quienMira !== null, function ($q) use ($quienMira) {
+                $q->whereHas('promotoria', function ($sub) use ($quienMira) {
+                    /** @var Builder<Promotoria> $sub */
+                    $sub->queVe($quienMira);
+                });
+            })
             ->with(['estudiante.datosEstudiante.acudiente', 'promotoria.area', 'grupos'])
             ->get()
             ->map(fn (Matricula $m) => [

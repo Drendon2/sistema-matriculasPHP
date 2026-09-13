@@ -56,6 +56,10 @@ class InformeTest extends TestCase
 
         $this->profesor = $this->crearPerfil('profe', 'profesor');
         $this->director = $this->crearPerfil('dire', 'director');
+        // Dirige todos los departamentos. Desde el 12/09/2026 un director
+        // solo ve lo suyo, y estas pruebas no van del recorte: sin esto
+        // fallarian por no tener ninguno asignado, que es otro fallo.
+        $this->dirige($this->director);
         $this->admin = $this->crearPerfil('admin', 'administrador');
 
         $this->violin = Promotoria::create([

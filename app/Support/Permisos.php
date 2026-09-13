@@ -27,6 +27,58 @@ use App\Models\Promotoria;
 class Permisos
 {
     /**
+     * Las areas que esta persona puede ver, o `null` si puede ver TODAS.
+     *
+     * ─── LA REGLA DEL 12/09/2026, Y ESTA ES SU UNICA CASA ──────────────────
+     *
+     * Lo pidio el usuario: «el director solo deberia ver las areas a las que se
+     * le asigne desde la administracion; si es director de musica solo veria las
+     * promotorias de musica». Hasta ese dia el rol `director` era un
+     * administrador con menos pantallas — en todas partes iba dentro del mismo
+     * `in_array` que el administrador.
+     *
+     * `null` Y NO UN ARRAY CON TODAS LAS AREAS, y la diferencia importa: con un
+     * array habria que consultar la tabla de areas en cada peticion de un
+     * administrador para acabar sin filtrar nada, y una pantalla que olvidara
+     * comprobarlo filtraria por una lista que se queda vieja en cuanto se crea
+     * un area. `null` significa «no hay recorte» y se lee en el `when()` de
+     * cada consulta sin coste.
+     *
+     * SIN AREAS ASIGNADAS UN DIRECTOR NO VE NADA —array vacio, no `null`—, y es
+     * lo correcto aunque parezca duro: el recorte cierra en FALSO. Si se
+     * devolviera `null` por no tener ninguna, el primer director que se cree sin
+     * asignarle nada lo veria todo, que es exactamente lo que este cambio viene
+     * a impedir. La migracion le dio todas las areas a los que ya estaban para
+     * que el despliegue no le cambie el dia a nadie.
+     *
+     * @return list<int>|null
+     */
+    public static function areasVisiblesPara(Perfil $perfil): ?array
+    {
+        if ($perfil->rol !== 'director') {
+            // El administrador lo ve todo. El profesor y el estudiante no se
+            // acotan por AREA sino por su vinculo —la promotoria que dicta, su
+            // matricula—, y esos recortes ya estaban y siguen donde estaban.
+            return null;
+        }
+
+        return $perfil->areasDirigidas->pluck('id')->all();
+    }
+
+    /**
+     * ¿Cae esta promotoria dentro de lo que esta persona dirige?
+     *
+     * Es la pregunta que acota las LISTAS. Para decidir si ademas puede tocarla
+     * esta `puedeGestionarPromotoria()`, que la usa.
+     */
+    public static function veLaPromotoria(Perfil $perfil, Promotoria $promotoria): bool
+    {
+        $areas = self::areasVisiblesPara($perfil);
+
+        return $areas === null || in_array($promotoria->area_id, $areas, true);
+    }
+
+    /**
      * ¿Puede administrar el catalogo de esta promotoria?
      *
      * Crear grupos, fijar el cupo, confirmar o rechazar matriculas. Direccion
@@ -39,7 +91,11 @@ class Permisos
      */
     public static function puedeGestionarPromotoria(Perfil $perfil, Promotoria $promotoria): bool
     {
-        return in_array($perfil->rol, ['director', 'administrador'], true)
+        // EL DIRECTOR YA NO ENTRA POR EL ROL SOLO: desde el 12/09/2026 tiene
+        // que dirigir el area de esta promotoria. `veLaPromotoria()` devuelve
+        // true para el administrador sin consultar nada.
+        return ($perfil->rol === 'administrador')
+            || ($perfil->rol === 'director' && self::veLaPromotoria($perfil, $promotoria))
             || ($perfil->rol === 'profesor' && $promotoria->profesor_id === $perfil->id);
     }
 
@@ -105,7 +161,14 @@ class Permisos
      */
     public static function puedeVerActividad(Perfil $perfil, Actividad $actividad): bool
     {
-        return in_array($perfil->rol, ['director', 'administrador'], true)
+        // EL DIRECTOR YA NO VE TODAS. Desde el 12/09/2026 solo las que dirige,
+        // y una actividad no cuelga de un area —vive en su propia tabla y lo
+        // que tiene es una PERSONA responsable—, asi que «asignarle» una a un
+        // director es ponerlo de responsable. Decision del usuario ese dia, con
+        // la alternativa delante: darle area a la actividad seria mas coherente
+        // de cara a quien mira, pero contradice la decision escrita de que una
+        // actividad no cuelga de un departamento.
+        return $perfil->rol === 'administrador'
             || $actividad->responsable_id === $perfil->id;
     }
 

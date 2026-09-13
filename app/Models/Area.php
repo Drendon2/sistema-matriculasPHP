@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\Permisos;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -10,6 +12,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Area extends Model
 {
+    /**
+     * Los departamentos que esta persona del personal puede ver.
+     *
+     * Hermano de `Promotoria::queVe()` y por la misma razon: desde el 12/09/2026
+     * un director solo ve los departamentos que le asignan, y esa lista hace
+     * falta en Gestion → Programas, en los filtros de Grupos y en las alertas.
+     * Escrita a mano en cada sitio se separan sin que nada falle.
+     *
+     * `null` de `areasVisiblesPara()` significa «sin recorte» —el administrador—
+     * y un array VACIO significa «ninguna», que es lo que ve un director al que
+     * todavia no le han asignado nada. No se colapsan los dos casos a proposito.
+     *
+     * @param  Builder<Area>  $query
+     */
+    public function scopeQueVe($query, Perfil $perfil): void
+    {
+        $areas = Permisos::areasVisiblesPara($perfil);
+
+        $query->when($areas !== null, fn ($q) => $q->whereIn('id', $areas ?? []));
+    }
+
     protected $table = 'areas';
 
     protected $fillable = ['nombre'];

@@ -206,9 +206,13 @@ class PanelController extends Controller
             // estudiantes ni con las matriculas, que es lo que si crece en esta
             // pantalla. No se cargan los INSCRITOS de cada sesion, que es lo
             // unico que si crecería; para eso esta la ficha.
+            // EL DIRECTOR SOLO VE LAS QUE DIRIGE desde el 12/09/2026. Una
+            // actividad no cuelga de un area —lo que tiene es una PERSONA
+            // responsable— asi que aqui el recorte no es por area: es el mismo
+            // que el del profesor. Ver `Permisos::puedeVerActividad()`.
             'actividades' => Actividad::query()
                 ->when(
-                    ! in_array($perfil->rol, ['director', 'administrador'], true),
+                    $perfil->rol !== 'administrador',
                     fn ($q) => $q->where('responsable_id', $perfil->id)
                 )
                 ->withCount('inscritos')
@@ -296,15 +300,25 @@ class PanelController extends Controller
     /**
      * Las promotorias que esta persona puede ver en el Panel.
      *
-     * El profesor solo las que dicta; direccion todas. Vive aparte porque la
-     * usan el indice y la carga de un cuerpo suelto, y separadas acabarian
-     * discrepando: bastaria que una olvidara el filtro para que un profesor
-     * pudiera leer la lista de otra promotoria por URL.
+     * El profesor solo las que dicta; el DIRECTOR solo las de las areas que
+     * dirige —desde el 12/09/2026, ver `Permisos::areasVisiblesPara()`—; el
+     * administrador todas. Vive aparte porque la usan el indice y la carga de un
+     * cuerpo suelto, y separadas acabarian discrepando: bastaria que una
+     * olvidara el filtro para que alguien leyera por URL una lista que no le
+     * toca.
+     *
+     * OJO CON EL ARRAY VACIO. Un director sin areas asignadas da `[]`, y un
+     * `whereIn` con lista vacia no devuelve nada — que es exactamente lo que
+     * tiene que pasar. La tentacion al leerlo es «si esta vacio, no filtres»; eso
+     * le devolveria la casa entera a quien no dirige ninguna area.
      */
     private function visiblesPara(Perfil $perfil)
     {
+        $areas = Permisos::areasVisiblesPara($perfil);
+
         return Promotoria::query()
-            ->when($perfil->rol === 'profesor', fn ($q) => $q->where('profesor_id', $perfil->id));
+            ->when($perfil->rol === 'profesor', fn ($q) => $q->where('profesor_id', $perfil->id))
+            ->when($areas !== null, fn ($q) => $q->whereIn('area_id', $areas ?? []));
     }
 
     /**

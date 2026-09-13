@@ -388,8 +388,6 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
     Route::get('/', Gestion\InicioController::class)->name('gestion-inicio');
 
     // Ventana de matriculas y cupos
-    Route::get('/matriculas', [Gestion\MatriculasController::class, 'mostrar'])->name('gestion-matriculas');
-    Route::post('/matriculas', [Gestion\MatriculasController::class, 'guardar']);
 
     Route::get('/cupos', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos');
     Route::get('/cupos/{periodo}', [Gestion\CuposController::class, 'mostrar'])->name('gestion-cupos-periodo');
@@ -424,25 +422,11 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
 
     // Departamentos
     Route::get('/areas', [Gestion\AreaController::class, 'index'])->name('area-lista');
-    Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');
-    Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar']);
-    Route::get('/areas/{objeto}/editar', [Gestion\AreaController::class, 'editar'])->name('area-editar');
-    Route::post('/areas/{objeto}/editar', [Gestion\AreaController::class, 'actualizar']);
-    Route::get('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'confirmarBorrado'])
-        ->name('area-eliminar');
-    Route::post('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'eliminar']);
     Route::get('/areas/{area}/promotorias', [Gestion\PromotoriaController::class, 'porArea'])
         ->name('promotorias-por-area');
 
     // Periodos
     Route::get('/periodos', [Gestion\PeriodoController::class, 'index'])->name('periodo-lista');
-    Route::get('/periodos/nuevo', [Gestion\PeriodoController::class, 'crear'])->name('periodo-nuevo');
-    Route::post('/periodos/nuevo', [Gestion\PeriodoController::class, 'guardar']);
-    Route::get('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'editar'])->name('periodo-editar');
-    Route::post('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'actualizar']);
-    Route::get('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'confirmarBorrado'])
-        ->name('periodo-eliminar');
-    Route::post('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'eliminar']);
 
     // Promotorias
     Route::get('/promotorias', [Gestion\PromotoriaController::class, 'index'])->name('promotoria-lista');
@@ -504,14 +488,6 @@ Route::middleware(['auth', 'rol:administrador,director'])->prefix('gestion')->gr
         ->name('actividad-proyeccion-enlace');
 
     // Usuarios
-    Route::get('/usuarios', [Gestion\UsuarioController::class, 'index'])->name('usuario-lista');
-    Route::get('/usuarios/nuevo', [Gestion\UsuarioController::class, 'crear'])->name('usuario-nuevo');
-    Route::post('/usuarios/nuevo', [Gestion\UsuarioController::class, 'guardar']);
-    Route::get('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'editar'])
-        ->name('usuario-editar');
-    Route::post('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'actualizar']);
-    Route::post('/usuarios/{usuario}/alternar-activo', [Gestion\UsuarioController::class, 'alternarActivo'])
-        ->name('usuario-alternar-activo');
 });
 
 // GESTION ASISTIDA: el administrador trabaja desde la cuenta de un profesor o un
@@ -536,6 +512,43 @@ Route::post('/gestion/asistida/{usuario}', [Gestion\AsistidaController::class, '
 // identidad de la entidad y una regla que gobierna las matriculas de todo el
 // mundo; las segundas agregan la encuesta demografica.
 Route::middleware(['auth', 'rol:administrador'])->prefix('gestion')->group(function () {
+
+    // ── SOLO EL ADMINISTRADOR, desde el 12/09/2026 ──────────────────────
+    //
+    // Un director esta acotado a los departamentos que administra, asi que
+    // lo que es GLOBAL deja de ser suyo: crear o borrar un departamento, y
+    // abrir o cerrar la ventana de matriculas de toda la casa. Un director
+    // de Musica que puede borrar el departamento de Danzas no esta acotado
+    // a nada.
+    //
+    // Y USUARIOS entero, decidido ese dia: a las personas llega por los
+    // grupos de sus departamentos —su ficha se abre desde el Panel— y no
+    // por un listado de toda la institucion. El coste asumido es que deja
+    // de poder asignarle el rol a quien se registra.
+    Route::get('/usuarios', [Gestion\UsuarioController::class, 'index'])->name('usuario-lista');
+    Route::get('/usuarios/nuevo', [Gestion\UsuarioController::class, 'crear'])->name('usuario-nuevo');
+    Route::post('/usuarios/nuevo', [Gestion\UsuarioController::class, 'guardar']);
+    Route::get('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'editar'])
+        ->name('usuario-editar');
+    Route::post('/usuarios/{usuario}/editar', [Gestion\UsuarioController::class, 'actualizar']);
+    Route::post('/usuarios/{usuario}/alternar-activo', [Gestion\UsuarioController::class, 'alternarActivo'])
+        ->name('usuario-alternar-activo');
+    Route::get('/areas/nueva', [Gestion\AreaController::class, 'crear'])->name('area-nueva');
+    Route::post('/areas/nueva', [Gestion\AreaController::class, 'guardar']);
+    Route::get('/areas/{objeto}/editar', [Gestion\AreaController::class, 'editar'])->name('area-editar');
+    Route::post('/areas/{objeto}/editar', [Gestion\AreaController::class, 'actualizar']);
+    Route::get('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'confirmarBorrado'])
+        ->name('area-eliminar');
+    Route::post('/areas/{objeto}/eliminar', [Gestion\AreaController::class, 'eliminar']);
+    Route::get('/periodos/nuevo', [Gestion\PeriodoController::class, 'crear'])->name('periodo-nuevo');
+    Route::post('/periodos/nuevo', [Gestion\PeriodoController::class, 'guardar']);
+    Route::get('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'editar'])->name('periodo-editar');
+    Route::post('/periodos/{objeto}/editar', [Gestion\PeriodoController::class, 'actualizar']);
+    Route::get('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'confirmarBorrado'])
+        ->name('periodo-eliminar');
+    Route::post('/periodos/{objeto}/eliminar', [Gestion\PeriodoController::class, 'eliminar']);
+    Route::get('/matriculas', [Gestion\MatriculasController::class, 'mostrar'])->name('gestion-matriculas');
+    Route::post('/matriculas', [Gestion\MatriculasController::class, 'guardar']);
     Route::get('/institucion', [Gestion\ConfiguracionController::class, 'mostrar'])
         ->name('gestion-configuracion');
     Route::post('/institucion', [Gestion\ConfiguracionController::class, 'guardar']);

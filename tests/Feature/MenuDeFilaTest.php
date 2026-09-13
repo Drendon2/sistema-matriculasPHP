@@ -445,20 +445,26 @@ class MenuDeFilaTest extends TestCase
     }
 
     /**
-     * Y cuando NO queda ninguna, el menu no se pinta: un botón que se abre vacío
-     * es peor que no tenerlo.
+     * SIN OPCIONES NO SE PINTA EL MENU.
      *
-     * El caso real es un director mirando la ficha de un administrador — esa
-     * cuenta solo la toca otro administrador, así que no hay nada que ofrecer.
+     * Se comprueba sobre el PARCIAL y no por HTTP, y eso cambio el 12/09/2026.
+     * Antes el escenario salia solo: un DIRECTOR mirando la fila de un
+     * administrador no podia ni editarlo ni desactivarlo, asi que esa fila se
+     * quedaba sin acciones. Desde ese dia Gestion → Usuarios es solo del
+     * administrador, y un administrador si puede con cualquier fila —incluida la
+     * suya— asi que por ahi ya no hay forma de llegar a una fila pelada.
+     *
+     * La propiedad sigue siendo real y es la que impide un boton que abre un
+     * menu vacio, asi que se prueba donde vive.
      */
     public function test_sin_acciones_no_se_pinta_el_menu(): void
     {
-        $director = $this->crearPerfil('dire', 'director');
+        $html = view('partials.menu-fila', [
+            'opciones' => [],
+            'etiqueta' => 'Taller de cerámica',
+        ])->render();
 
-        $html = $this->actingAs($director->user)
-            ->get(route('usuario-lista', ['buscar' => 'Admin']))->assertOk()->getContent();
-
-        $this->assertStringContainsString($this->admin->nombre_completo, $html);
         $this->assertStringNotContainsString('menu-fila', $html);
+        $this->assertSame('', trim($html), 'el parcial pinta algo sin opciones que ofrecer.');
     }
 }

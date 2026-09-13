@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -98,6 +99,22 @@ class Perfil extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Las areas que este director dirige.
+     *
+     * VACIA PARA CUALQUIER OTRO ROL, y por eso no se pregunta sola: se lee
+     * siempre junto al rol, en `Permisos::areasVisiblesPara()`. Las areas de
+     * quien dejo de ser director siguen en la tabla y no dicen nada, que es lo
+     * correcto — si vuelve a serlo, recupera lo que tenia.
+     *
+     * @return BelongsToMany<Area, $this>
+     */
+    public function areasDirigidas(): BelongsToMany
+    {
+        return $this->belongsToMany(Area::class, 'areas_dirigidas', 'perfil_id', 'area_id')
+            ->orderBy('nombre');
     }
 
     public function encuesta(): HasOne

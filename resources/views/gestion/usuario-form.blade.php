@@ -164,6 +164,44 @@
   </div>
 
   {{--
+    LOS DEPARTAMENTOS QUE DIRIGE. Desde el 12/09/2026 un director no ve la casa
+    entera: ve lo de los departamentos que se le asignen, y este es el único
+    sitio donde se asignan.
+
+    Se pinta siempre y lo esconde el mismo guion que esconde los datos de
+    estudiante, por la misma razón escrita ahí: sin viaje de red el formulario
+    responde al instante y sigue funcionando entero si el script no llega.
+
+    SON CASILLAS Y NO UN `<select multiple>`: un desplegable múltiple se maneja
+    con ctrl+clic en escritorio —y un clic normal borra la selección anterior—,
+    que en esta pantalla significa quitarle departamentos a alguien sin decirlo.
+    Ya se descartó por lo mismo al repartir grupos, el 10/09.
+
+    El `hidden` vacío de delante no sobra: sin él, desmarcarlas todas no manda
+    nada y el servidor no puede distinguir «quítale todos» de «no llegó el
+    campo». Es la misma trampa del modal de grupos.
+  --}}
+  <div id="campos-director">
+    <h4>Departamentos que dirige</h4>
+    <p class="campo-ayuda">
+      Solo verá las promotorías de estos departamentos. Sin ninguno marcado no
+      verá ninguna.
+    </p>
+
+    <input type="hidden" name="areas_dirigidas[]" value="">
+
+    @foreach ($areas as $area)
+      <label class="tema-opcion">
+        <input type="checkbox" name="areas_dirigidas[]" value="{{ $area->id }}"
+               @checked(in_array($area->id, old('areas_dirigidas', $dirigidas), false))>
+        <span>{{ $area->nombre }}</span>
+      </label>
+    @endforeach
+
+    @error('areas_dirigidas.*')<div class="errorlist" style="color:var(--danger);font-size:0.82rem;">{{ $message }}</div>@enderror
+  </div>
+
+  {{--
     El guion va DENTRO del formulario y no después, y no es cosmético: el modal
     se lleva lo que esté marcado con `data-modal-cuerpo`, así que ahí fuera se
     quedaría en la página y dentro del diálogo el desplegable de rol no haría
@@ -174,10 +212,18 @@
   (function () {
     var rol = document.getElementById("rol");
     var camposEstudiante = document.getElementById("campos-estudiante");
+    var camposDirector = document.getElementById("campos-director");
     if (!rol || !camposEstudiante) { return; }
 
     function actualizar() {
       camposEstudiante.style.display = (rol.value === "estudiante") ? "" : "none";
+
+      // Los departamentos solo aplican al director. Sin este guion se ven
+      // siempre, que es feo pero no rompe nada: el servidor los ignora para
+      // cualquier otro rol.
+      if (camposDirector) {
+        camposDirector.style.display = (rol.value === "director") ? "" : "none";
+      }
     }
 
     rol.addEventListener("change", actualizar);

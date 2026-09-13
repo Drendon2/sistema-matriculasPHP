@@ -2,6 +2,8 @@
 
 namespace Tests;
 
+use App\Models\Area;
+use App\Models\Perfil;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -33,5 +35,29 @@ abstract class TestCase extends BaseTestCase
         $this->flushSession();
 
         return parent::actingAs($user, $guard);
+    }
+
+    /**
+     * Le da a un director los departamentos que dirige.
+     *
+     * Desde el 12/09/2026 un director solo ve lo de sus departamentos, asi que
+     * uno recien creado no ve NADA. Casi todas las pruebas que usan un director
+     * no van de eso —van del Panel, del informe, del pase de lista— y para ellas
+     * lo realista es un director con su casa asignada.
+     *
+     * Sin argumentos le da TODAS, que es lo que hace la migracion con los que ya
+     * estaban. Con argumentos, solo esas: es lo que usan las pruebas del recorte.
+     */
+    protected function dirige(Perfil $director, Area ...$areas): Perfil
+    {
+        $director->areasDirigidas()->sync(
+            $areas === []
+                ? Area::pluck('id')->all()
+                : collect($areas)->pluck('id')->all()
+        );
+
+        // La relacion se cachea en la instancia: sin esto, una prueba que
+        // pregunte por `areasDirigidas` justo despues sigue viendo lo de antes.
+        return $director->load('areasDirigidas');
     }
 }

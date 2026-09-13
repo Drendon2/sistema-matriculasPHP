@@ -39,7 +39,10 @@ class AreaController extends RecursoController
     protected function listado(Request $request): array
     {
         return [
-            'objetos' => Area::withCount('promotorias')->orderBy('nombre')->get()
+            // ACOTADO AL DIRECTOR desde el 12/09/2026: solo los departamentos
+            // que le asignan. Para el administrador `queVe()` no filtra nada.
+            'objetos' => Area::queVe($request->attributes->get('perfil'))
+                ->withCount('promotorias')->orderBy('nombre')->get()
                 ->map(fn (Area $area) => [
                     'objeto' => $area,
                     'hijos' => $area->promotorias_count,

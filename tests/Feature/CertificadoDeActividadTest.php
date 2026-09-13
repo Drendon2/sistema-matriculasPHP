@@ -194,13 +194,43 @@ class CertificadoDeActividadTest extends TestCase
     // Quien lo saca
     // ------------------------------------------------------------------
 
-    public function test_lo_saca_el_responsable_el_director_y_el_administrador(): void
+    /**
+     * Lo saca el RESPONSABLE y el ADMINISTRADOR.
+     *
+     * Esto sustituye a la version que metia tambien al director, y el cambio es
+     * del 12/09/2026: desde ese dia un director solo ve las actividades que
+     * dirige, asi que un director cualquiera ya no saca este papel. Si dirige la
+     * actividad lo saca — pero entonces lo saca como RESPONSABLE, que es la otra
+     * mitad de esta misma prueba.
+     */
+    public function test_lo_saca_el_responsable_y_el_administrador(): void
     {
         [$curso, $inscrito] = $this->cursoCon(asistidas: 10, faltadas: 0);
 
-        foreach ([$this->profesor, $this->director, $this->admin] as $quien) {
+        foreach ([$this->profesor, $this->admin] as $quien) {
             $this->assertEsPdf($this->bajar($curso, $inscrito, $quien));
         }
+    }
+
+    /**
+     * Y un director que NO la dirige no lo saca, aunque sea director.
+     *
+     * 404 y no 403, como el resto de esta pantalla: que exista o no esta
+     * actividad no es asunto de quien pregunta.
+     */
+    public function test_un_director_ajeno_a_la_actividad_no_lo_saca(): void
+    {
+        [$curso, $inscrito] = $this->cursoCon(asistidas: 10, faltadas: 0);
+
+        $this->bajar($curso, $inscrito, $this->director)->assertNotFound();
+
+        // Y si se le asigna, si: «asignarle» una actividad a un director es
+        // ponerlo de responsable, porque una actividad no cuelga de un
+        // departamento.
+        $curso->responsable_id = $this->director->id;
+        $curso->save();
+
+        $this->assertEsPdf($this->bajar($curso, $inscrito, $this->director));
     }
 
     /**

@@ -69,6 +69,11 @@ class VariosGruposEnLosListadosTest extends TestCase
 
         $this->lunes = $this->grupo('Lunes tarde', 'basico');
         $this->miercoles = $this->grupo('Miercoles tarde', 'intermedio');
+        // Dirige todos los departamentos. VA AL FINAL de `setUp` a proposito:
+        // los departamentos se crean mas arriba, y llamando a esto antes no
+        // habria ninguno que asignarle. Desde el 12/09/2026 un director solo
+        // ve lo suyo, y estas pruebas no van del recorte.
+        $this->dirige($this->director);
     }
 
     /**
@@ -119,7 +124,10 @@ class VariosGruposEnLosListadosTest extends TestCase
 
         $this->matricula('beto')->grupos()->attach($this->lunes->id);
 
-        $html = $this->actingAs($this->director->user)
+        // Gestion → Usuarios es del ADMINISTRADOR desde el 12/09/2026. Lo que
+        // esta prueba mira —que el filtro por grupo encuentre el segundo
+        // horario— no va del rol, asi que se mueve a quien si entra.
+        $html = $this->actingAs($this->perfil('jefa', 'administrador')->user)
             ->get(route('usuario-lista', ['grupo' => $this->miercoles->id]))
             ->assertOk()
             ->getContent();

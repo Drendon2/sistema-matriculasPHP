@@ -148,6 +148,17 @@
 @endif
 
 <div class="tarjetas">
+  {{--
+    SOLO EL ADMINISTRADOR desde el 12/09/2026. Un director esta acotado a los
+    departamentos que administra, asi que abrir y cerrar la ventana de
+    matriculas de toda la casa deja de ser suyo — y a las personas llega por los
+    grupos de sus departamentos, no por un listado de la institucion entera.
+
+    La ficha se esconde Y la ruta esta cerrada (`rol:administrador` en
+    `web.php`): esconder el enlace no cierra la puerta, que es regla de esta
+    casa.
+  --}}
+  @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('gestion-matriculas') }}">
     Matrículas
     <span class="tarjeta-nota">
@@ -162,6 +173,8 @@
     Matrículas aunque hable de matrículas — una bandeja con trabajo pendiente
     tiene que verse desde fuera.
   --}}
+  @endif
+
   <a class="tarjeta-enlace" href="{{ route('gestion-cancelaciones') }}">
     {{--
       La cifra va DESPUES del nombre y no antes. Suelta encima, la ficha se leia
@@ -196,12 +209,14 @@
     </span>
   </a>
 
+  @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('usuario-lista') }}">
     Usuarios
     <span class="tarjeta-nota">
       Altas, roles, cuentas activas y el enlace para registrar a un profesor.
     </span>
   </a>
+  @endif
 
   @if ($yo->rol === 'administrador')
   <a class="tarjeta-enlace" href="{{ route('gestion-estadisticas') }}">
