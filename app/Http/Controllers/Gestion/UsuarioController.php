@@ -637,6 +637,35 @@ class UsuarioController extends Controller
     {
         $esEstudiante = $request->input('rol') === 'estudiante';
 
+        /*
+         * EL MARCADOR VACIO DE LAS CASILLAS NO ES UN DEPARTAMENTO.
+         *
+         * La pantalla manda un `areas_dirigidas[]` vacio DELANTE de las
+         * casillas para que desmarcarlas todas siga mandando el campo. Ese
+         * vacio lo convierte en null `ConvertEmptyStringsToNull`, y la regla
+         * `integer` de abajo lo rechazaba con «areas dirigidas.0 debe ser un
+         * numero entero»: o sea que por el formulario NO se le podia cambiar
+         * ningun departamento a un director. Lo reporto el usuario desde
+         * produccion el 12/09/2026 intentando dejarle solo dos.
+         *
+         * Se limpia AQUI y no quitando el marcador de la vista, que es lo que
+         * parece mas simple y pierde dos cosas: el servidor dejaria de
+         * distinguir «quitale todos» de «no llego el campo», y `old()` volveria
+         * a marcar las casillas que la persona acaba de desmarcar cuando el
+         * formulario se rechaza por otro campo.
+         *
+         * `is_array` para no convertir en lista lo que llegue suelto: de eso se
+         * sigue quejando la regla `array`.
+         */
+        $dirigidas = $request->input('areas_dirigidas');
+
+        if (is_array($dirigidas)) {
+            $request->merge(['areas_dirigidas' => array_values(array_filter(
+                $dirigidas,
+                static fn ($id) => $id !== null && $id !== '',
+            ))]);
+        }
+
         return $request->validate([
             // LAS AREAS QUE DIRIGE. Solo se piden cuando el rol es `director`;
             // para cualquier otro no viajan y no se guardan. `exists` no sobra:
@@ -687,6 +716,11 @@ class UsuarioController extends Controller
         ], Reglas::mensajes() + [
             'username.unique' => 'Ya existe una cuenta con ese nombre de usuario.',
             'documento_identidad.unique' => 'Ya hay un estudiante registrado con ese documento.',
+            // Que no vuelva a decir «areas_dirigidas.0 debe ser un numero
+            // entero», que es lo que leyo el usuario el 12/09/2026. Con el
+            // marcador ya limpiado, lo unico que puede llegar aqui es un id
+            // manipulado a mano.
+            'areas_dirigidas.*' => 'Ese departamento no existe.',
         ]);
     }
 

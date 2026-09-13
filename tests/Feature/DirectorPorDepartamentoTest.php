@@ -553,6 +553,61 @@ class DirectorPorDepartamentoTest extends TestCase
     }
 
     /**
+     * Y ASI ES COMO LO MANDA EL NAVEGADOR: con el marcador vacio delante.
+     *
+     * Las dos pruebas de arriba mandan la lista pelada y por eso se quedaron
+     * VERDES con la pantalla rota. La vista pone un `areas_dirigidas[]` vacio
+     * delante de las casillas —lo que distingue «quitale todos» de «no llego el
+     * campo»— y la regla `integer` lo rechazaba: «areas dirigidas.0 debe ser un
+     * numero entero». En produccion eso era no poder quitarle a un director
+     * ningun departamento.
+     */
+    public function test_el_marcador_vacio_del_formulario_no_lo_rechaza(): void
+    {
+        $this->dirige($this->director, $this->musica, $this->danza);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $this->director), [
+                'username' => 'dire',
+                'password' => '',
+                'rol' => 'director',
+                'nombre_completo' => 'Dire Ruiz',
+                'fecha_nacimiento' => '1985-01-01',
+                'telefono' => '3001112233',
+                'areas_dirigidas' => ['', (string) $this->musica->id],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame(['Música'], $this->director->fresh()->areasDirigidas->pluck('nombre')->all());
+    }
+
+    /**
+     * Y desmarcarlas TODAS se las quita todas, que es para lo que existe el
+     * marcador: sin el no llegaria el campo y esto no se podria distinguir de
+     * un formulario que no trae la seccion.
+     */
+    public function test_desmarcarlas_todas_lo_deja_sin_ninguna(): void
+    {
+        $this->dirige($this->director, $this->musica, $this->danza);
+
+        $this->actingAs($this->admin->user)
+            ->post(route('usuario-editar', $this->director), [
+                'username' => 'dire',
+                'password' => '',
+                'rol' => 'director',
+                'nombre_completo' => 'Dire Ruiz',
+                'fecha_nacimiento' => '1985-01-01',
+                'telefono' => '3001112233',
+                'areas_dirigidas' => [''],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertSame([], $this->director->fresh()->areasDirigidas->pluck('nombre')->all());
+    }
+
+    /**
      * LA TERCERA BANDEJA DE ALERTAS TAMBIEN SE ACOTA.
      *
      * «Fichas por completar» se quedo fuera del recorte del 12/09/2026 —las
