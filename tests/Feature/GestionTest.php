@@ -25,6 +25,7 @@ use App\Support\Permisos;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -2530,6 +2531,48 @@ class GestionTest extends TestCase
             ->assertSee('Profesores con más clases', false)
             ->assertSee('Profe')
             ->assertSee('(50%)', false);
+    }
+
+    /**
+     * Con un empate en el corte, entra quien va antes por NOMBRE.
+     *
+     * El ranking ensena diez y aqui hay once con una clase cada uno. Sin
+     * desempate lo resolvia el orden en que llegaban las clases, que no es
+     * nada que se pueda explicar a quien se queda fuera. Decision del usuario
+     * (01/10/2026, en la version multi-institucion): entre empatados, por
+     * nombre.
+     *
+     * Se crean en orden alfabetico INVERSO a proposito: si se crearan en orden,
+     * el orden de llegada y el del nombre coincidirian y la prueba pasaria sin
+     * el desempate.
+     */
+    public function test_el_ranking_de_profesores_desempata_por_nombre(): void
+    {
+        $nombres = ['Zoila', 'Yuri', 'Ximena', 'Wilson', 'Valeria', 'Ursula',
+            'Tomas', 'Sara', 'Rocio', 'Pablo', 'Anabel'];
+
+        foreach ($nombres as $i => $nombre) {
+            $profe = $this->crearPerfil(Str::lower($nombre), 'profesor');
+            $profe->update(['nombre_completo' => "{$nombre} Rankin"]);
+            $promotoria = Promotoria::create([
+                'nombre' => "Taller {$i}",
+                'area_id' => $this->violin->area_id,
+                'profesor_id' => $profe->id,
+            ]);
+            $this->dictar(Grupo::create([
+                'promotoria_id' => $promotoria->id,
+                'nombre' => 'Unico',
+                'nivel' => 'basico',
+                'salon' => 'Salon 1',
+                'cupo_maximo' => 20,
+            ]), 1);
+        }
+
+        $this->actingAs($this->admin->user)
+            ->get(route('gestion-estadisticas'))
+            ->assertOk()
+            ->assertSee('Anabel Rankin')
+            ->assertDontSee('Zoila Rankin');
     }
 
     /**

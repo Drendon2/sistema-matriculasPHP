@@ -114,6 +114,16 @@ class InformeController extends Controller
             ->orderBy('areas.nombre')
             ->orderBy('promotorias.nombre')
             ->orderBy('perfiles.nombre_completo')
+            // Desempate por id, como sus gemelos de Cancelaciones y Usuarios.
+            // `lazy()` pagina con LIMIT/OFFSET, y dos personas con el MISMO
+            // nombre en la misma promotoria quedan en un orden que el motor no
+            // esta obligado a repetir de una tanda a la siguiente: si el empate
+            // cae en el borde, una sale dos veces y la otra ninguna. Se vio el
+            // 01/10/2026 en la version multi-institucion (PostgreSQL). MariaDB
+            // acierta con estos datos —medido el 02/10/2026 contra la base de
+            // desarrollo, 37 empates, tandas de 2 a 250— pero no lo garantiza,
+            // y por eso no hay prueba: no se la puede ver fallar aqui.
+            ->orderBy('matriculas.id')
             ->select('matriculas.*');
 
         return Csv::descargar($this->nombreDelArchivo($promotoria, $grupo), [
@@ -489,7 +499,10 @@ class InformeController extends Controller
                 'datosEstudiante.documentos',
             ])
             ->orderBy('rol')
-            ->orderBy('nombre_completo');
+            ->orderBy('nombre_completo')
+            // Desempate por id, por lo mismo que el informe de estudiantes:
+            // dos personas con el mismo nombre en el borde de una tanda.
+            ->orderBy('id');
 
         // `lazy` y no `lazyById`, por lo mismo que arriba: va ordenado por rol y
         // nombre, y paginar por id con otro orden repite filas.
