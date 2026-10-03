@@ -96,6 +96,7 @@ class ConfiguracionInstitucion extends Model
         'alerta_clase_no_dictada',
         'alerta_abandono',
         'faltas_para_abandono',
+        'dias_para_reponer',
         'alertas_desde',
         'recordar_encuesta',
         'correo_obligatorio',
@@ -168,6 +169,10 @@ class ConfiguracionInstitucion extends Model
         'alerta_clase_no_dictada' => true,
         'alerta_abandono' => true,
         'faltas_para_abandono' => 5,
+        // El plazo para reponer una falta (03/10/2026). Va aqui por lo mismo
+        // que sus vecinas; su NULO —«sin plazo»— lo pone quien lo vacia en
+        // Configuracion, no una instalacion recien migrada.
+        'dias_para_reponer' => 15,
         // Y esta por lo mismo. Sin ella, una instalacion recien migrada
         // devolvia null y el recordatorio nacia apagado sin que nadie lo
         // hubiera apagado.
@@ -192,6 +197,7 @@ class ConfiguracionInstitucion extends Model
             'alerta_clase_no_dictada' => 'boolean',
             'alerta_abandono' => 'boolean',
             'faltas_para_abandono' => 'integer',
+            'dias_para_reponer' => 'integer',
             'alertas_desde' => 'date',
             'recordar_encuesta' => 'boolean',
             'correo_obligatorio' => 'boolean',
