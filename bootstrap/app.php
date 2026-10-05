@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\CabecerasDeSeguridad;
 use App\Http\Middleware\CuentaActiva;
+use App\Http\Middleware\DatosDelPersonal;
 use App\Http\Middleware\RequiereRol;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             AuthenticateSession::class,
             CuentaActiva::class,
+            // Despues de CuentaActiva: a quien se echa no se le piden datos.
+            DatosDelPersonal::class,
         ]);
 
         // Las cabeceras de seguridad de cada respuesta (revision del

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\ConfiguracionInstitucion;
+use Illuminate\Validation\Rule;
 
 /**
  * Las reglas de formato de todo lo que teclea una persona.
@@ -170,6 +171,24 @@ class Reglas
     public static function documento(bool $obligatorio = true): array
     {
         return [$obligatorio ? 'required' : 'nullable', 'string', 'regex:'.self::DOCUMENTO];
+    }
+
+    /**
+     * El documento del PERSONAL, que vive en `perfiles` y no en la ficha del
+     * estudiante. Unico entre el personal; el de un estudiante no choca con
+     * este, porque son dos tablas y una persona puede tener las dos cuentas.
+     *
+     * Cuatro formularios lo piden —registro, la pantalla que lo exige al
+     * entrar, Mi perfil y Gestion → Usuarios— y por eso vive aqui.
+     *
+     * @return list<mixed>
+     */
+    public static function documentoDelPersonal(?int $perfilQueSeIgnora = null, bool $obligatorio = true): array
+    {
+        return [
+            ...self::documento($obligatorio),
+            Rule::unique('perfiles', 'documento_identidad')->ignore($perfilQueSeIgnora),
+        ];
     }
 
     /**

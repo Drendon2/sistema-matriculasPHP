@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Http\Middleware\DatosDelPersonal;
 use App\Models\Area;
 use App\Models\Perfil;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -9,6 +10,26 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * La barrera que pide documento y correo al profesor y al director
+     * (`DatosDelPersonal`) va APAGADA en la suite, salvo donde se pone a true.
+     *
+     * Casi ninguna prueba va de eso, y cada una crea sus cuentas con su propio
+     * ayudante, sin correo ni documento: con la barrera puesta, cada peticion
+     * de un profesor acabaria en /completar-datos. Las pruebas de la barrera
+     * (`DatosDelPersonalTest`) la encienden con esta propiedad.
+     */
+    protected bool $conBarreraDeDatosDelPersonal = false;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (! $this->conBarreraDeDatosDelPersonal) {
+            $this->withoutMiddleware(DatosDelPersonal::class);
+        }
+    }
+
     /**
      * Cada `actingAs` empieza con la sesion vacia: otra persona es otro
      * navegador.
