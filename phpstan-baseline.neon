@@ -409,12 +409,6 @@ parameters:
 			path: app/Models/Promotoria.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Promotoria.php
-
-		-
 			message: '#^Parameter \#1 \$array \(list\<array\<string, mixed\>\>\) of array_values is already a list, call has no effect\.$#'
 			identifier: arrayValues.list
 			count: 1
