@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gestion;
 
 use App\Models\Actividad;
 use App\Models\SesionActividad;
+use App\Support\Reglas;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,7 +67,18 @@ class CursoTallerController extends ActividadController
 
     protected function campos(Request $request, ?Model $objeto): array
     {
-        $campos = parent::campos($request, $objeto);
+        $campos = parent::campos($request, $objeto) + [
+            // La consulta el agente de voz (10/10/2026). Solo cursos y
+            // talleres: la proyeccion y los programas externos no se ofrecen
+            // por telefono.
+            'edad_minima' => [
+                'etiqueta' => 'Edad mínima',
+                'tipo' => 'number',
+                'min' => 0,
+                'opcional' => true,
+                'ayuda' => 'En años. Déjala en blanco si no hay edad mínima.',
+            ],
+        ];
 
         // Solo al CREAR. Al editar, el numero de clases se cambia poniendo o
         // quitando fechas, que es donde se ve lo que se esta cambiando: un
@@ -91,7 +103,7 @@ class CursoTallerController extends ActividadController
 
     protected function reglas(Request $request, ?Model $objeto): array
     {
-        $reglas = parent::reglas($request, $objeto);
+        $reglas = parent::reglas($request, $objeto) + ['edad_minima' => Reglas::edadMinima()];
 
         if ($objeto !== null) {
             return $reglas;

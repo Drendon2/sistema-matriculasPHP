@@ -1,18 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$dia\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Simular.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$hora_inicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/Simular.php
-
-		-
 			message: '#^Cannot call method copy\(\) on string\.$#'
 			identifier: method.nonObject
 			count: 2
@@ -325,18 +313,6 @@ parameters:
 			path: app/Models/ConfiguracionInstitucion.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$es_menor\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/DatosEstudiante.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_completo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/DatosEstudiante.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between non\-empty\-string and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
@@ -349,40 +325,10 @@ parameters:
 			path: app/Models/EncuestaDemografica.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fin_display\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Grupo.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$inicio_display\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Grupo.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: string, Closure\(App\\Models\\SesionGrupo\)\: string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Models/Grupo.php
-
-		-
-			message: '#^Parameter \#1 \$groupBy of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:groupBy\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: non\-falsy\-string\)\|list\<Closure\|string\>\|string, Closure\(App\\Models\\SesionGrupo\)\: non\-falsy\-string given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Models/Grupo.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between non\-empty\-string and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
 			path: app/Models/Grupo.php
-
-		-
-			message: '#^Method App\\Models\\InscritoActividad\:\:perfilConDocumento\(\) should return App\\Models\\Perfil\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/InscritoActividad.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$esta_completa\.$#'
@@ -423,12 +369,6 @@ parameters:
 		-
 			message: '#^Parameter \#1 \$array of function array_values contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
-			count: 1
-			path: app/Support/HorarioSemanal.php
-
-		-
-			message: '#^Parameter \#1 \$ocupaciones of static method App\\Support\\HorarioSemanal\:\:enFranjas\(\) expects list\<array\{sesion\: App\\Models\\SesionGrupo, grupo\: App\\Models\\Grupo\}\>, non\-empty\-list\<array\{sesion\: Illuminate\\Database\\Eloquent\\Model, grupo\: App\\Models\\Grupo\}\> given\.$#'
-			identifier: argument.type
 			count: 1
 			path: app/Support/HorarioSemanal.php
 

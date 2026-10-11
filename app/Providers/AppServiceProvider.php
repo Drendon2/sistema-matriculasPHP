@@ -244,6 +244,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('clave-nueva', function (Request $request) {
             return Limit::perMinute(10)->by((string) $request->route('token'));
         });
+
+        /**
+         * La API del agente de voz. Tiene UN cliente —el servidor del agente—,
+         * asi que el contador es uno solo y no por IP: lo que frena es un
+         * agente que se quede en bucle llamando herramientas, no a una
+         * persona. El tope por documento de la verificacion va aparte, en
+         * `PersonaAgenteController`.
+         */
+        RateLimiter::for('agente', function () {
+            return Limit::perMinute(120)->by('agente');
+        });
     }
 
     /**

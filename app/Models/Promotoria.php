@@ -58,6 +58,9 @@ class Promotoria extends Model
         'nombre',
         'area_id',
         'profesor_id',
+        'edad_minima',
+        'descripcion',
+        'palabras_clave',
     ];
 
     // El enlace de inscripcion NO va en `$fillable` a proposito: el formulario
@@ -69,7 +72,7 @@ class Promotoria extends Model
 
     protected function casts(): array
     {
-        return ['enlace_abierto' => 'boolean'];
+        return ['enlace_abierto' => 'boolean', 'edad_minima' => 'integer'];
     }
 
     /**
@@ -241,6 +244,21 @@ class Promotoria extends Model
      * promotorias con el mismo nombre. Donde el departamento sirve va aparte,
      * en su columna o como nota, no pegado al nombre.
      */
+    /**
+     * Las palabras clave como lista: se escriben separadas por comas en un
+     * solo campo, porque asi se teclean en un telefono.
+     *
+     * @return list<string>
+     */
+    public function getPalabrasClaveListaAttribute(): array
+    {
+        return collect(explode(',', (string) $this->palabras_clave))
+            ->map(fn (string $p) => trim($p))
+            ->filter(fn (string $p) => $p !== '')
+            ->values()
+            ->all();
+    }
+
     public function __toString(): string
     {
         return (string) $this->nombre;

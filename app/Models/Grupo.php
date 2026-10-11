@@ -92,6 +92,8 @@ class Grupo extends Model
      *
      * Ordenadas aqui y no en cada consulta: un horario que salga «jueves,
      * lunes» no esta mal por poco, esta mal.
+     *
+     * @return HasMany<SesionGrupo, $this>
      */
     public function sesiones(): HasMany
     {

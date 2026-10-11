@@ -111,12 +111,14 @@ class Actividad extends Model
         'periodo_id',
         'cupo_maximo',
         'institucion_id',
+        'edad_minima',
     ];
 
     protected function casts(): array
     {
         return [
             'cupo_maximo' => 'integer',
+            'edad_minima' => 'integer',
             'abierta' => 'boolean',
         ];
     }

@@ -163,6 +163,29 @@ class PromotoriaController extends RecursoController
                     ->all(),
                 'vacio' => '-- sin asignar --',
             ],
+            // Las tres que consulta el agente de voz (10/10/2026). Opcionales:
+            // las promotorias de antes nacieron sin ellas.
+            'edad_minima' => [
+                'etiqueta' => 'Edad mínima',
+                'tipo' => 'number',
+                'min' => 0,
+                'opcional' => true,
+                'ayuda' => 'En años. Déjala en blanco si no hay edad mínima.',
+            ],
+            'descripcion' => [
+                'etiqueta' => 'Descripción corta',
+                'tipo' => 'text',
+                'max' => 300,
+                'opcional' => true,
+                'ayuda' => 'Una frase sobre qué se aprende, como se la dirías a alguien que pregunta.',
+            ],
+            'palabras_clave' => [
+                'etiqueta' => 'Cómo la pide la gente',
+                'tipo' => 'text',
+                'max' => 300,
+                'opcional' => true,
+                'ayuda' => 'Palabras separadas por comas. Por ejemplo: tambores, batería, ritmo.',
+            ],
         ];
     }
 
@@ -175,6 +198,9 @@ class PromotoriaController extends RecursoController
                 'nullable',
                 Rule::exists('perfiles', 'id')->whereIn('rol', Perfil::ROLES_PERSONAL),
             ],
+            'edad_minima' => Reglas::edadMinima(),
+            'descripcion' => Reglas::texto(300, obligatorio: false),
+            'palabras_clave' => Reglas::texto(300, obligatorio: false),
         ];
     }
 

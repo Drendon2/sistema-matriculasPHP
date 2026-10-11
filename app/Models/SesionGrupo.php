@@ -162,6 +162,22 @@ class SesionGrupo extends Model
             && $otra->hora_inicio < $this->hora_fin;
     }
 
+    /**
+     * El tramo como lo lee el agente de voz: dia con nombre y horas sin
+     * segundos. Lo usan el catalogo y las matriculas de la persona, y vive aqui
+     * para que las dos respuestas no digan el mismo horario de dos maneras.
+     *
+     * @return array{dia: string, inicio: string, fin: string}
+     */
+    public function paraLaApi(): array
+    {
+        return [
+            'dia' => self::DIAS[$this->dia] ?? (string) $this->dia,
+            'inicio' => substr((string) $this->hora_inicio, 0, 5),
+            'fin' => substr((string) $this->hora_fin, 0, 5),
+        ];
+    }
+
     public function __toString(): string
     {
         return $this->rango;

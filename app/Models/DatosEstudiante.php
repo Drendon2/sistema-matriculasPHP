@@ -26,6 +26,7 @@ class DatosEstudiante extends Model
         'acudiente_id',
     ];
 
+    /** @return BelongsTo<Perfil, $this> */
     public function perfil(): BelongsTo
     {
         return $this->belongsTo(Perfil::class);

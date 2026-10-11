@@ -270,6 +270,17 @@ class Reglas
     }
 
     /**
+     * La edad minima de una promotoria, un curso o un taller (10/10/2026).
+     *
+     * Opcional: vacia es «no se ha dicho» y no deja fuera a nadie. Las de antes
+     * de esa fecha nacieron vacias y se rellenan al editarlas.
+     */
+    public static function edadMinima(): array
+    {
+        return ['nullable', 'integer', 'min:0', 'max:99'];
+    }
+
+    /**
      * Los mensajes de rechazo, que son la mitad del trabajo.
      *
      * El mensaje que trae Laravel para `regex` es «El formato de teléfono no es
